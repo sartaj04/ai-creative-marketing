@@ -1,0 +1,36 @@
+<!-- E-commerce Product Ad Template - Product Left, Text Right -->
+<div class="ad-container" style="background-color: {{ background_color | default('#FFFFFF') }};">
+    <div class="product-section">
+        {% if product_image %}
+        <img src="{{ product_image }}" alt="Product" class="product-image">
+        {% else %}
+        <div class="product-placeholder"></div>
+        {% endif %}
+    </div>
+    
+    <div class="content-section">
+        {% if logo %}
+        <img src="{{ logo }}" alt="Logo" class="logo">
+        {% endif %}
+        
+        <h1 class="headline" style="color: {{ brand_color | default('#000000') }};">
+            {{ headline | default('Your Amazing Product') }}
+        </h1>
+        
+        {% if subheadline %}
+        <p class="subheadline">{{ subheadline }}</p>
+        {% endif %}
+        
+        {% if body %}
+        <p class="body-text">{{ body }}</p>
+        {% endif %}
+        
+        {% if price %}
+        <div class="price" style="color: {{ brand_color | default('#000000') }};">{{ price }}</div>
+        {% endif %}
+        
+        <button class="cta-button" style="background-color: {{ brand_color | default('#FF5722') }};">
+            {{ cta | default('Shop Now') }}
+        </button>
+    </div>
+</div>

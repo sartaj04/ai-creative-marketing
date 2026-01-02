@@ -1,0 +1,32 @@
+<!-- Personal Brand Quote Card Template -->
+<div class="quote-container" style="background-color: {{ background_color | default('#1A1A2E') }};">
+    <div class="content">
+        {% if product_image %}
+        <div class="avatar-section">
+            <img src="{{ product_image }}" alt="Profile" class="avatar">
+        </div>
+        {% endif %}
+
+        <div class="quote-section">
+            <div class="quote-mark" style="color: {{ brand_color | default('#E94560') }};">"</div>
+
+            <p class="quote-text">{{ headline | default('Great things never come from comfort zones.') }}</p>
+
+            {% if subheadline %}
+            <p class="author">— {{ subheadline }}</p>
+            {% endif %}
+        </div>
+
+        {% if body %}
+        <p class="context">{{ body }}</p>
+        {% endif %}
+
+        {% if cta %}
+        <div class="hashtags" style="color: {{ brand_color | default('#E94560') }};">
+            {{ cta }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="accent-bar" style="background-color: {{ brand_color | default('#E94560') }};"></div>
+</div>

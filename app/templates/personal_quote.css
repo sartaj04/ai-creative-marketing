@@ -1,0 +1,122 @@
+/* Personal Brand Quote Card Template */
+.quote-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    font-family: 'Poppins', 'Inter', system-ui, sans-serif;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 800px;
+    z-index: 1;
+}
+
+.avatar-section {
+    margin-bottom: 32px;
+}
+
+.avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+}
+
+.quote-section {
+    position: relative;
+}
+
+.quote-mark {
+    font-size: 120px;
+    font-weight: 700;
+    line-height: 0.5;
+    opacity: 0.3;
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.quote-text {
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+.author {
+    font-size: 20px;
+    opacity: 0.8;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+.context {
+    font-size: 16px;
+    opacity: 0.6;
+    max-width: 500px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.hashtags {
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+.accent-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+}
+
+/* Responsive for vertical ratios */
+@media (max-aspect-ratio: 1/1) {
+    .quote-container {
+        padding: 40px 32px;
+    }
+
+    .avatar {
+        width: 100px;
+        height: 100px;
+    }
+
+    .quote-text {
+        font-size: 28px;
+    }
+
+    .quote-mark {
+        font-size: 80px;
+    }
+}
+
+/* Background pattern */
+.quote-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+}

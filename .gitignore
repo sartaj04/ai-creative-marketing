@@ -1,0 +1,113 @@
+# --- Python / Backend ---
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Flask/FastAPI stuff
+instance/
+.webassets-cache
+
+# --- Frontend / Next.js ---
+# Dependencies
+frontend/node_modules/
+
+# Next.js build output
+frontend/.next/
+frontend/out/
+
+# Production
+frontend/build/
+
+# Next.js environment files
+frontend/.env*.local
+
+# Typescript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# --- OS / IDE / General ---
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Project specific
+*.log
+*.sqlite
+*.db
+data/
+uploads/
+downloads/
+*.zip
+
+# Secrets & Keys
+secrets/
+*.pem
+*.key
+.docker/
+
+# Alembic
+alembic/versions/__pycache__/
