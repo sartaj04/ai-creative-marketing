@@ -1,0 +1,115 @@
+# Pixo Production Docker Compose
+# Uses external services: Supabase (PostgreSQL), Upstash (Redis), AWS S3
+# Run with: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: pixo_backend
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+    networks:
+      - pixo_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: pixo_celery_worker
+    restart: always
+    command: celery -A app.tasks.celery_app worker -l INFO -c 4
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    networks:
+      - pixo_network
+
+  # Celery Beat (scheduler)
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: pixo_celery_beat
+    restart: always
+    command: celery -A app.tasks.celery_app beat -l INFO
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    networks:
+      - pixo_network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.${DOMAIN}/api/v1
+        - NEXT_PUBLIC_APP_NAME=Pixo
+        - NEXT_PUBLIC_RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+    container_name: pixo_frontend
+    restart: always
+    networks:
+      - pixo_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.middlewares=www-redirect"
+      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.(.*)"
+      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
+
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik:v3.0
+    container_name: pixo_traefik
+    restart: always
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - pixo_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+
+networks:
+  pixo_network:
+    driver: bridge
+
+volumes:
+  letsencrypt:
