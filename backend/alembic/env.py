@@ -17,14 +17,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import Base
 from app.models import *  # Import all models to register them
+from app.config import settings
 
 # this is the Alembic Config object
 config = context.config
 
-# Override sqlalchemy.url with environment variable if present
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+# Use DATABASE_URL from app settings (which loads from .env properly)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

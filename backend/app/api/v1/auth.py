@@ -58,20 +58,7 @@ async def register(
         access_token=access_token,
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            full_name=user.full_name,
-            tier=user.tier,
-            segment=user.segment,
-            usage_count=user.usage_count,
-            is_active=user.is_active,
-            is_verified=user.is_verified,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            usage_limit=user.usage_limit,
-            can_generate=user.can_generate
-        )
+        user=UserResponse.model_validate(user)
     )
 
 
@@ -108,20 +95,7 @@ async def login(
         access_token=access_token,
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            full_name=user.full_name,
-            tier=user.tier,
-            segment=user.segment,
-            usage_count=user.usage_count,
-            is_active=user.is_active,
-            is_verified=user.is_verified,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            usage_limit=user.usage_limit,
-            can_generate=user.can_generate
-        )
+        user=UserResponse.model_validate(user)
     )
 
 
@@ -132,20 +106,7 @@ async def get_me(
     """
     Get current authenticated user.
     """
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        tier=current_user.tier,
-        segment=current_user.segment,
-        usage_count=current_user.usage_count,
-        is_active=current_user.is_active,
-        is_verified=current_user.is_verified,
-        created_at=current_user.created_at,
-        updated_at=current_user.updated_at,
-        usage_limit=current_user.usage_limit,
-        can_generate=current_user.can_generate
-    )
+    return UserResponse.model_validate(current_user)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -161,18 +122,5 @@ async def refresh_token(
         access_token=access_token,
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
-        user=UserResponse(
-            id=current_user.id,
-            email=current_user.email,
-            full_name=current_user.full_name,
-            tier=current_user.tier,
-            segment=current_user.segment,
-            usage_count=current_user.usage_count,
-            is_active=current_user.is_active,
-            is_verified=current_user.is_verified,
-            created_at=current_user.created_at,
-            updated_at=current_user.updated_at,
-            usage_limit=current_user.usage_limit,
-            can_generate=current_user.can_generate
-        )
+        user=UserResponse.model_validate(current_user)
     )

@@ -20,35 +20,92 @@ ASPECT_RATIO_DIMENSIONS = {
     "16:9": (1200, 675),
 }
 
-# Browser pool for reuse
-_browser_pool: List[Browser] = []
+# Browser pool for reuse - now tracks both browser and playwright instances
+_browser_pool: List[tuple] = []  # List of (playwright, browser) tuples
 _pool_semaphore = asyncio.Semaphore(3)
+_pool_lock = asyncio.Lock()
 
 
 async def get_browser():
     """Get a browser from the pool or create a new one."""
-    async with _pool_semaphore:
-        if _browser_pool:
-            return _browser_pool.pop()
+    async with _pool_lock:
+        # Try to get a working browser from pool
+        while _browser_pool:
+            pw, browser = _browser_pool.pop()
+            try:
+                # Check if browser is still connected
+                if browser.is_connected():
+                    return (pw, browser)
+                else:
+                    # Browser disconnected, close and try next
+                    try:
+                        await browser.close()
+                        await pw.stop()
+                    except Exception:
+                        pass
+            except Exception:
+                # Browser crashed, try next
+                try:
+                    await pw.stop()
+                except Exception:
+                    pass
         
-        playwright = await async_playwright().start()
-        browser = await playwright.chromium.launch(headless=True)
-        return browser
+        # Create new playwright and browser instance
+        try:
+            playwright = await async_playwright().start()
+            browser = await playwright.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                ]
+            )
+            return (playwright, browser)
+        except Exception as e:
+            raise RuntimeError(f"Failed to launch browser: {e}")
 
 
-async def release_browser(browser: Browser):
-    """Return a browser to the pool."""
-    async with _pool_semaphore:
-        if len(_browser_pool) < 3:
-            _browser_pool.append(browser)
-        else:
-            await browser.close()
+async def release_browser(browser_tuple):
+    """Return a browser to the pool or close it."""
+    if not browser_tuple:
+        return
+        
+    pw, browser = browser_tuple
+    
+    async with _pool_lock:
+        try:
+            # Only pool if browser is still healthy
+            if browser.is_connected() and len(_browser_pool) < 2:
+                _browser_pool.append((pw, browser))
+            else:
+                # Close browser and playwright
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
+                try:
+                    await pw.stop()
+                except Exception:
+                    pass
+        except Exception:
+            # On any error, try to cleanup
+            try:
+                await browser.close()
+            except Exception:
+                pass
+            try:
+                await pw.stop()
+            except Exception:
+                pass
 
 
 async def render_template(
     template_id: str,
     data: Dict[str, Any],
-    aspect_ratio: str
+    aspect_ratio: str,
+    render_mode: str = "production"
 ) -> bytes:
     """
     Render an HTML template to a PNG image.
@@ -57,9 +114,15 @@ async def render_template(
         template_id: UUID of the template to render
         data: Variables to inject into the template
         aspect_ratio: Output aspect ratio
+        render_mode: "production" (default) or "admin"
+            - production: Only renders approved templates
+            - admin: Renders any template (for preview/QA)
         
     Returns:
         PNG image as bytes
+        
+    Raises:
+        ValueError: If template not found or not approved (in production mode)
     """
     # Get template from database
     async with async_session_maker() as session:
@@ -71,6 +134,15 @@ async def render_template(
         
         if not template:
             raise ValueError(f"Template {template_id} not found")
+        
+        # Production mode: only render approved templates
+        if render_mode == "production":
+            from app.models.template import TemplateStatus
+            if template.status != TemplateStatus.APPROVED:
+                raise ValueError(
+                    f"Template {template_id} is not approved for production use. "
+                    f"Current status: {template.status.value}"
+                )
     
     # Get dimensions
     width, height = ASPECT_RATIO_DIMENSIONS.get(aspect_ratio, (1080, 1080))
@@ -97,7 +169,8 @@ async def render_template(
     """
     
     # Render with Playwright
-    browser = await get_browser()
+    browser_tuple = await get_browser()
+    _, browser = browser_tuple  # Unpack the (playwright, browser) tuple
     
     try:
         page = await browser.new_page(viewport={"width": width, "height": height})
@@ -115,7 +188,7 @@ async def render_template(
         return screenshot
         
     finally:
-        await release_browser(browser)
+        await release_browser(browser_tuple)
 
 
 async def batch_render(

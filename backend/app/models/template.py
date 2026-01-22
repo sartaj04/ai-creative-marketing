@@ -3,9 +3,10 @@ Template model for storing HTML/CSS ad templates.
 """
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Text, Boolean, func
+from sqlalchemy import String, DateTime, Text, Boolean, Integer, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +15,56 @@ from app.models.user import UserSegment
 
 if TYPE_CHECKING:
     from app.models.generated_asset import GeneratedAsset
+    from app.models.user import User
+
+
+class TemplateStatus(str, Enum):
+    """Template lifecycle status."""
+    DRAFT = "draft"
+    APPROVED = "approved"
+    DEPRECATED = "deprecated"
+
+
+class FormatType(str, Enum):
+    """Template format types."""
+    STATIC = "static"
+    MOTION = "motion"
+    VIDEO = "video"
+
+
+class TemplateIndustry(str, Enum):
+    """Industry categories for templates."""
+    ECOMMERCE = "ecommerce"
+    SAAS = "saas"
+    LOCAL = "local"
+    PERSONAL = "personal"
+    HEALTHCARE = "healthcare"
+    FINANCE = "finance"
+    REALESTATE = "realestate"
+    FOOD = "food"
+    GENERAL = "general"
+
+
+class TemplatePlatform(str, Enum):
+    """Target platforms for templates."""
+    INSTAGRAM = "instagram"
+    FACEBOOK = "facebook"
+    LINKEDIN = "linkedin"
+    TWITTER = "twitter"
+    META_ADS = "meta_ads"
+    GOOGLE_ADS = "google_ads"
+    GENERAL = "general"
+
+
+class TemplateObjective(str, Enum):
+    """Marketing objectives for templates."""
+    CONVERSION = "conversion"
+    AWARENESS = "awareness"
+    TESTIMONIAL = "testimonial"
+    PROMOTION = "promotion"
+    ENGAGEMENT = "engagement"
+    ANNOUNCEMENT = "announcement"
+    GENERAL = "general"
 
 
 class Template(Base):
@@ -45,6 +96,43 @@ class Template(Base):
         nullable=True
     )
     
+    # === ADMIN CLASSIFICATION FIELDS ===
+    
+    # Template lifecycle status (admin-controlled)
+    status: Mapped[TemplateStatus] = mapped_column(
+        String(50),
+        default=TemplateStatus.DRAFT,
+        nullable=False
+    )
+    
+    # Industry targeting
+    industry: Mapped[TemplateIndustry] = mapped_column(
+        String(50),
+        default=TemplateIndustry.GENERAL,
+        nullable=False
+    )
+    
+    # Platform targeting
+    platform: Mapped[TemplatePlatform] = mapped_column(
+        String(50),
+        default=TemplatePlatform.GENERAL,
+        nullable=False
+    )
+    
+    # Marketing objective
+    objective: Mapped[TemplateObjective] = mapped_column(
+        String(50),
+        default=TemplateObjective.GENERAL,
+        nullable=False
+    )
+    
+    # Format type (static, motion, video)
+    format_type: Mapped[FormatType] = mapped_column(
+        String(50),
+        default=FormatType.STATIC,
+        nullable=False
+    )
+    
     # Template code
     html_code: Mapped[str] = mapped_column(
         Text,
@@ -54,6 +142,22 @@ class Template(Base):
         Text,
         nullable=False,
         default=""
+    )
+    
+    # === SCHEMA DEFINITIONS (JSONB) ===
+    
+    # Layout schema - zone definitions, percentages, constraints
+    # Example: {"zones": [{"id": "headline", "type": "text", "required": true, ...}]}
+    layout_schema: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=True
+    )
+    
+    # Motion schema - for motion/video templates
+    # Example: {"scenes": [...], "transitions": [...], "timing": {...}}
+    motion_schema: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=True
     )
     
     # Preview
@@ -77,7 +181,52 @@ class Template(Base):
         nullable=False
     )
     
-    # Status
+    # === VERSIONING ===
+    
+    version: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False
+    )
+    
+    # === ADMIN TRACKING ===
+    
+    # Admin who created the template
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    
+    # Admin who approved the template
+    approved_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    
+    approved_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+    
+    # === QA TRACKING ===
+    
+    # Whether dummy render QA passed
+    dummy_render_passed: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+    
+    # URL to the dummy render image (for review)
+    dummy_render_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True
+    )
+    
+    # === STATUS FLAGS ===
+    
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -112,3 +261,16 @@ class Template(Base):
         "GeneratedAsset",
         back_populates="template"
     )
+    
+    # Admin relationships
+    creator: Mapped[Optional["User"]] = relationship(
+        "User",
+        foreign_keys=[created_by],
+        lazy="selectin"
+    )
+    approver: Mapped[Optional["User"]] = relationship(
+        "User",
+        foreign_keys=[approved_by],
+        lazy="selectin"
+    )
+

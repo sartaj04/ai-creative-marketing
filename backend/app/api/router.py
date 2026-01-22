@@ -3,7 +3,8 @@ API Router - combines all API routes.
 """
 from fastapi import APIRouter
 
-from app.api.v1 import auth, users, brands, scraping, generation, assets, templates, calendar, payments, demo
+from app.api.v1 import auth, users, brands, scraping, generation, assets, templates, calendar, payments
+from app.api.admin import admin_templates, dashboard
 
 api_router = APIRouter()
 
@@ -62,10 +63,17 @@ api_router.include_router(
     tags=["Payments"]
 )
 
-# Public demo endpoint (no auth required)
+# Admin routes (protected)
 api_router.include_router(
-    demo.router,
-    prefix="/v1/demo",
-    tags=["Demo"]
+    admin_templates.router,
+    prefix="/v1/admin/templates",
+    tags=["Admin - Templates"]
 )
+
+api_router.include_router(
+    dashboard.router,
+    prefix="/v1/admin/dashboard",
+    tags=["Admin - Dashboard"]
+)
+
 

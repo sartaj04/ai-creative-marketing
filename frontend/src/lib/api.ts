@@ -45,21 +45,21 @@ export const authApi = {
         api.post('/auth/register', data),
     login: (data: { email: string; password: string }) =>
         api.post('/auth/login', data),
-    me: () => api.get('/auth/me'),
+    me: () => api.get('/auth/me/'),
     refresh: () => api.post('/auth/refresh'),
 };
 
 // Users API
 export const usersApi = {
-    getProfile: () => api.get('/users/me'),
+    getProfile: () => api.get('/users/me/'),
     updateProfile: (data: { full_name?: string; segment?: string }) =>
         api.patch('/users/me', data),
-    getUsage: () => api.get('/users/usage'),
+    getUsage: () => api.get('/users/usage/'),
 };
 
 // Brands API
 export const brandsApi = {
-    list: () => api.get('/brands'),
+    list: () => api.get('/brands/'),
     create: (data: Record<string, unknown>) => api.post('/brands', data),
     get: (id: string) => api.get(`/brands/${id}`),
     update: (id: string, data: Record<string, unknown>) => api.patch(`/brands/${id}`, data),
@@ -77,7 +77,7 @@ export const generationApi = {
 // Assets API
 export const assetsApi = {
     list: (params?: { profile_id?: string; platform?: string; is_favorite?: boolean }) =>
-        api.get('/assets', { params }),
+        api.get('/assets/', { params }),
     get: (id: string) => api.get(`/assets/${id}`),
     toggleFavorite: (id: string) => api.patch(`/assets/${id}/favorite`),
     delete: (id: string) => api.delete(`/assets/${id}`),
@@ -87,7 +87,7 @@ export const assetsApi = {
 // Templates API
 export const templatesApi = {
     list: (params?: { segment?: string; category?: string }) =>
-        api.get('/templates', { params }),
+        api.get('/templates/', { params }),
     get: (id: string) => api.get(`/templates/${id}`),
 };
 

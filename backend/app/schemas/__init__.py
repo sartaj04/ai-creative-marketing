@@ -25,6 +25,20 @@ from app.schemas.job import (
     JobStatusResponse,
     JobCreate,
 )
+from app.schemas.admin_template import (
+    AdminTemplateCreate,
+    AdminTemplateUpdate,
+    AdminTemplateResponse,
+    AdminTemplateListResponse,
+    TemplateVersionResponse,
+    TemplateApprovalLogResponse,
+    DummyRenderRequest,
+    DummyRenderResponse,
+    ApproveTemplateRequest,
+    DeprecateTemplateRequest,
+    RevertTemplateRequest,
+    TemplateNormalizationResult,
+)
 
 __all__ = [
     # User
@@ -47,4 +61,18 @@ __all__ = [
     # Job
     "JobStatusResponse",
     "JobCreate",
+    # Admin Templates
+    "AdminTemplateCreate",
+    "AdminTemplateUpdate",
+    "AdminTemplateResponse",
+    "AdminTemplateListResponse",
+    "TemplateVersionResponse",
+    "TemplateApprovalLogResponse",
+    "DummyRenderRequest",
+    "DummyRenderResponse",
+    "ApproveTemplateRequest",
+    "DeprecateTemplateRequest",
+    "RevertTemplateRequest",
+    "TemplateNormalizationResult",
 ]
+

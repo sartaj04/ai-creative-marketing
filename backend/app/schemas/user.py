@@ -48,8 +48,10 @@ class UserResponse(BaseModel):
     usage_count: int
     is_active: bool
     is_verified: bool
+    is_admin: bool
     created_at: datetime
     updated_at: datetime
+
     
     # Computed fields
     usage_limit: int

@@ -22,25 +22,33 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const router = useRouter();
-    const { user, isAuthenticated, logout, fetchUser } = useAuthStore();
+    const { user, isAuthenticated, isLoading, isInitialized, logout, fetchUser } = useAuthStore();
 
     useEffect(() => {
-        fetchUser();
-    }, [fetchUser]);
+        if (!isInitialized) {
+            fetchUser();
+        }
+    }, [isInitialized, fetchUser]);
 
     useEffect(() => {
-        if (!isAuthenticated) {
+        // Only redirect if we have finished checking the initial state
+        if (isInitialized && !isLoading && !isAuthenticated) {
             router.push("/login");
         }
-    }, [isAuthenticated, router]);
+    }, [isInitialized, isLoading, isAuthenticated, router]);
 
-    if (!isAuthenticated) {
+    if (!isInitialized || isLoading || !isAuthenticated) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+                    <p className="text-gray-500 font-medium text-sm">Loading your workspace...</p>
+                </div>
             </div>
         );
     }
+
+
 
     const navigation = [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
