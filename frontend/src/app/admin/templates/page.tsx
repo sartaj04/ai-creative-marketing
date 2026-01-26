@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import {
-    Plus,
     Search,
     Filter,
     MoreVertical,
@@ -14,8 +13,6 @@ import {
     Archive,
     FileCode,
     Sparkles,
-    Code2,
-    ChevronDown
 } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -26,23 +23,11 @@ export default function TemplateListPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
-    const [showAddMenu, setShowAddMenu] = useState(false);
-    const addMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetchTemplates();
     }, []);
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
-                setShowAddMenu(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
 
     const fetchTemplates = async () => {
         setIsLoading(true);
@@ -104,50 +89,13 @@ export default function TemplateListPage() {
                         <p className="text-gray-500">Manage and validate creative templates for the platform.</p>
                     </div>
 
-                    {/* Add Template Dropdown */}
-                    <div className="relative" ref={addMenuRef}>
-                        <button
-                            onClick={() => setShowAddMenu(!showAddMenu)}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add Template
-                            <ChevronDown className={`w-4 h-4 transition-transform ${showAddMenu ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {showAddMenu && (
-                            <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-gray-200 shadow-xl z-50 overflow-hidden">
-                                <div className="p-2">
-                                    <Link
-                                        href="/admin/templates/ai-create"
-                                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-gradient-to-r hover:from-primary-50 hover:to-violet-50 transition group"
-                                        onClick={() => setShowAddMenu(false)}
-                                    >
-                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-violet-500 flex items-center justify-center flex-shrink-0">
-                                            <Sparkles className="w-5 h-5 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-gray-900 group-hover:text-primary-700">AI-Powered</p>
-                                            <p className="text-xs text-gray-500 mt-0.5">Upload image or HTML, let AI process</p>
-                                        </div>
-                                    </Link>
-                                    <Link
-                                        href="/admin/templates/new"
-                                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition group"
-                                        onClick={() => setShowAddMenu(false)}
-                                    >
-                                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                            <Code2 className="w-5 h-5 text-gray-600" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-gray-900">Manual</p>
-                                            <p className="text-xs text-gray-500 mt-0.5">Write HTML/CSS code directly</p>
-                                        </div>
-                                    </Link>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <Link
+                        href="/admin/templates/create"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium shadow-md hover:shadow-lg transform active:scale-95"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        Add Template
+                    </Link>
                 </div>
 
                 {/* Filters */}

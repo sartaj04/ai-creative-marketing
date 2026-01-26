@@ -75,3 +75,22 @@ services:
     depends_on:
       - backend
     command: npm run dev
+
+  # Node.js Render Service
+  render-service:
+    build:
+      context: ./services/render-service
+      dockerfile: Dockerfile
+    container_name: pixo_render_service
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    volumes:
+      - ./services/render-service:/app
+      - /app/node_modules
+      - /app/dist
+    ports:
+      - "3001:3001"
+    command: npm run dev

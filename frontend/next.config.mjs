@@ -6,6 +6,7 @@ const nextConfig = {
         domains: [
             'localhost',
             'pixo-assets.s3.ap-south-1.amazonaws.com',
+            'images.unsplash.com',
         ],
         remotePatterns: [
             {

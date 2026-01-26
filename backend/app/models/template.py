@@ -67,6 +67,13 @@ class TemplateObjective(str, Enum):
     GENERAL = "general"
 
 
+class TemplateType(str, Enum):
+    """Template content types."""
+    POST = "post"           # Single image post
+    CAROUSEL = "carousel"   # Multi-slide carousel
+    TEXT = "text"           # Text-only template
+
+
 class Template(Base):
     """HTML/CSS template for generating ad creatives."""
     
@@ -133,6 +140,42 @@ class Template(Base):
         nullable=False
     )
     
+    # Template content type (post, carousel, text)
+    template_type: Mapped[TemplateType] = mapped_column(
+        String(50),
+        default=TemplateType.POST,
+        nullable=False
+    )
+    
+    # Number of slides (for carousels)
+    slide_count: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False
+    )
+    
+    # === EXTRACTED METADATA ===
+    
+    # Colors extracted from source image
+    extracted_colors: Mapped[List[str]] = mapped_column(
+        JSONB,
+        default=list,
+        nullable=False
+    )
+    
+    # Fonts detected in source image
+    extracted_fonts: Mapped[List[str]] = mapped_column(
+        JSONB,
+        default=list,
+        nullable=False
+    )
+    
+    # URL to original uploaded source file (PDF/image)
+    source_file_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True
+    )
+    
     # Template code
     html_code: Mapped[str] = mapped_column(
         Text,
@@ -149,6 +192,13 @@ class Template(Base):
     # Layout schema - zone definitions, percentages, constraints
     # Example: {"zones": [{"id": "headline", "type": "text", "required": true, ...}]}
     layout_schema: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=True
+    )
+    
+    # Slides schema - for carousel templates (array of layout schemas, one per slide)
+    # Example: [{"type": "div", ...}, {"type": "div", ...}]
+    slides_schema: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(
         JSONB,
         nullable=True
     )

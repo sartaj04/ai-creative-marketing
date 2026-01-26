@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     aws_s3_region: str = "ap-south-1"
     aws_cloudfront_domain: str = ""
     
+    # Node.js Render Service
+    render_service_url: str = "http://localhost:3001"
+    
     # Razorpay
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""

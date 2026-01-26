@@ -3,7 +3,7 @@ Template Version model for immutable version history.
 """
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
 from sqlalchemy import String, DateTime, Text, Integer, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -62,13 +62,27 @@ class TemplateVersion(Base):
         JSONB,
         nullable=True
     )
+    
+    # Snapshot of slides schema (for carousels)
+    slides_schema: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(
+        JSONB,
+        nullable=True
+    )
+    
+    # slide count
+    slide_count: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False
+    )
+    
     motion_schema: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=True
     )
     
     # Snapshot of variables
-    variables: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    variables: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(
         JSONB,
         nullable=True
     )

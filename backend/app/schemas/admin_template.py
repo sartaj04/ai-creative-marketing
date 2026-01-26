@@ -58,6 +58,12 @@ class TemplateObjectiveEnum(str, Enum):
     GENERAL = "general"
 
 
+class TemplateTypeEnum(str, Enum):
+    """Template content types."""
+    POST = "post"
+    CAROUSEL = "carousel"
+    TEXT = "text"
+
 # === CREATE SCHEMAS ===
 
 class AdminTemplateCreate(BaseModel):
@@ -72,18 +78,26 @@ class AdminTemplateCreate(BaseModel):
     platform: TemplatePlatformEnum = TemplatePlatformEnum.GENERAL
     objective: TemplateObjectiveEnum = TemplateObjectiveEnum.GENERAL
     format_type: FormatTypeEnum = FormatTypeEnum.STATIC
+    template_type: TemplateTypeEnum = TemplateTypeEnum.POST
     
-    # Template code
-    html_code: str = Field(..., min_length=1)
+    # Template code (optional for new JSON-based templates)
+    html_code: str = Field(default="")
     css_code: str = Field(default="")
     
-    # Schemas (optional, can be auto-generated)
+    # Schemas
     layout_schema: Optional[Dict[str, Any]] = None
+    slides_schema: Optional[List[Dict[str, Any]]] = None  # For carousels
     motion_schema: Optional[Dict[str, Any]] = None
     
     # Configuration
     aspect_ratios: List[str] = Field(default=["1:1"])
     variables: List[Dict[str, Any]] = Field(default=[])
+    slide_count: int = Field(default=1, ge=1)
+    
+    # Extracted metadata
+    extracted_colors: List[str] = Field(default=[])
+    extracted_fonts: List[str] = Field(default=[])
+    source_file_url: Optional[str] = None
     
     # Flags
     is_premium: bool = False
@@ -101,6 +115,7 @@ class AdminTemplateUpdate(BaseModel):
     platform: Optional[TemplatePlatformEnum] = None
     objective: Optional[TemplateObjectiveEnum] = None
     format_type: Optional[FormatTypeEnum] = None
+    template_type: Optional[TemplateTypeEnum] = None
     
     # Template code
     html_code: Optional[str] = None
@@ -108,11 +123,18 @@ class AdminTemplateUpdate(BaseModel):
     
     # Schemas
     layout_schema: Optional[Dict[str, Any]] = None
+    slides_schema: Optional[List[Dict[str, Any]]] = None
     motion_schema: Optional[Dict[str, Any]] = None
     
     # Configuration
     aspect_ratios: Optional[List[str]] = None
     variables: Optional[List[Dict[str, Any]]] = None
+    slide_count: Optional[int] = Field(None, ge=1)
+    
+    # Extracted metadata
+    extracted_colors: Optional[List[str]] = None
+    extracted_fonts: Optional[List[str]] = None
+    source_file_url: Optional[str] = None
     
     # Flags
     is_premium: Optional[bool] = None
@@ -140,6 +162,7 @@ class AdminTemplateResponse(BaseModel):
     platform: str
     objective: str
     format_type: str
+    template_type: str
     
     # Template code
     html_code: str
@@ -147,12 +170,19 @@ class AdminTemplateResponse(BaseModel):
     
     # Schemas
     layout_schema: Optional[Dict[str, Any]]
+    slides_schema: Optional[List[Dict[str, Any]]]
     motion_schema: Optional[Dict[str, Any]]
     
     # Configuration
     thumbnail_url: Optional[str]
     aspect_ratios: List[str]
     variables: List[Dict[str, Any]]
+    slide_count: int
+    
+    # Extracted metadata
+    extracted_colors: List[str]
+    extracted_fonts: List[str]
+    source_file_url: Optional[str]
     
     # Version
     version: int
@@ -191,6 +221,7 @@ class AdminTemplateListResponse(BaseModel):
     industry: str
     platform: str
     format_type: str
+    template_type: str
     version: int
     thumbnail_url: Optional[str]
     dummy_render_passed: bool

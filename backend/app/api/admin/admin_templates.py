@@ -54,6 +54,7 @@ async def list_templates(
     industry: Optional[str] = None,
     platform: Optional[str] = None,
     format_type: Optional[str] = None,
+    template_type: Optional[str] = None,
     search: Optional[str] = None,
     include_inactive: bool = False,
     limit: int = Query(50, le=100),
@@ -79,6 +80,8 @@ async def list_templates(
         query = query.where(Template.platform == platform)
     if format_type:
         query = query.where(Template.format_type == format_type)
+    if template_type:
+        query = query.where(Template.template_type == template_type)
     
     # Include inactive templates only if requested
     if not include_inactive:
@@ -155,12 +158,18 @@ async def create_template(
         platform=TemplatePlatform(data.platform.value),
         objective=TemplateObjective(data.objective.value),
         format_type=FormatType(data.format_type.value),
+        template_type=TemplateType(data.template_type.value),
         html_code=data.html_code,
         css_code=data.css_code,
         layout_schema=data.layout_schema,
+        slides_schema=data.slides_schema,
         motion_schema=data.motion_schema,
         aspect_ratios=data.aspect_ratios,
         variables=data.variables,
+        slide_count=data.slide_count,
+        extracted_colors=data.extracted_colors,
+        extracted_fonts=data.extracted_fonts,
+        source_file_url=data.source_file_url,
         is_premium=data.is_premium,
         version=1,
         created_by=admin.id,
@@ -177,8 +186,10 @@ async def create_template(
         html_code=data.html_code,
         css_code=data.css_code,
         layout_schema=data.layout_schema,
+        slides_schema=data.slides_schema,
         motion_schema=data.motion_schema,
         variables=data.variables,
+        slide_count=data.slide_count,
         change_notes="Initial template creation",
         created_by=admin.id,
     )
@@ -255,6 +266,8 @@ async def update_template(
             setattr(template, field, TemplateObjective(value))
         elif field == "format_type" and value:
             setattr(template, field, FormatType(value))
+        elif field == "template_type" and value:
+            setattr(template, field, TemplateType(value))
         else:
             setattr(template, field, value)
     
@@ -290,8 +303,10 @@ async def update_template(
             html_code=template.html_code,
             css_code=template.css_code,
             layout_schema=template.layout_schema,
+            slides_schema=template.slides_schema,
             motion_schema=template.motion_schema,
             variables=template.variables,
+            slide_count=template.slide_count,
             change_notes=change_notes or "Template updated",
             created_by=admin.id,
         )
