@@ -1,35 +1,68 @@
 # Pixo: The Agentic Personal Branding Platform
 
-> **Date:** Jan 22, 2026  
+> **Date:** Jan 22, 2026
 > **Mission:** Transform the manual 60-minute daily grind of personal branding into a 5-minute agentic "Review & Approve" workflow.
 
 ---
 
 ## 1. Vision & The Agentic Difference
 
-Pixo is an **AI-agent-powered personal branding platform** for professionals on LinkedIn and Twitter/X. Unlike existing "toolbox" solutions (like Supergrow) that require users to initiate every action, Pixo's agents work autonomously in the background to create, curate, and schedule content.
+Pixo is an **AI-agent-powered personal branding and enterprise profile platform** for professionals, founders, and companies on LinkedIn and Twitter/X. Unlike existing "toolbox" solutions (like Supergrow) that require users to initiate every action, Pixo's agents work autonomously in the background to create, curate, and schedule content aligned with your identity.
+
+Pixo starts with **text-first authority building** and expands to **images, carousels, and rich media**.
 
 ### The Fundamental Paradigm Shift
 
-| Feature Aspect | Manual-First (e.g., Supergrow) | Agent-First (Pixo) |
-| :--- | :--- | :--- |
-| **User Role** | **Manual Creator:** User searches, selects templates, and generates. | **Curator/Editor:** User reviews, edits, and approves agent-ready drafts. |
-| **Workflow** | Open app → "What should I post?" → Tools → Publish. | Open app → "Here is what I prepared for you" → Review → Publish. |
-| **Inspiration** | Manual search through billions of viral posts. | Proactive delivery of trending hooks tailored to your style. |
-| **Style Setup** | Manual setup requiring users to paste writing samples. | Zero-touch auto-learning from your LinkedIn profile history. |
-| **Effort** | **30-60 min/day** | **5-10 min/day** |
+| Feature Aspect  | Manual-First (e.g., Supergrow)                                       | Agent-First (Pixo)                                                           |
+| :-------------- | :------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| **User Role**   | **Manual Creator:** User searches, selects templates, and generates. | **Curator/Editor:** User reviews, edits, and approves agent-ready drafts.    |
+| **Workflow**    | Open app → "What should I post?" → Tools → Publish.                  | Open app → "Here is what I prepared for you" → Review → Publish.             |
+| **Inspiration** | Manual search through billions of viral posts.                       | Proactive delivery of trending hooks tailored to your style.                 |
+| **Style Setup** | Manual setup requiring users to paste writing samples.               | Zero-touch auto-learning from profile, resume, website, and posting history. |
+| **Effort**      | **30-60 min/day**                                                    | **5-10 min/day**                                                             |
 
 ---
 
-## 2. Background Agents Architecture
+## 2. Unified Profile Intelligence (NEW)
 
-The core of Pixo is a suite of autonomous agents working 24/7 to maintain your authority.
+Pixo builds a **Unified Identity Graph** for both individuals and enterprises.
+
+### Supported Inputs
+
+* LinkedIn profile
+* Personal website
+* Resume / portfolio
+* Long-form description (free text)
+* Company website
+* Company product pages
+* Blog / content feeds
+
+### Outcome
+
+Pixo automatically constructs:
+
+* Expertise map
+* Narrative themes
+* Authority angles
+* Tone & positioning profile
+* Audience relevance model
+
+This enables **automatic tuning of content** to:
+
+* Personal brands (founders, operators, creators)
+* Enterprise brands (SaaS, agencies, B2B companies)
+
+---
+
+## 3. Background Agents Architecture
+
+The core of Pixo is a suite of autonomous agents working 24/7 to maintain authority.
 
 ```mermaid
 graph TD
     subgraph "Background Engine"
-        A[LinkedIn Profile] --> B(Style Learner)
-        C[Viral Feeds / RSS / YouTube] --> D(Opportunity Scout)
+        A[Profile / Website / Resume] --> B(Style & Identity Learner)
+        C[Viral Feeds / RSS / YouTube / X] --> D(Opportunity Scout)
         B --> E{Agent Core}
         D --> E
     end
@@ -39,91 +72,183 @@ graph TD
     subgraph "User Interaction"
         F -->|Review & Approve| G[Approved Queue]
         F -->|Reject| Z(Learning Feedback Loop)
+        F -->|Swipe| S(Swipe Feedback Engine)
     end
     
     G --> H(Smart Scheduler)
     H --> I[LinkedIn / Twitter]
     Z --> B
+    S --> B
 ```
 
 ---
 
-## 3. Thorough Feature Analysis & Agentic Transformation
+## 4. Swipe-Based Feedback System (NEW CORE FEATURE)
 
-We have analyzed 14 core screens and features from the competitive landscape and mapped their agentic evolution for Pixo.
+Pixo introduces a **Swipe UX for content curation**:
+
+* Swipe Right → Approve & learn preference
+* Swipe Left → Reject & reduce similar content
+* Swipe Up → Edit & approve with feedback
+
+This creates:
+
+* Faster daily workflow
+* Implicit preference learning
+* Continuous style reinforcement
+
+Swipe behavior becomes a **training signal** for:
+
+* Topic preference
+* Tone preference
+* Post format preference
+* Hook style preference
+
+---
+
+## 5. Thorough Feature Analysis & Agentic Transformation
 
 ### A. The Creation Suite
 
 #### 1. Post Generator & Templates
-- **Supergrow Analysis:** A dashboard with gradient cards like "Share tips" or "Book learnings". Users click a card and fill in placeholders.
-- **Pixo Agentic Evolution:** The agent **pre-fills** these templates. When you login, you don't see a blank "Share tips" template; you see a draft saying: *"I saw you were reading about {Topic} on LinkedIn, I used the 'Learning Insights' template to draft this for you."*
+
+* **Supergrow Analysis:** Manual card-based generation.
+* **Pixo Agentic Evolution:** Agent pre-fills and delivers complete drafts in Inbox.
 
 #### 2. Post Format Templates
-- **Supergrow Analysis:** Uses structured formats with placeholders like `{topic}`, `{X}`, and `{highlight 1}`.
-- **Pixo Agentic Evolution:** **Agentic Autocomplete.** Pixo pulls your history and bio to pre-fill placeholders like `{X}` and `{time}` automatically.
+
+* **Pixo Evolution:** Agentic Autocomplete using identity graph + history.
 
 #### 3. PostCast (AI Interviewer)
-- **Supergrow Analysis:** a 30-minute chat with "Alex" the AI to extract posts from a conversation.
-- **Pixo Agentic Evolution:** **Proactive Listening.** Agent can monitor your public video appearances or linked voice memos and extrat multiple posts without a dedicated session.
 
-#### 4. Content Style (BETA)
-- **Supergrow Analysis:** Requires users to manually paste writing samples to mimic tone.
-- **Pixo Agentic Evolution:** **Zero-Touch Profiling.** Automatically scrapes and analyzes your sent posts to update your "Style Profile" continuously.
+* **Pixo Evolution:** Passive extraction from voice, video, and long-form content.
+
+#### 4. Content Style
+
+* **Pixo Evolution:** Zero-touch continuous profiling from live data sources.
 
 ---
 
 ### B. Inspiration & Curation
 
 #### 5. Viral Posts Search & Swipe Files
-- **Supergrow Analysis:** A searchable database where users manually save posts to folders or via a Chrome extension.
-- **Pixo Agentic Evolution:** **The Opportunity Scout.** Instead of you searching for inspiration, the agent monitors your niche 24/7 and notifies you: *"This post about {Category} just crossed 5k reactions. I've already created your version in your style. [Review]"*
+
+* **Pixo Evolution:** Opportunity Scout + Auto-cloned drafts in your voice.
 
 #### 6. Influencer Directory
-- **Supergrow Analysis:** A categorized list of creators to browse for ideas.
-- **Pixo Agentic Evolution:** **Smart Mentions.** Agent tracks these influencers and suggests: *"Building on what {Influencer} posted today about {Topic}, here's a relevant take for you to gain authority."*
+
+* **Pixo Evolution:** Smart Mentions & proactive authority piggybacking.
 
 #### 7. Repurposing (URL/PDF/YouTube/Voice)
-- **Supergrow Analysis:** Manual process: Upload File → Choose Style → Generate.
-- **Pixo Agentic Evolution:** **Automation Pipeline.** Connect your YouTube or Blog RSS, and Pixo auto-generates LinkedIn drafts for every new content piece detected.
+
+* **Pixo Evolution:** Always-on automation pipeline.
 
 ---
 
 ### C. Distribution & Performance
 
 #### 8. Kanban Board & Calendar
-- **Supergrow Analysis:** Empty states requiring manual drag-and-drop to schedule.
-- **Pixo Agentic Evolution:** **Auto-Populated Feed.** The workspace is already filled with agentic drafts. The calendar is managed by "Smart Autopilot" which slots posts into your peak engagement windows found by analytics.
 
-#### 9. Analytics & LinkedIn Integration
-- **Supergrow Analysis:** Shows growth and reactions. 2-step profile connection (URL → Confirm).
-- **Pixo Agentic Evolution:** **Performance Loop.** *"Your 'lessons learned' posts get 3x more comments. I've adjusted your daily generation to prioritize this format."*
+* **Pixo Evolution:** Auto-populated, agent-managed calendar.
+
+#### 9. Analytics & Optimization Loop
+
+* **Pixo Evolution:** Agent adjusts generation strategy based on engagement patterns.
 
 ---
 
-## 4. MVP Implementation Phases
+## 6. Multimodal Expansion Roadmap (NEW)
+
+Pixo begins text-first and expands to:
+
+### Phase A: Images
+
+* AI-generated visuals aligned to brand tone
+* Image + text authority posts
+
+### Phase B: Carousels
+
+* Multi-slide educational & authority carousels
+* Agent-generated outlines + slide copy
+
+### Phase C: Rich Media
+
+* Short-form video scripts
+* Carousel → video repurposing
+
+---
+
+## 7. Enterprise Profiles (NEW)
+
+Pixo supports **company and team-level branding**:
+
+### Enterprise Capabilities
+
+* Website + product understanding
+* ICP-aware content
+* Thought leadership for companies
+* Founder + company voice alignment
+
+### Use Cases
+
+* SaaS founder authority
+* B2B company content engine
+* Agency brand positioning
+* Hiring & employer branding
+
+---
+
+## 8. MVP Implementation Phases
 
 ### Phase 1: The Core Loop (Review & Approve)
-- [ ] **Style Learner:** Backend service to extract writing DNA from LinkedIn history.
-- [ ] **Viral Scanner:** Daily cron monitoring category trends and auto-generating versions.
-- [ ] **Agent Inbox:** Primary UI where daily pre-generated drafts appear.
-- [ ] **LinkedIn Sync:** 2-step profile import (Paste URL → extraction).
 
-### Phase 2: Content Pipeline expansion
-- [ ] **Auto-Repurposer:** Background YouTube/RSS monitoring.
-- [ ] **Workspace:** Kanban management for approved drafts.
-- [ ] **Smart Scheduling:** Basic optimal time suggestions based on analytics.
+* [ ] Style & Identity Learner (profile + website + resume)
+* [ ] Viral Scanner
+* [ ] Agent Inbox
+* [ ] Swipe UX
+* [ ] LinkedIn Sync
+
+### Phase 2: Content Pipeline Expansion
+
+* [ ] Auto-Repurposer (RSS / YouTube)
+* [ ] Workspace (Kanban)
+* [ ] Smart Scheduling
 
 ### Phase 3: Authority & Growth
-- [ ] **PostCast Integration:** Voice-to-authority pipeline.
-- [ ] **Influencer Watch:** Proactive suggestions to engage with trending creators.
-- [ ] **Advanced Analytics:** Style evolution tracking and deep engagement insights.
+
+* [ ] Voice & Long-form ingestion
+* [ ] Influencer Watch
+* [ ] Advanced Analytics
+
+### Phase 4: Multimodal
+
+* [ ] Image generation
+* [ ] Carousel generation
+* [ ] Rich media scripts
 
 ---
 
-## 5. Navigation Structure (Sidebar Map)
+## 9. Navigation Structure (Sidebar Map)
 
-- **Inbox:** Agent's proactive feed (Home)
-- **Drafts:** Kanban workspace for approved posts
-- **Inspiration:** Viral pulse, Swipe files, and Influencer watch
-- **Analytics:** Performance tracking and agent tuning
-- **Settings:** LinkedIn/Twitter sync and Style profile
+* **Inbox:** Agent's proactive feed (Home)
+* **Drafts:** Kanban workspace for approved posts
+* **Inspiration:** Viral pulse & influencer watch
+* **Media:** Images & carousels (future)
+* **Analytics:** Performance & agent tuning
+* **Profiles:** Personal & enterprise identity graphs
+* **Settings:** Integrations & style profile
+
+---
+
+## 10. Core Differentiator Summary
+
+Pixo is not a tool.
+
+Pixo is an **always-on branding agent** that:
+
+* Understands who you are
+* Understands what you should talk about
+* Understands how you should sound
+* Delivers ready-to-post authority
+
+From individuals to enterprises — Pixo becomes your autonomous personal branding system.
