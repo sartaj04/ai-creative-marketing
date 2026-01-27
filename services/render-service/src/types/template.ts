@@ -163,6 +163,7 @@ export interface AnalyzeResponse {
         colorPalette: string[];
         fonts: string[];
         hasBackgroundImage?: boolean;
+        searchQuery?: string;
     };
     commonAnalysis?: {       // For carousel
         colorPalette: string[];
@@ -182,8 +183,85 @@ export interface TextAnalyzeResponse {
         name: string;
         type: 'text';
     }[];
+    platform?: 'linkedin' | 'twitter' | 'instagram' | 'general';
+    postType?: 'thread' | 'carousel' | 'standard' | 'reel';
 }
 
+
+/**
+ * Score breakdown for vision comparison
+ */
+export interface ComparisonScore {
+    layout: number;      // 0-100: Element positioning, hierarchy
+    colors: number;      // 0-100: Color accuracy, palette matching
+    typography: number;  // 0-100: Font sizes, weights, spacing
+    spacing: number;     // 0-100: Margins, padding, gaps
+    overall: number;     // 0-100: Weighted average
+}
+
+/**
+ * Single iteration log entry
+ */
+export interface IterationLog {
+    attempt: number;
+    timestamp: string;
+    renderSuccess: boolean;
+    renderError?: string;
+    sanitizationWarnings?: string[];
+    score?: ComparisonScore;
+    issues?: string[];
+    suggestedFixes?: string[];
+}
+
+/**
+ * Iterative analysis response
+ */
+export interface IterativeAnalyzeResponse {
+    success: boolean;
+    template: TemplateJSON;
+    iterations: IterationLog[];
+    finalScore: ComparisonScore;
+    previewImage: string;          // base64 data URL
+    variables: string[];           // Extracted placeholder names
+    analysis: {
+        detectedElements: string[];
+        colorPalette: string[];
+        fonts: string[];
+        hasBackgroundImage?: boolean;
+    };
+    totalIterations: number;
+    targetScoreReached: boolean;
+    processingTimeMs: number;
+}
+
+/**
+ * Iterative analysis request options
+ */
+export interface IterativeAnalyzeOptions {
+    width?: number;
+    height?: number;
+    mimeType?: string;
+    targetScore?: number;       // Default: 85
+    maxIterations?: number;     // Default: 5
+}
+
+/**
+ * Vision comparison result
+ */
+export interface VisionComparisonResult {
+    scores: ComparisonScore;
+    issues: string[];
+    suggestedFixes: string[];
+    detailedAnalysis: string;
+}
+
+/**
+ * Template sanitization result
+ */
+export interface TemplateSanitizationResult {
+    template: TemplateJSON;
+    warnings: string[];
+}
 
 /**
  * Unsplash image result

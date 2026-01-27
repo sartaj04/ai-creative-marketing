@@ -23,7 +23,7 @@ import {
 import Link from "next/link";
 import { api } from "@/lib/api";
 import {
-    analyzeImage,
+    analyzeImageIterative,
     analyzeText,
     renderPreview,
     searchUnsplash,
@@ -31,6 +31,7 @@ import {
     type TemplateJSON,
     type UnsplashImage,
     type TextAnalyzeResponse,
+    type IterativeAnalyzeResponse,
 } from "@/lib/render-service";
 import { toast } from "sonner";
 
@@ -72,6 +73,8 @@ export default function TemplateCreatePage() {
         slides?: any[];
         analysis: any;
         commonAnalysis?: any;
+        iterations?: any[];
+        finalScore?: any;
     }>>({});
 
     const [slides, setSlides] = useState<{
@@ -89,6 +92,10 @@ export default function TemplateCreatePage() {
         fonts: string[];
         hasBackgroundImage?: boolean;
     } | null>(null);
+
+    const [iterations, setIterations] = useState<any[]>([]);
+    const [finalScore, setFinalScore] = useState<any>(null);
+    const [showComparison, setShowComparison] = useState(true);
 
     // Selected ratios to generate
     const [selectedRatios, setSelectedRatios] = useState<string[]>(["1:1", "9:16", "16:9"]);
@@ -183,6 +190,8 @@ export default function TemplateCreatePage() {
                 setExtractedFormat(result);
                 setName(result.name);
                 setDescription(result.description);
+                if (result.platform) setPlatform(result.platform);
+
                 // Map variables
                 setVariables(result.variables.map(v => ({
                     name: v.name,
@@ -244,18 +253,29 @@ export default function TemplateCreatePage() {
                 if (ratio === "9:16") { width = 1080; height = 1920; }
                 else if (ratio === "16:9") { width = 1920; height = 1080; }
 
-                const result = await analyzeImage(uploadedFile, width, height);
+                // Use Iterative Analysis for better results
+                const result = await analyzeImageIterative(uploadedFile, width, height);
 
-                // Hydrate placeholders with Unsplash image
+                // Hydrate placeholders with semantic background if available
+                let hydrationImage = previewImageUrl;
+
+                if (result.analysis?.hasBackgroundImage && result.analysis?.searchQuery) {
+                    try {
+                        const searchRes = await searchUnsplash(result.analysis.searchQuery, { perPage: 1 });
+                        if (searchRes.results.length > 0) {
+                            hydrationImage = searchRes.results[0].urls.regular;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to fetch semantic background", e);
+                    }
+                }
+
                 if (result.template) {
-                    result.template = hydrateTemplate(result.template, previewImageUrl);
+                    result.template = hydrateTemplate(result.template, hydrationImage);
                 }
-                if (result.slides) {
-                    result.slides = result.slides.map(s => ({
-                        ...s,
-                        template: hydrateTemplate(s.template, previewImageUrl)
-                    }));
-                }
+
+                // Note: Carousel iterative analysis not fully supported yet on backend, 
+                // falling back to single analysis logic if needed, but here assuming result matches
 
                 ratioResults[ratio] = result;
             }));
@@ -267,6 +287,12 @@ export default function TemplateCreatePage() {
             const initialResult = ratioResults[firstRatio];
             setAspectRatio(firstRatio as any);
 
+            // Set iterations data
+            if (initialResult.iterations) {
+                setIterations(initialResult.iterations);
+                setFinalScore(initialResult.finalScore);
+            }
+
             if (templateType === "carousel" && initialResult.slides) {
                 setSlides(initialResult.slides);
                 setTemplateJson(initialResult.slides[0].template);
@@ -276,7 +302,7 @@ export default function TemplateCreatePage() {
                     colorPalette: initialResult.commonAnalysis?.colorPalette || [],
                     fonts: initialResult.commonAnalysis?.fonts || [],
                 });
-            } else if (initialResult.template && initialResult.analysis) {
+            } else {
                 setTemplateJson(initialResult.template);
                 setAnalysis(initialResult.analysis);
             }
@@ -291,7 +317,7 @@ export default function TemplateCreatePage() {
             setName(baseName.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
 
             setCurrentStep("edit");
-            toast.success("Ready to preview!");
+            toast.success("Design refined & generated!");
 
             if (baseTemplate) {
                 await loadPreview(baseTemplate);
@@ -711,8 +737,8 @@ export default function TemplateCreatePage() {
                                     <Sparkles className="w-12 h-12 text-primary-500 animate-pulse" />
                                 </div>
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">AI is analyzing your image</h2>
-                            <p className="text-gray-500">Extracting layout, detecting elements, generating template...</p>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Refining Design Iteratively</h2>
+                            <p className="text-gray-500">Analyzing layout, sanitizing CSS, and self-correcting to match original...</p>
                             <div className="mt-8 flex items-center justify-center gap-2">
                                 <Loader2 className="w-5 h-5 text-primary-500 animate-spin" />
                                 <span className="text-sm text-gray-600">This may take 10-30 seconds</span>
@@ -780,13 +806,40 @@ export default function TemplateCreatePage() {
                                                 </div>
                                             </div>
                                         ) : previewImage ? (
-                                            <div className="relative group/preview flex flex-col items-center">
-                                                <img
-                                                    src={previewImage}
-                                                    alt="Template Preview"
-                                                    className={`rounded-xl shadow-2xl transition-all duration-300 max-h-[600px] ${aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "16:9" ? "aspect-[16/9]" : "aspect-square"
-                                                        }`}
-                                                />
+                                            <div className="flex flex-col gap-6 w-full max-w-4xl px-4">
+                                                {showComparison && uploadPreview ? (
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="font-medium text-xs text-center text-gray-500 uppercase tracking-widest">Original</div>
+                                                            <div className="relative rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-white">
+                                                                <img
+                                                                    src={uploadPreview}
+                                                                    alt="Original"
+                                                                    className="w-full h-auto object-contain max-h-[500px]"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="font-medium text-xs text-center text-gray-500 uppercase tracking-widest">Rendered ({finalScore?.overall || 0}%)</div>
+                                                            <div className="relative rounded-xl overflow-hidden shadow-lg border border-primary-500/30 bg-white">
+                                                                <img
+                                                                    src={previewImage}
+                                                                    alt="Rendered"
+                                                                    className="w-full h-auto object-contain max-h-[500px]"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative group/preview flex flex-col items-center">
+                                                        <img
+                                                            src={previewImage}
+                                                            alt="Template Preview"
+                                                            className={`rounded-xl shadow-2xl transition-all duration-300 max-h-[600px] ${aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "16:9" ? "aspect-[16/9]" : "aspect-square"
+                                                                }`}
+                                                        />
+                                                    </div>
+                                                )}
 
                                                 {/* Float Navigation Overlay for Carousel */}
                                                 {templateType === "carousel" && slides.length > 1 && (
@@ -890,6 +943,43 @@ export default function TemplateCreatePage() {
                                                     ))}
                                                 </div>
                                             </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {iterations && iterations.length > 0 && (
+                                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mt-6">
+                                        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                            <RefreshCw className="w-4 h-4 text-primary-500" />
+                                            Iteration History
+                                        </h3>
+                                        <div className="space-y-4">
+                                            {iterations.map((iter, i) => (
+                                                <div key={i} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="font-semibold text-sm text-gray-700">Attempt {iter.attempt}</span>
+                                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${iter.score >= 85 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                            Score: {iter.score}
+                                                        </span>
+                                                    </div>
+                                                    {iter.issues && iter.issues.length > 0 && (
+                                                        <div className="text-xs text-gray-500 mb-2">
+                                                            <p className="font-medium mb-1">Issues:</p>
+                                                            <ul className="list-disc list-inside space-y-0.5">
+                                                                {iter.issues.map((issue: string, idx: number) => (
+                                                                    <li key={idx}>{issue}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                    {iter.fix && (
+                                                        <div className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                                                            <Check className="w-3 h-3" />
+                                                            {iter.fix}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
@@ -1018,6 +1108,15 @@ export default function TemplateCreatePage() {
                                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                                         Save Template
                                     </button>
+
+                                    <button
+                                        onClick={handleAnalyze}
+                                        disabled={isAnalyzing}
+                                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-white border border-primary-200 text-primary-600 rounded-xl font-semibold hover:bg-primary-50 transition disabled:opacity-50"
+                                    >
+                                        <Sparkles className="w-5 h-5" />
+                                        Retry Analysis
+                                    </button>
                                     <button
                                         onClick={handleReset}
                                         className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition"
@@ -1095,6 +1194,6 @@ export default function TemplateCreatePage() {
                     </div>
                 )}
             </div>
-        </AdminLayout>
+        </AdminLayout >
     );
 }

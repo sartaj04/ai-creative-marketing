@@ -100,6 +100,55 @@ export interface TextAnalyzeResponse {
         name: string;
         type: 'text';
     }[];
+    platform?: 'linkedin' | 'twitter' | 'instagram' | 'general';
+    postType?: 'thread' | 'carousel' | 'standard' | 'reel';
+}
+
+/**
+ * Score breakdown for vision comparison
+ */
+export interface ComparisonScore {
+    layout: number;      // 0-100
+    colors: number;      // 0-100
+    typography: number;  // 0-100
+    spacing: number;     // 0-100
+    overall: number;     // 0-100 weighted average
+}
+
+/**
+ * Single iteration log entry
+ */
+export interface IterationLog {
+    attempt: number;
+    timestamp: string;
+    renderSuccess: boolean;
+    renderError?: string;
+    sanitizationWarnings?: string[];
+    score?: ComparisonScore;
+    issues?: string[];
+    suggestedFixes?: string[];
+}
+
+/**
+ * Iterative analysis response
+ */
+export interface IterativeAnalyzeResponse {
+    success: boolean;
+    template: TemplateJSON;
+    iterations: IterationLog[];
+    finalScore: ComparisonScore;
+    previewImage: string;          // base64 data URL
+    variables: string[];           // Extracted placeholder names
+    analysis: {
+        detectedElements: string[];
+        colorPalette: string[];
+        fonts: string[];
+        hasBackgroundImage?: boolean;
+        searchQuery?: string;
+    };
+    totalIterations: number;
+    targetScoreReached: boolean;
+    processingTimeMs: number;
 }
 
 /**
@@ -127,6 +176,38 @@ export async function analyzeImage(
 
     return response.json();
 }
+
+/**
+ * Iteratively analyze an image with self-healing template generation
+ */
+export async function analyzeImageIterative(
+    file: File,
+    width: number = 1080,
+    height: number = 1080,
+    targetScore: number = 85,
+    maxIterations: number = 5
+): Promise<IterativeAnalyzeResponse> {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('width', width.toString());
+    formData.append('height', height.toString());
+    formData.append('targetScore', targetScore.toString());
+    formData.append('maxIterations', maxIterations.toString());
+
+    const response = await fetch(`${RENDER_SERVICE_URL}/analyze-iterative`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Iterative analysis failed');
+    }
+
+    return response.json();
+}
+
+
 
 /**
  * Analyze text to extract reusable format placeholders

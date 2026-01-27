@@ -7,7 +7,7 @@ import { Resvg } from '@resvg/resvg-js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from '../utils/logger.js';
-import type { TemplateJSON, TemplateNode } from '../types/template.js';
+import type { TemplateJSON, TemplateNode, TemplateSanitizationResult } from '../types/template.js';
 
 // Font cache
 let fontData: ArrayBuffer | null = null;
@@ -51,6 +51,191 @@ async function loadFont(): Promise<ArrayBuffer> {
 // Transparent 1x1 pixel for placeholder replacement
 const TRANSPARENT_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+// CSS properties that Satori does NOT support
+const UNSUPPORTED_PROPERTIES = new Set([
+    'filter',
+    'backdropFilter',
+    'backdrop-filter',
+    'animation',
+    'animationName',
+    'animationDuration',
+    'transition',
+    'transitionProperty',
+    'transitionDuration',
+    'cursor',
+    'pointerEvents',
+    'userSelect',
+    'resize',
+    'outline',
+    'outlineWidth',
+    'outlineColor',
+    'outlineStyle',
+    'content',
+    'listStyle',
+    'listStyleType',
+    'visibility',
+    'clipPath',
+    'clip-path',
+    'mask',
+    'maskImage',
+]);
+
+/**
+ * Sanitize a single style object for Satori compatibility
+ */
+function sanitizeStyle(style: Record<string, unknown>): { sanitized: Record<string, unknown>; warnings: string[] } {
+    const warnings: string[] = [];
+    const sanitized: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(style)) {
+        // Skip unsupported properties
+        if (UNSUPPORTED_PROPERTIES.has(key)) {
+            warnings.push(`Removed unsupported property: ${key}`);
+            continue;
+        }
+
+        // Handle string values
+        if (typeof value === 'string') {
+            let processedValue: string | null = value;
+
+            // Convert 'transparent' to rgba
+            if (value === 'transparent') {
+                processedValue = 'rgba(0,0,0,0)';
+                warnings.push(`Converted 'transparent' to 'rgba(0,0,0,0)' in ${key}`);
+            }
+            // Fix common LLM typo: gba -> rgba
+            else if (value.includes('gba(')) {
+                processedValue = value.replace(/gba\(/g, 'rgba(');
+                warnings.push(`Fixed typo: converted 'gba(' to 'rgba(' in ${key}`);
+            }
+            // Fix common LLM typo: gb -> rgb
+            else if (value.includes('gb(') && !value.includes('rgb(')) {
+                processedValue = value.replace(/gb\(/g, 'rgb(');
+                warnings.push(`Fixed typo: converted 'gb(' to 'rgb(' in ${key}`);
+            }
+            // Handle repeating-linear-gradient
+            else if (value.includes('repeating-linear-gradient')) {
+                processedValue = value.replace(/repeating-linear-gradient/g, 'linear-gradient');
+                warnings.push(`Converted repeating-linear-gradient to linear-gradient in ${key}`);
+            }
+            // Handle repeating-radial-gradient - extract first color as fallback
+            else if (value.includes('repeating-radial-gradient') || value.includes('radial-gradient')) {
+                const colorMatch = value.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)/);
+                if (colorMatch) {
+                    processedValue = colorMatch[0];
+                    warnings.push(`Converted radial-gradient to solid color ${processedValue} in ${key}`);
+                } else {
+                    processedValue = null;
+                    warnings.push(`Removed unsupported radial-gradient in ${key}`);
+                }
+            }
+            // Handle calc() - Satori doesn't support it
+            else if (value.includes('calc(')) {
+                processedValue = null;
+                warnings.push(`Removed unsupported calc() in ${key}`);
+            }
+            // Handle fit-content, min-content, max-content
+            else if (['fit-content', 'min-content', 'max-content'].includes(value)) {
+                processedValue = null;
+                warnings.push(`Removed unsupported value '${value}' in ${key}`);
+            }
+            // Handle currentColor
+            else if (value === 'currentColor' && key !== 'color') {
+                processedValue = '#000000';
+                warnings.push(`Converted 'currentColor' to '#000000' in ${key}`);
+            }
+            // Handle 3D transforms
+            else if (key === 'transform' && (value.includes('3d') || value.includes('perspective'))) {
+                // Try to extract 2D transform or remove
+                const has2D = value.match(/(translate|rotate|scale|skew)\([^)]+\)/g);
+                if (has2D && has2D.length > 0) {
+                    processedValue = has2D.join(' ');
+                    warnings.push(`Removed 3D transforms, kept 2D: ${processedValue}`);
+                } else {
+                    processedValue = null;
+                    warnings.push(`Removed unsupported 3D transform in ${key}`);
+                }
+            }
+
+            if (processedValue !== null) {
+                sanitized[key] = processedValue;
+            }
+        }
+        // Handle display: grid conversion
+        else if (key === 'display' && value === 'grid') {
+            sanitized['display'] = 'flex';
+            sanitized['flexWrap'] = 'wrap';
+            warnings.push(`Converted display: grid to display: flex with flexWrap: wrap`);
+        }
+        // Handle display: inline-block, inline-flex
+        else if (key === 'display' && (value === 'inline-block' || value === 'inline-flex' || value === 'inline')) {
+            sanitized['display'] = 'flex';
+            warnings.push(`Converted display: ${value} to display: flex`);
+        }
+        // Remove grid-specific properties
+        else if (key.startsWith('grid') || key === 'gridGap' || key === 'grid-gap') {
+            if (key === 'gridGap' || key === 'grid-gap') {
+                sanitized['gap'] = value;
+                warnings.push(`Converted ${key} to gap`);
+            } else {
+                warnings.push(`Removed unsupported grid property: ${key}`);
+            }
+        }
+        // Pass through other values
+        else {
+            sanitized[key] = value;
+        }
+    }
+
+    return { sanitized, warnings };
+}
+
+/**
+ * Recursively sanitize a template node
+ */
+function sanitizeNode(node: TemplateNode): { node: TemplateNode; warnings: string[] } {
+    const allWarnings: string[] = [];
+    const sanitizedNode: TemplateNode = { ...node };
+
+    // Sanitize style if present
+    if (node.props?.style) {
+        const { sanitized, warnings } = sanitizeStyle(node.props.style as Record<string, unknown>);
+        sanitizedNode.props = { ...node.props, style: sanitized };
+        allWarnings.push(...warnings);
+    }
+
+    // Recursively sanitize children
+    if (node.children && node.children.length > 0) {
+        sanitizedNode.children = node.children.map(child => {
+            if (typeof child === 'string') {
+                return child;
+            }
+            const { node: sanitizedChild, warnings } = sanitizeNode(child);
+            allWarnings.push(...warnings);
+            return sanitizedChild;
+        });
+    }
+
+    return { node: sanitizedNode, warnings: allWarnings };
+}
+
+/**
+ * Sanitize a template for Satori compatibility
+ * Transforms unsupported CSS to supported alternatives
+ */
+export function sanitizeTemplate(template: TemplateJSON): TemplateSanitizationResult {
+    const { node, warnings } = sanitizeNode(template);
+
+    if (warnings.length > 0) {
+        logger.warn('Template sanitized', { warningCount: warnings.length, warnings: warnings.slice(0, 10) });
+    }
+
+    return {
+        template: node as TemplateJSON,
+        warnings,
+    };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function templateToElement(node: TemplateNode | string): any {
     // Handle text nodes
@@ -61,6 +246,12 @@ function templateToElement(node: TemplateNode | string): any {
     // Build props
     const props: Record<string, unknown> = { ...node.props };
 
+    // Ensure style object exists
+    if (!props.style) {
+        props.style = {};
+    }
+    const style = props.style as any;
+
     // SANITIZATION: Fix Satori crash on invalid URLs (placeholders)
     if (node.type === 'img' && typeof props.src === 'string') {
         if (props.src.trim() === '' || props.src.includes('{{') || !props.src.startsWith('http') && !props.src.startsWith('data:')) {
@@ -68,13 +259,26 @@ function templateToElement(node: TemplateNode | string): any {
         }
     }
 
-    // Check backgroundImage in style for placeholders too
-    if (props.style && typeof (props.style as any).backgroundImage === 'string') {
-        const bgImg = (props.style as any).backgroundImage as string;
-        if (bgImg.includes('{{') && !bgImg.includes('url(')) {
-            // If it's just raw '{{background}}' it's invalid css anyway, but satori might choke on url('{{...}}')
-            // Satori is lenient with background-image: url() even if broken, but let's be safe.
-            // Usually Satori only crashes on <img> src.
+    // SANITIZATION: Satori requires explicit display: flex for containers with multiple children
+    if (node.children && node.children.length > 0) {
+        if (!style.display) {
+            style.display = 'flex';
+            // Default to column to mimic block behavior
+            if (!style.flexDirection) {
+                style.flexDirection = 'column';
+            }
+        }
+    }
+
+    // SANITIZATION: Yoga/Satori crash on 'fit-content'
+    if (style.width === 'fit-content') delete style.width;
+    if (style.height === 'fit-content') delete style.height;
+
+    // SANITIZATION: Invalid background-image url() syntax or placeholders
+    if (typeof style.backgroundImage === 'string') {
+        const bgImg = style.backgroundImage;
+        if (bgImg.includes('{{')) {
+            delete style.backgroundImage;
         }
     }
 

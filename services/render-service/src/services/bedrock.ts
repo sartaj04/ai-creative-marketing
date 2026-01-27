@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-bedrock-runtime';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
-import type { TemplateJSON, AnalyzeResponse, TextAnalyzeResponse } from '../types/template.js';
+import type { TemplateJSON, AnalyzeResponse, TextAnalyzeResponse, VisionComparisonResult } from '../types/template.js';
 
 // Initialize Bedrock client with Bedrock-specific credentials
 const bedrockClient = new BedrockRuntimeClient({
@@ -22,11 +22,46 @@ const bedrockClient = new BedrockRuntimeClient({
 /**
  * System prompts for template generation
  */
-const POST_SYSTEM_PROMPT = `You are a high-precision layout extraction AI using Claude 4.5 Sonnet. Analyze the provided image and generate a pixel-perfect Satori-compatible template JSON.
+const POST_SYSTEM_PROMPT = `You are a high-precision layout extraction AI. Analyze the provided image and generate a pixel-perfect Satori-compatible template JSON.
+
+
+SATORI CSS CONSTRAINTS (CRITICAL - violations cause render failures):
+
+SUPPORTED CSS PROPERTIES:
+- Layout: display (flex, none ONLY), flexDirection, flexWrap, flexGrow, flexShrink, flexBasis, alignItems, alignContent, alignSelf, justifyContent, gap
+- Position: position (relative, absolute), top, right, bottom, left
+- Sizing: width, height, minWidth, minHeight, maxWidth, maxHeight
+- Spacing: margin, marginTop/Right/Bottom/Left, padding, paddingTop/Right/Bottom/Left
+- Border: border, borderWidth, borderStyle (solid, dashed), borderColor, borderRadius
+- Background: backgroundColor, backgroundImage (linear-gradient ONLY), backgroundSize, backgroundPosition
+- Typography: color, fontSize, fontWeight, fontFamily, fontStyle, textAlign, textTransform, lineHeight, letterSpacing, whiteSpace, wordBreak, textOverflow
+- Other: opacity, boxShadow, overflow, objectFit, objectPosition
+
+NOT SUPPORTED (DO NOT USE - will crash renderer):
+- display: grid, inline-block, inline-flex, inline
+- z-index (use DOM order instead)
+- filter, backdrop-filter
+- transform with 3D (translate3d, rotate3d, scale3d, perspective)
+- calc() function
+- repeating-linear-gradient (use linear-gradient instead)
+- radial-gradient
+- transparent keyword (use rgba(0,0,0,0) instead)
+- currentColor in non-color properties
+- min-content, max-content, fit-content
+- animation, transition
+- @keyframes
 
 DETECTION RULES:
-1. BACKGROUND: If the image has a non-solid background (texture, photo, gradient), set "hasBackgroundImage": true and use "background-image: url('{{background}}')" in the root container style.
-2. CONTENT IMAGES: For any embedded photos or graphics that are NOT the background, use an <img> tag with src="{{image}}".
+1. BACKGROUND: 
+   - If the image uses a photo/texture background, set "hasBackgroundImage": true.
+   - Generate a semantic "searchQuery" (e.g. "minimalist office desk top view", "dark green grunge texture") that describes it.
+   - Use "backgroundImage": "url('{{background}}')" in the root container style.
+2. TEXT STRUCTURE:
+   - Identify visually distinct text blocks. DO NOT merge separate lines or headings into one block unless they are clearly a single paragraph.
+   - If text has different sizes/weights/colors, SPLIT it into separate children elements.
+   - Maintain the original visual hierarchy.
+3. CONTENT IMAGES: For any embedded photos or graphics that are NOT the background, use an <img> tag with src="{{image}}".
+4. PLACEHOLDER TEXT: Replace all text content with {{placeholders}} like {{headline}}, {{subtitle}}, {{body}}, {{cta}}, {{author}}.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON matching this schema:
@@ -34,30 +69,32 @@ Return ONLY valid JSON matching this schema:
   "template": {
     "type": "div",
     "props": {
-      "style": { 
+      "style": {
         "display": "flex",
         "flexDirection": "column",
         "width": "100%",
         "height": "100%",
-        "backgroundColor": "#hex",
-        "backgroundImage": "url('{{background}}')" // Only if hasBackgroundImage is true
+        "backgroundColor": "#hexcode",
+        "backgroundImage": "url('{{background}}')"
       }
     },
-    "children": [ /* nested elements with {{headline}}, {{image}} placeholders */ ]
+    "children": [ /* nested elements */ ]
   },
   "analysis": {
     "detectedElements": ["headline", "subtext", "image", etc.],
     "colorPalette": ["#hex1", "#hex2", ...],
     "fonts": ["font1", "font2", ...],
-    "hasBackgroundImage": boolean
+    "hasBackgroundImage": boolean,
+    "searchQuery": "string description for background image search"
   }
 }
 
-CONSTRAINTS:
-1. Use ONLY flexbox (display: flex).
-2. Use absolute pixels for font sizes (e.g., 48px).
-3. Do NOT include actual text content - replace with {{placeholders}}.
-4. Colors must be hex codes.
+RULES:
+1. Use ONLY flexbox (display: flex) - NO GRID
+2. Use numeric values for font sizes (e.g., 48 not "48px")
+3. Do NOT include actual text content - replace with {{placeholders}}
+4. Colors must be hex codes or rgba()
+5. All dimension values should be numbers for pixels or strings for percentages
 
 Return ONLY the JSON object.`;
 
@@ -102,17 +139,21 @@ Your task is to analyze a provided social media post (or post idea) and extract 
 
 RULES:
 1. STRUCTURE: Keep the exact structure, emojis, line breaks, and punctuation of the original text.
-2. PLACEHOLDERS: Replace all specific details (entities, locations, specific numbers that aren't part of the format, product names, industry-specific terms) with descriptive placeholders in curly braces like {Topic}, {Industry}, {Hook}, {Outcome}, {Specific_Detail}.
-3. NAMING: Provide a clear, professional name for this format (e.g., "Educational Myth-Buster", "Result-Oriented Promotional Hook").
+2. PLACEHOLDERS: Replace all specific details with descriptive placeholders in curly braces like {Topic}, {Industry}, {Hook}, {Outcome}.
+3. NAMING: Provide a clear, professional name for this format.
 4. DESCRIPTION: Provide a 1-sentence description of when to use this format.
-5. VARIABLES: List all unique placeholder names used in the format.
+5. CONTEXT DETECTION:
+   - Detect the PLATFORM: "linkedin", "twitter", "instagram", or "general".
+   - Detect the POST TYPE: "thread" (multi-tweet), "carousel" (slide content), "standard" (single post), or "reel".
 
 OUTPUT FORMAT:
 Return ONLY valid JSON matching this schema:
 {
   "format": "string", // The full text with {Placeholders}
   "name": "string",   // Suggested name
-  "description": "string", // 1-sentence usage description
+  "description": "string",
+  "platform": "linkedin" | "twitter" | "instagram" | "general",
+  "postType": "thread" | "carousel" | "standard" | "reel",
   "variables": [
     { "name": "Topic", "type": "text" },
     ...
@@ -344,10 +385,223 @@ export async function analyzeText(text: string): Promise<TextAnalyzeResponse> {
             format: parsed.format,
             name: parsed.name,
             description: parsed.description,
+            platform: parsed.platform || 'general',
+            postType: parsed.postType || 'standard',
             variables: parsed.variables,
         };
     } catch (error) {
         logger.error('Claude text analysis failed', error);
         throw new Error(`Text analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
+/**
+ * Vision comparison prompt for scoring rendered vs original
+ */
+const VISION_COMPARISON_PROMPT = `You are a pixel-perfect design comparison AI. Compare two images:
+1. ORIGINAL: The reference design the user uploaded
+2. RENDERED: The template we generated and rendered
+
+Score each dimension 0-100:
+- layout: Element positioning, hierarchy, proportions, overall structure
+- colors: Color accuracy, gradients, backgrounds, text colors
+- typography: Font sizes, weights, line heights, text styling, alignment
+- spacing: Margins, padding, gaps between elements
+- overall: Weighted average (layout 30%, colors 25%, typography 25%, spacing 20%)
+
+OUTPUT FORMAT (JSON only):
+{
+  "scores": {
+    "layout": number,
+    "colors": number,
+    "typography": number,
+    "spacing": number,
+    "overall": number
+  },
+  "issues": [
+    "Specific issue 1 - be precise about what's wrong",
+    "Specific issue 2"
+  ],
+  "suggestedFixes": [
+    "Exact CSS property change needed (e.g., 'fontSize should be 48 not 32')",
+    "Another specific fix"
+  ],
+  "detailedAnalysis": "2-3 sentence summary of major differences"
+}
+
+SCORING GUIDELINES:
+- 90-100: Nearly identical, minor differences
+- 70-89: Good match, some noticeable differences
+- 50-69: Recognizable as same design, significant issues
+- Below 50: Major structural or visual problems
+
+Focus on Satori-compatible fixes. Be strict - if layout structure is wrong, score below 70.`;
+
+/**
+ * Template fix prompt for requesting improvements
+ */
+const TEMPLATE_FIX_PROMPT = `You are a Satori template repair AI. Fix the template based on the comparison results.
+
+SATORI CSS CONSTRAINTS (must follow):
+- Use ONLY display: flex (NO grid)
+- No z-index, filter, backdrop-filter
+- No transform3d, perspective
+- No repeating-linear-gradient (use linear-gradient)
+- No transparent keyword (use rgba(0,0,0,0))
+- No calc() functions
+- Use numeric values for font sizes
+- Use hex colors or rgba()
+
+You will receive:
+1. The ORIGINAL image (reference)
+2. The RENDERED output (current result)
+3. The CURRENT template JSON
+4. List of ISSUES identified
+5. SUGGESTED FIXES
+
+Your task: Return ONLY the corrected template JSON that addresses the issues while maintaining Satori compatibility.
+
+OUTPUT: Return ONLY the template JSON object, no explanation or wrapper.`;
+
+/**
+ * Compare original image with rendered output using Claude vision
+ */
+export async function compareImages(
+    originalBuffer: Buffer,
+    renderedBuffer: Buffer,
+    originalMimeType: string = 'image/png'
+): Promise<VisionComparisonResult> {
+    logger.info('Comparing images with Claude vision', {
+        originalSize: originalBuffer.length,
+        renderedSize: renderedBuffer.length,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contentBlocks: any[] = [
+        {
+            text: "Compare these two images. IMAGE 1 is the ORIGINAL design reference. IMAGE 2 is our RENDERED template output."
+        },
+        {
+            image: {
+                format: originalMimeType.split('/')[1] === 'jpeg' ? 'jpeg' : 'png',
+                source: { bytes: originalBuffer },
+            },
+        },
+        {
+            text: "IMAGE 1 (ORIGINAL) shown above. IMAGE 2 (RENDERED) shown below:"
+        },
+        {
+            image: {
+                format: 'png',
+                source: { bytes: renderedBuffer },
+            },
+        },
+        {
+            text: "Analyze the differences and provide scores according to the scoring guidelines."
+        }
+    ];
+
+    try {
+        const command = new ConverseCommand({
+            modelId: env.bedrock.modelId,
+            messages: [{ role: 'user', content: contentBlocks }],
+            system: [{ text: VISION_COMPARISON_PROMPT }],
+            inferenceConfig: { maxTokens: 2048, temperature: 0 },
+        });
+
+        const response = await bedrockClient.send(command);
+        const content = response.output?.message?.content?.[0]?.text || '';
+        const parsed = parseClaudeResponse(content);
+
+        logger.info('Vision comparison complete', { overall: parsed.scores?.overall });
+
+        return {
+            scores: parsed.scores || { layout: 0, colors: 0, typography: 0, spacing: 0, overall: 0 },
+            issues: parsed.issues || [],
+            suggestedFixes: parsed.suggestedFixes || [],
+            detailedAnalysis: parsed.detailedAnalysis || '',
+        };
+    } catch (error) {
+        logger.error('Vision comparison failed', error);
+        throw new Error(`Vision comparison failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
+/**
+ * Request template fix from Claude based on comparison results
+ */
+export async function requestTemplateFix(
+    originalBuffer: Buffer,
+    renderedBuffer: Buffer,
+    currentTemplate: TemplateJSON,
+    issues: string[],
+    suggestedFixes: string[],
+    originalMimeType: string = 'image/png'
+): Promise<TemplateJSON> {
+    logger.info('Requesting template fix from Claude', {
+        issueCount: issues.length,
+        fixCount: suggestedFixes.length,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contentBlocks: any[] = [
+        {
+            text: `Fix this template to better match the original design.
+
+ISSUES IDENTIFIED:
+${issues.map((i, idx) => `${idx + 1}. ${i}`).join('\n')}
+
+SUGGESTED FIXES:
+${suggestedFixes.map((f, idx) => `${idx + 1}. ${f}`).join('\n')}
+
+ORIGINAL IMAGE (reference):`
+        },
+        {
+            image: {
+                format: originalMimeType.split('/')[1] === 'jpeg' ? 'jpeg' : 'png',
+                source: { bytes: originalBuffer },
+            },
+        },
+    ];
+
+    // Only include rendered image if we have one
+    if (renderedBuffer.length > 0) {
+        contentBlocks.push({
+            text: "CURRENT RENDERED OUTPUT:"
+        });
+        contentBlocks.push({
+            image: {
+                format: 'png',
+                source: { bytes: renderedBuffer },
+            },
+        });
+    }
+
+    contentBlocks.push({
+        text: `CURRENT TEMPLATE JSON:
+${JSON.stringify(currentTemplate, null, 2)}
+
+Return the FIXED template JSON only. Apply the suggested fixes while ensuring Satori compatibility.`
+    });
+
+    try {
+        const command = new ConverseCommand({
+            modelId: env.bedrock.modelId,
+            messages: [{ role: 'user', content: contentBlocks }],
+            system: [{ text: TEMPLATE_FIX_PROMPT }],
+            inferenceConfig: { maxTokens: 8192, temperature: 0 },
+        });
+
+        const response = await bedrockClient.send(command);
+        const content = response.output?.message?.content?.[0]?.text || '';
+        const parsed = parseClaudeResponse(content);
+
+        logger.info('Template fix received');
+
+        // Handle if Claude returns { template: ... } wrapper or direct template
+        return parsed.template || parsed;
+    } catch (error) {
+        logger.error('Template fix request failed', error);
+        throw new Error(`Template fix failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }

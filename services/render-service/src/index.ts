@@ -9,6 +9,7 @@ import { logger } from './utils/logger.js';
 
 // Import routes
 import analyzeRouter from './routes/analyze.js';
+import analyzeIterativeRouter from './routes/analyze-iterative.js';
 import renderRouter from './routes/render.js';
 import unsplashRouter from './routes/unsplash.js';
 
@@ -48,6 +49,7 @@ app.get('/health', (_req, res) => {
 
 // API Routes
 app.use('/analyze', analyzeRouter);
+app.use('/analyze-iterative', analyzeIterativeRouter);
 app.use('/render', renderRouter);
 app.use('/unsplash', unsplashRouter);
 
