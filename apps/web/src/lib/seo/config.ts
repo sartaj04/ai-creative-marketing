@@ -1,5 +1,5 @@
 export const siteConfig = {
-  name: 'Pixo',
+  name: 'Pixo AI',
   tagline: 'Agentic Personal Branding Platform',
   description:
     'Transform manual personal branding into a 5-minute daily review workflow. Pixo\'s AI agents learn your voice, find opportunities, and deliver ready content daily.',

@@ -358,11 +358,14 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <span className="text-slate-400">Help Center</span>
+                <Link
+                  href="/help"
+                  className="text-slate-500 hover:text-cyan-600 transition-colors"
+                >
+                  Help Center
+                </Link>
               </li>
-              <li>
-                <span className="text-slate-400">API Docs</span>
-              </li>
+
             </ul>
           </div>
 
@@ -373,13 +376,20 @@ export function Footer() {
             </h4>
             <ul className="space-y-3 text-sm">
               <li>
-                <span className="text-slate-400">About</span>
+                <Link
+                  href="/about"
+                  className="text-slate-500 hover:text-cyan-600 transition-colors"
+                >
+                  About
+                </Link>
               </li>
               <li>
-                <span className="text-slate-400">Careers</span>
-              </li>
-              <li>
-                <span className="text-slate-400">Contact</span>
+                <Link
+                  href="/contact"
+                  className="text-slate-500 hover:text-cyan-600 transition-colors"
+                >
+                  Contact
+                </Link>
               </li>
             </ul>
           </div>
@@ -388,7 +398,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-slate-400">
-            &copy; {new Date().getFullYear()} Pixo Inc. All rights reserved.
+            &copy; {new Date().getFullYear()} Neurocell Technologies Pvt Ltd. All rights reserved.
           </p>
           <div className="flex items-center gap-6 text-sm">
             <Link
@@ -403,9 +413,12 @@ export function Footer() {
             >
               Terms of Service
             </Link>
-            <button className="text-slate-400 hover:text-slate-600 transition-colors">
+            <Link
+              href="/cookies"
+              className="text-slate-400 hover:text-slate-600 transition-colors"
+            >
               Cookie Settings
-            </button>
+            </Link>
           </div>
         </div>
       </div>
