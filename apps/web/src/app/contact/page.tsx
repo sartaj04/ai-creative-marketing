@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Metadata } from 'next';
 import { Mail, MessageSquare, MapPin, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -42,11 +43,26 @@ export default function ContactPage() {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+            const formData = new FormData(e.currentTarget);
+            const response = await fetch("https://formspree.io/f/mjgrbbzy", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
 
-        setIsSubmitting(false);
-        setIsSuccess(true);
+            if (response.ok) {
+                setIsSuccess(true);
+            } else {
+                console.error("Form submission failed");
+            }
+        } catch (error) {
+            console.error("Form submission error", error);
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     return (
@@ -90,7 +106,7 @@ export default function ContactPage() {
                                         <div>
                                             <h3 className="font-semibold text-slate-900 mb-1">Support</h3>
                                             <p className="text-slate-500 mb-1">Visit our help center for quick answers.</p>
-                                            <a href="#" className="text-cyan-600 font-medium hover:underline">Visit Help Center</a>
+                                            <Link href="/help" className="text-cyan-600 font-medium hover:underline">Visit Help Center</Link>
                                         </div>
                                     </div>
 
@@ -130,22 +146,23 @@ export default function ContactPage() {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium text-slate-700">First Name</label>
-                                                <Input placeholder="Jane" required className="bg-slate-50" />
+                                                <Input name="firstName" placeholder="Jane" required className="bg-slate-50" />
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium text-slate-700">Last Name</label>
-                                                <Input placeholder="Doe" required className="bg-slate-50" />
+                                                <Input name="lastName" placeholder="Doe" required className="bg-slate-50" />
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium text-slate-700">Email</label>
-                                            <Input type="email" placeholder="jane@company.com" required className="bg-slate-50" />
+                                            <Input name="email" type="email" placeholder="jane@company.com" required className="bg-slate-50" />
                                         </div>
 
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium text-slate-700">Message</label>
                                             <Textarea
+                                                name="message"
                                                 placeholder="Tell us how we can help..."
                                                 className="bg-slate-50 min-h-[120px]"
                                                 required

@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { Navbar, Footer } from '@/components/layout/landing-layout';
 import { PostCard } from '@/components/blog';
+import { NewsletterForm } from '@/components/blog/newsletter-form';
 import { getAllPosts } from '@/lib/mdx';
 import { generateMetadata as generateSEOMetadata } from '@/lib/seo/metadata';
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/landing/scroll-reveal';
@@ -97,19 +98,7 @@ export default function BlogPage() {
               Get weekly insights on building your professional presence delivered to
               your inbox.
             </p>
-            <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-700 transition-colors"
-              >
-                Subscribe
-              </button>
-            </form>
+            <NewsletterForm />
           </ScrollReveal>
         </div>
       </section>
