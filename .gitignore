@@ -34,7 +34,6 @@ env/
 *~
 
 # Environment variables
-.env
 .env.local
 .env.*.local
 
@@ -80,3 +79,4 @@ celerybeat.pid
 gcp-credentials.json
 *-credentials.json
 macro-boulevard-483219-m2-9a82e00643a0.json
+.env

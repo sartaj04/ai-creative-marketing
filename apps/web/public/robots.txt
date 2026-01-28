@@ -1,0 +1,17 @@
+# Pixo - Agentic Personal Branding Platform
+# https://pixo.ai
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /auth/
+Disallow: /onboarding/
+Disallow: /inbox/
+Disallow: /drafts/
+Disallow: /templates/
+Disallow: /analytics/
+Disallow: /settings/
+
+# Sitemap
+Sitemap: https://pixo.ai/sitemap.xml

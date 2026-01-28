@@ -1,0 +1,10 @@
+export { SectionHeader } from './section-header';
+export { HeroSection } from './hero-section';
+export { ProblemSection } from './problem-section';
+export { HowItWorksSection } from './how-it-works-section';
+export { FeaturesSection } from './features-section';
+export { ComparisonSection } from './comparison-section';
+export { UseCasesSection } from './use-cases-section';
+export { EnterpriseSection } from './enterprise-section';
+export { PricingSection } from './pricing-section';
+export { CTASection } from './cta-section';
