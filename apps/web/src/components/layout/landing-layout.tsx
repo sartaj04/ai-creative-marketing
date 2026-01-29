@@ -20,14 +20,13 @@ const resourceLinks = [
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [useCasesOpen, setUseCasesOpen] = useState(false);
-  const [resourcesOpen, setResourcesOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 py-4 px-6 md:px-12 bg-white shadow-md border border-slate-100 rounded-b-xl mx-4 mt-4">
-      <div className="flex items-center justify-between max-w-7xl mx-auto">
+    <nav className="fixed top-4 left-0 right-0 z-50 transition-all duration-300 py-2.5 px-4 bg-white/80 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/60 rounded-full max-w-5xl mx-auto">
+      <div className="flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-1.5">
-          <div className="w-10 h-10 relative rounded-lg overflow-hidden">
+        <Link href="/" className="flex items-center gap-2 pl-2">
+          <div className="w-8 h-8 relative rounded-lg overflow-hidden shadow-sm">
             <Image
               src="/android-chrome-192x192.png"
               alt="Pixo Logo"
@@ -35,8 +34,8 @@ export function Navbar() {
               className="object-cover"
             />
           </div>
-          <span className="text-[28px] font-display font-bold tracking-tight text-slate-800">
-            Pixo<sup className="text-[12px] font-semibold text-blue-500 ml-0.5 -top-2">ai</sup>
+          <span className="text-xl font-display font-bold tracking-tight text-slate-800">
+            Pixo<sup className="text-[10px] font-semibold text-blue-500 ml-0.5 -top-1.5">ai</sup>
           </span>
         </Link>
 
@@ -58,46 +57,17 @@ export function Navbar() {
             <button className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-cyan-600 transition-colors py-2">
               Use Cases
               <ChevronDown
-                className={`w-4 h-4 transition-transform ${useCasesOpen ? 'rotate-180' : ''}`}
+                className={`w-3.5 h-3.5 transition-transform ${useCasesOpen ? 'rotate-180' : ''}`}
               />
             </button>
             {useCasesOpen && (
-              <div className="absolute top-full left-0 pt-1 w-48">
-                <div className="bg-white rounded-xl shadow-lg border border-slate-100 py-2">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 w-48">
+                <div className="bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100 py-1.5 overflow-hidden">
                   {useCaseLinks.map((link) => (
                     <Link
                       key={link.href}
                       href={link.href}
-                      className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-cyan-600 transition-colors"
-                    >
-                      {link.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Resources Dropdown */}
-          <div
-            className="relative"
-            onMouseEnter={() => setResourcesOpen(true)}
-            onMouseLeave={() => setResourcesOpen(false)}
-          >
-            <button className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-cyan-600 transition-colors py-2">
-              Resources
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`}
-              />
-            </button>
-            {resourcesOpen && (
-              <div className="absolute top-full left-0 pt-1 w-40">
-                <div className="bg-white rounded-xl shadow-lg border border-slate-100 py-2">
-                  {resourceLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-cyan-600 transition-colors"
+                      className="block px-4 py-2 text-[13px] text-slate-600 hover:bg-slate-50 hover:text-cyan-600 transition-colors"
                     >
                       {link.name}
                     </Link>
@@ -108,6 +78,13 @@ export function Navbar() {
           </div>
 
           <Link
+            href="/blog"
+            className="text-sm font-medium text-slate-600 hover:text-cyan-600 transition-colors"
+          >
+            Blog
+          </Link>
+
+          <Link
             href="/#pricing"
             className="text-sm font-medium text-slate-600 hover:text-cyan-600 transition-colors"
           >
@@ -116,17 +93,18 @@ export function Navbar() {
         </div>
 
         {/* Desktop CTA */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-2">
           <Link href="/auth">
             <Button
               variant="ghost"
-              className="text-sm font-semibold text-muted-foreground hover:text-primary"
+              size="sm"
+              className="text-sm font-medium text-slate-500 hover:text-slate-900 h-9"
             >
               Log in
             </Button>
           </Link>
           <Link href="/auth?mode=signup">
-            <Button className="font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-shadow">
+            <Button size="sm" className="h-9 px-5 rounded-full font-semibold shadow-md shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-shadow bg-slate-900 text-white hover:bg-slate-800">
               Get Started
             </Button>
           </Link>
@@ -138,16 +116,16 @@ export function Navbar() {
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? (
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           ) : (
-            <Menu className="w-6 h-6" />
+            <Menu className="w-5 h-5" />
           )}
         </button>
       </div>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white border-t border-slate-100 shadow-lg py-4 px-6 mt-2 mx-4 rounded-xl">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white border border-slate-100 shadow-xl py-4 px-6 mt-2 rounded-2xl mx-1">
           <div className="space-y-4">
             <Link
               href="/#features"
@@ -171,21 +149,13 @@ export function Navbar() {
                 </Link>
               ))}
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Resources
-              </p>
-              {resourceLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="block text-sm text-slate-600 hover:text-cyan-600 pl-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </div>
+            <Link
+              href="/blog"
+              className="block text-sm font-medium text-slate-600 hover:text-cyan-600"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Blog
+            </Link>
             <Link
               href="/#pricing"
               className="block text-sm font-medium text-slate-600 hover:text-cyan-600"
@@ -195,7 +165,7 @@ export function Navbar() {
             </Link>
             <div className="pt-4 border-t border-slate-100 space-y-2">
               <Link href="/auth" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full rounded-xl">
                   Log in
                 </Button>
               </Link>
@@ -203,7 +173,7 @@ export function Navbar() {
                 href="/auth?mode=signup"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <Button className="w-full">Get Started</Button>
+                <Button className="w-full rounded-xl">Get Started</Button>
               </Link>
             </div>
           </div>

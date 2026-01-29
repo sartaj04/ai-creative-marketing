@@ -8,7 +8,7 @@ export function HeroSection() {
   return (
     <section className="pt-32 pb-20 lg:pt-48 lg:pb-32 px-6 md:px-12 lg:px-16 relative overflow-visible z-10 min-h-screen flex items-center justify-center">
       {/* Background Visual Layer */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <div className="absolute inset-0 z-0 pointer-events-none scale-95 origin-center select-none">
         <SystemHeroVisual />
       </div>
 
@@ -40,7 +40,8 @@ export function HeroSection() {
           {/* Subhead */}
           <ScrollReveal direction="up" duration={0.7} delay={0.2}>
             <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10">
-              Pixo’s Autonomous agents work in the background — learning your voice, finding opportunities, and preparing content.
+              Pixo is an autonomous brand operating system, powered by a network of agents.
+              These agents run continuously to manage and scale your brand presence in the background.
             </p>
           </ScrollReveal>
 

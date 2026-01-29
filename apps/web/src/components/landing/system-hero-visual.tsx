@@ -56,26 +56,26 @@ export function SystemHeroVisual() {
                     animate={{ y: [0, -10, 0] }}
                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                 >
-                    <div className="w-64 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-100 p-4">
+                    <div className="w-64 bg-white/40 backdrop-blur-md rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-100/50 p-4">
                         <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                <Inbox className="w-4 h-4 text-blue-500" />
+                            <div className="w-8 h-8 rounded-lg bg-blue-50/50 flex items-center justify-center">
+                                <Inbox className="w-4 h-4 text-blue-600" />
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-slate-700">Content Sources</p>
-                                <p className="text-[10px] text-slate-400">Indexing...</p>
+                                <p className="text-xs font-semibold text-slate-800">Content Sources</p>
+                                <p className="text-[10px] text-slate-500">Indexing...</p>
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100/50">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-700 bg-white/30 p-2 rounded border border-slate-100/30">
                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                                 LinkedIn Profile
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100/50">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-700 bg-white/30 p-2 rounded border border-slate-100/30">
                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                                 Company Blog
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100/50">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-700 bg-white/30 p-2 rounded border border-slate-100/30">
                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                                 Industry News
                             </div>
@@ -88,14 +88,14 @@ export function SystemHeroVisual() {
                     animate={{ y: [0, 15, 0] }}
                     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
                 >
-                    <div className="w-56 bg-white/80 backdrop-blur rounded-xl shadow-lg border border-slate-100 p-3">
+                    <div className="w-56 bg-white/30 backdrop-blur-md rounded-xl border border-slate-100/40 shadow-sm p-3">
                         <div className="flex items-center gap-2 mb-2">
-                            <Sparkles className="w-3 h-3 text-purple-500" />
+                            <Sparkles className="w-3 h-3 text-purple-600" />
                             <span className="text-xs font-medium text-slate-700">Signals Detected</span>
                         </div>
                         <div className="flex gap-1 flex-wrap">
                             {['#AI', '#Growth', '#SaaS'].map(tag => (
-                                <span key={tag} className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-medium border border-purple-100">
+                                <span key={tag} className="px-1.5 py-0.5 rounded bg-purple-50/40 text-purple-800 text-[10px] font-medium border border-purple-100/40">
                                     {tag}
                                 </span>
                             ))}
@@ -111,7 +111,7 @@ export function SystemHeroVisual() {
                     animate={{ y: [0, -15, 0] }}
                     transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
                 >
-                    <div className="w-64 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-100 p-4">
+                    <div className="w-64 bg-white/40 backdrop-blur-md rounded-xl shadow-sm border border-slate-100/50 p-4">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -127,7 +127,7 @@ export function SystemHeroVisual() {
                                     initial={{ opacity: 0, x: 10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -10 }}
-                                    className="p-3 bg-cyan-50/50 rounded-lg border border-cyan-100"
+                                    className="p-3 bg-cyan-50/20 rounded-lg border border-cyan-100/40"
                                 >
                                     {activeStep === 0 && (
                                         <div className="flex gap-3">
@@ -167,9 +167,9 @@ export function SystemHeroVisual() {
                     animate={{ y: [0, 10, 0] }}
                     transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
                 >
-                    <div className="w-56 bg-white/80 backdrop-blur rounded-xl shadow-lg border border-slate-100 p-3">
+                    <div className="w-56 bg-white/30 backdrop-blur-md rounded-xl border border-slate-100/40 shadow-sm p-3">
                         <div className="flex items-center gap-2 mb-3">
-                            <BarChart3 className="w-3 h-3 text-emerald-500" />
+                            <BarChart3 className="w-3 h-3 text-emerald-600" />
                             <span className="text-xs font-medium text-slate-700">Projected Reach</span>
                         </div>
                         <div className="h-16 flex items-end gap-1 px-1">
@@ -179,7 +179,7 @@ export function SystemHeroVisual() {
                                     initial={{ height: 10 }}
                                     animate={{ height: `${h}%` }}
                                     transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", delay: i * 0.1 }}
-                                    className="flex-1 bg-gradient-to-t from-emerald-500/20 to-emerald-500 rounded-t-sm"
+                                    className="flex-1 bg-gradient-to-t from-emerald-500/20 to-emerald-500 rounded-t-sm opacity-80"
                                 />
                             ))}
                         </div>
