@@ -15,6 +15,7 @@ const useCaseLinks = [
 
 const resourceLinks = [
   { name: 'Blog', href: '/blog' },
+  { name: 'Affiliate', href: '/affiliate' },
 ];
 
 export function Navbar() {
@@ -82,6 +83,13 @@ export function Navbar() {
             className="text-sm font-medium text-slate-600 hover:text-cyan-600 transition-colors"
           >
             Blog
+          </Link>
+
+          <Link
+            href="/affiliate"
+            className="text-sm font-medium text-slate-600 hover:text-cyan-600 transition-colors"
+          >
+            Affiliate
           </Link>
 
           <Link
@@ -155,6 +163,13 @@ export function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Blog
+            </Link>
+            <Link
+              href="/affiliate"
+              className="block text-sm font-medium text-slate-600 hover:text-cyan-600"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Affiliate
             </Link>
             <Link
               href="/#pricing"
@@ -325,6 +340,14 @@ export function Footer() {
                   className="text-slate-500 hover:text-cyan-600 transition-colors"
                 >
                   Blog
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/affiliate"
+                  className="text-slate-500 hover:text-cyan-600 transition-colors"
+                >
+                  Affiliate
                 </Link>
               </li>
               <li>

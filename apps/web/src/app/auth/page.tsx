@@ -223,7 +223,7 @@ function AuthContent() {
 
                     <div className="space-y-4">
                         <blockquote className="text-2xl font-medium leading-relaxed text-slate-800">
-                            "I'm so excited to help you build your authority! Let's get started!"
+                            "I'm so excited to help you build your brand! Let's get started!"
                         </blockquote>
                         <div className="text-cyan-600 font-bold text-lg tracking-wide uppercase text-xs">
                             — Pixo AI

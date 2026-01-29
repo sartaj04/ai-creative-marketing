@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,57 +8,86 @@ import { Card } from '@/components/ui/card';
 import { StaggerContainer, StaggerItem } from '../scroll-reveal';
 import { SectionHeader } from './section-header';
 
-const pricingTiers = [
-  {
-    name: 'Starter',
-    price: 0,
-    description: 'Perfect for trying out the agent workflow.',
-    cta: 'Get Started',
-    ctaVariant: 'outline' as const,
-    features: [
-      '1 Connected Identity',
-      '3 Agent Drafts / week',
-      'Basic Analytics',
-      'Manual Publishing',
-      'Community Support',
-    ],
-    highlighted: false,
-  },
-  {
-    name: 'Pro',
-    price: 49,
-    description: 'For serious personal brands growing authority.',
-    cta: 'Start Free Trial',
-    ctaVariant: 'default' as const,
-    features: [
-      '3 Connected Identities',
-      'Unlimited Agent Drafts',
-      'Advanced Identity Graph',
-      'Auto-Scheduling',
-      'Priority Support',
-      'Opportunity Scout',
-    ],
-    highlighted: true,
-  },
-  {
-    name: 'Team',
-    price: 199,
-    description: 'For agencies and marketing teams.',
-    cta: 'Contact Sales',
-    ctaVariant: 'outline' as const,
-    features: [
-      '10+ Connected Identities',
-      'Team Collaboration',
-      'Approval Workflows',
-      'Custom Integrations',
-      'API Access',
-      'Dedicated Account Manager',
-    ],
-    highlighted: false,
-  },
-];
+type Currency = 'USD' | 'INR';
 
 export function PricingSection() {
+  const [currency, setCurrency] = useState<Currency>('USD');
+
+  // Helper to format price
+  const formatPrice = (priceUSD: number, priceINR: number) => {
+    if (priceUSD === 0 && priceINR === 0) return currency === 'USD' ? '$0' : '₹0';
+    return currency === 'USD' ? `$${priceUSD}` : `₹${priceINR}`;
+  };
+
+  const pricingTiers = [
+    {
+      name: 'Starter',
+      priceUSD: 0,
+      priceINR: 0,
+      description: 'Perfect for trying out the agent workflow.',
+      cta: 'Get Started',
+      ctaVariant: 'outline' as const,
+      features: [
+        '1 Connected Identity',
+        '3 Agent Drafts / week',
+        'Basic Analytics',
+        'Manual Publishing',
+        'Community Support',
+      ],
+      highlighted: false,
+    },
+    {
+      name: 'Basic',
+      priceUSD: 19,
+      priceINR: 1500,
+      description: 'For individuals just getting started.',
+      cta: 'Start Free Trial',
+      ctaVariant: 'outline' as const,
+      features: [
+        '2 Connected Identities',
+        '20 Agent Drafts / month',
+        'Basic Analytics',
+        'Manual Publishing',
+        'Email Support',
+      ],
+      highlighted: false,
+    },
+    {
+      name: 'Pro',
+      priceUSD: 49,
+      priceINR: 3500,
+      description: 'For serious personal brands growing authority.',
+      cta: 'Start Free Trial',
+      ctaVariant: 'default' as const,
+      features: [
+        '10 Connected Identities',
+        'Unlimited Agent Drafts',
+        'Advanced Identity Graph',
+        'Auto-Scheduling',
+        'Priority Support',
+        'Opportunity Scout',
+      ],
+      highlighted: true,
+    },
+    {
+      name: 'Team',
+      priceUSD: 199,
+      priceINR: 15000,
+      description: 'For agencies and marketing teams.',
+      cta: 'Contact Sales',
+      ctaVariant: 'outline' as const,
+      features: [
+        'Unlimited Connected Identities',
+        'Team Collaboration',
+        'Approval Workflows',
+        'Custom Integrations',
+        'API Access',
+        'Dedicated Account Manager',
+      ],
+      highlighted: false,
+    },
+  ];
+
   return (
     <section
       id="pricing"
@@ -70,8 +100,32 @@ export function PricingSection() {
           description="Start for free, upgrade as you grow. No hidden fees."
         />
 
+        {/* Currency Toggle */}
+        <div className="flex justify-center mb-12">
+          <div className="bg-slate-100 p-1 rounded-lg inline-flex">
+            <button
+              onClick={() => setCurrency('USD')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${currency === 'USD'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+                }`}
+            >
+              USD ($)
+            </button>
+            <button
+              onClick={() => setCurrency('INR')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${currency === 'INR'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+                }`}
+            >
+              INR (₹)
+            </button>
+          </div>
+        </div>
+
         <StaggerContainer
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start"
           staggerDelay={0.1}
         >
           {pricingTiers.map((tier, i) => (
@@ -86,11 +140,11 @@ export function PricingSection() {
                     <h3 className="text-xl font-bold text-white mb-2">{tier.name}</h3>
                     <div className="flex items-baseline gap-1 mb-6">
                       <span className="text-4xl font-bold text-white">
-                        ${tier.price}
+                        {formatPrice(tier.priceUSD, tier.priceINR)}
                       </span>
                       <span className="text-slate-400">/mo</span>
                     </div>
-                    <p className="text-sm text-slate-300 mb-8 leading-relaxed">
+                    <p className="text-sm text-slate-300 mb-8 leading-relaxed h-[40px]">
                       {tier.description}
                     </p>
                     <Link href="/auth?mode=signup">
@@ -116,11 +170,11 @@ export function PricingSection() {
                   <h3 className="text-xl font-bold text-slate-900 mb-2">{tier.name}</h3>
                   <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-4xl font-bold text-slate-900">
-                      ${tier.price}
+                      {formatPrice(tier.priceUSD, tier.priceINR)}
                     </span>
                     <span className="text-slate-500">/mo</span>
                   </div>
-                  <p className="text-sm text-slate-500 mb-8 leading-relaxed">
+                  <p className="text-sm text-slate-500 mb-8 leading-relaxed h-[40px]">
                     {tier.description}
                   </p>
                   <Link href={tier.name === 'Team' ? '/contact' : '/auth?mode=signup'}>

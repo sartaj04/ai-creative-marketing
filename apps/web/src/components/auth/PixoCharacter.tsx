@@ -45,11 +45,15 @@ export function PixoCharacter() {
         window.addEventListener('mousemove', handleActivity);
         window.addEventListener('click', handleActivity);
         window.addEventListener('keypress', handleActivity);
+        window.addEventListener('touchstart', handleActivity);
+        window.addEventListener('touchmove', handleActivity);
 
         return () => {
             window.removeEventListener('mousemove', handleActivity);
             window.removeEventListener('click', handleActivity);
             window.removeEventListener('keypress', handleActivity);
+            window.removeEventListener('touchstart', handleActivity);
+            window.removeEventListener('touchmove', handleActivity);
             if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
         };
     }, []); // Empty dependency array - effect only runs once
@@ -254,7 +258,7 @@ export function PixoCharacter() {
 
             {/* Speech Bubble - Closer now */}
             <AnimatePresence>
-                {(action === 'waving' || (isHovered && action !== 'throwing')) && (
+                {(action !== 'typing' && action !== 'throwing') && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0, y: 5, x: -5 }}
                         animate={{ 
@@ -265,7 +269,7 @@ export function PixoCharacter() {
                         }}
                         exit={{ opacity: 0, scale: 0 }}
                         transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        className="absolute top-14 -right-16 md:top-[unset] md:bottom-32 md:right-[unset] md:-right-4 bg-gradient-to-br from-white to-slate-50 text-slate-900 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg md:rounded-xl rounded-bl-none shadow-lg shadow-slate-200/50 border border-slate-200/60 z-40 origin-bottom-left backdrop-blur-sm"
+                        className="absolute top-[1.75rem] -right-[4.5rem] md:top-24 md:bottom-[unset] md:right-[unset] md:-right-8 bg-gradient-to-br from-white to-slate-50 text-slate-900 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg md:rounded-xl rounded-bl-none shadow-lg shadow-slate-200/50 border border-slate-200/60 z-40 origin-bottom-left backdrop-blur-sm"
                     >
                         <div className="flex flex-col leading-tight">
                             <span className="text-[10px] md:text-xs font-semibold tracking-tight text-slate-800">
@@ -286,7 +290,7 @@ export function PixoCharacter() {
                         initial={{ opacity: 0, y: 2 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 2 }}
-                        className="absolute top-12 right-2 md:top-[unset] md:bottom-34 md:right-[unset] md:left-[52%] md:-translate-x-1/2 bg-slate-900/80 text-white px-2 py-0.5 md:px-3 md:py-1 rounded-full backdrop-blur-md whitespace-nowrap z-50"
+                        className="absolute top-[2.25rem] -right-[3rem] md:top-[unset] md:bottom-34 md:right-[unset] md:left-[52%] md:-translate-x-1/2 bg-slate-900/80 text-white px-2 py-0.5 md:px-3 md:py-1 rounded-full backdrop-blur-md whitespace-nowrap z-50"
                     >
                         <span className="text-[10px] md:text-xs font-medium flex items-center gap-1">
                             Working
