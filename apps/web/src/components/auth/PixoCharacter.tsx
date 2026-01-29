@@ -207,7 +207,7 @@ export function PixoCharacter() {
 
                 {/* Left Arm */}
                 <motion.div
-                    className="absolute top-8 -left-2 w-5 h-5 sm:top-10 sm:-left-2.5 sm:w-7 sm:h-7 md:top-14 md:-left-3 md:w-10 md:h-10 rounded-full bg-blue-400 border border-white/10 shadow-sm z-10"
+                    className="absolute top-8 -left-2 w-5 h-5 sm:top-10 sm:-left-2.5 sm:w-7 sm:h-7 md:top-14 md:-left-3 md:w-10 md:h-10 rounded-full bg-blue-100 border border-slate-200 shadow-sm z-10"
                     animate={
                         action === 'waving' ? { rotate: [0, -20, 10, -20, 0], y: -5, x: -5 } :
                             action === 'typing' ? { x: 15, y: 15, rotate: -20, zIndex: 40 } :
@@ -223,7 +223,7 @@ export function PixoCharacter() {
 
                 {/* Right Arm (Action Arm) */}
                 <motion.div
-                    className="absolute top-8 -right-2 w-5 h-5 sm:top-10 sm:-right-2.5 sm:w-7 sm:h-7 md:top-14 md:-right-3 md:w-10 md:h-10 rounded-full bg-blue-400 border border-white/10 shadow-sm flex items-center justify-center z-30"
+                    className="absolute top-8 -right-2 w-5 h-5 sm:top-10 sm:-right-2.5 sm:w-7 sm:h-7 md:top-14 md:-right-3 md:w-10 md:h-10 rounded-full bg-blue-100 border border-slate-200 shadow-sm flex items-center justify-center z-30"
                     animate={
                         action === 'typing' ? { x: -15, y: 15, rotate: 20, zIndex: 40 } :
                             action === 'happy' ? { y: -15, rotate: -20 } :
@@ -240,7 +240,7 @@ export function PixoCharacter() {
                                 { duration: 0.5 }
                     }
                 >
-                    {/* Paper Rocket held in hand */}
+                    {/* Favicon held in hand */}
                     <AnimatePresence>
                         {hasRocket && action !== 'typing' && (
                             <motion.div
@@ -249,9 +249,14 @@ export function PixoCharacter() {
                                 exit={{ opacity: 0, scale: 0 }}
                                 className="transform rotate-45"
                             >
-                                <svg className="w-3 h-3 sm:w-4 sm:h-4 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2.5 12L21.5 2L13 21.5L10 13L2.5 12Z" fill="white" stroke="#0ea5e9" strokeWidth="1.5" strokeLinejoin="round" />
-                                </svg>
+                                <div className="relative w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8">
+                                    <Image
+                                        src="/android-chrome-192x192.png"
+                                        alt="Pixo Logo"
+                                        fill
+                                        className="object-contain rounded-lg"
+                                    />
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
