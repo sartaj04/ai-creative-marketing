@@ -79,8 +79,6 @@ class SystemTemplateAnalyzeResponse(BaseModel):
     tags: list[str] = Field(default_factory=list)
     use_cases: list[str] = Field(default_factory=list)
     tone_fit: list[str] = Field(default_factory=list)
-    format: DraftFormat
-    platform: str
     suggested_name: Optional[str] = None
     suggested_description: Optional[str] = None
 

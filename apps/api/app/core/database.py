@@ -15,10 +15,17 @@ class Base(DeclarativeBase):
 # Create async engine
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
+    echo=settings.DEBUG,  # Set to False in production for better performance
+    pool_pre_ping=True,  # Verify connections before using
+    pool_size=10,  # Increased from 5 for better concurrency
+    max_overflow=20,  # Increased from 10 for peak loads
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    connect_args={
+        "server_settings": {
+            "application_name": "pixo_api",
+            "jit": "off",  # Disable JIT for faster queries
+        }
+    },
 )
 
 # Create async session factory

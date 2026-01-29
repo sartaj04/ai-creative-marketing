@@ -24,8 +24,7 @@ pydantic-settings
 email-validator
 
 # LLM Providers
-google-cloud-aiplatform
-vertexai
+google-genai  # New Google Gen AI SDK (replaces deprecated vertexai.generative_models)
 boto3
 
 # RSS/Feed parsing

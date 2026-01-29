@@ -1,10 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { LayoutDashboard, Layers, BarChart2, Settings, LogOut, PlusCircle, Bell, User } from 'lucide-react';
+import { LayoutDashboard, Layers, BarChart2, Settings, LogOut, PlusCircle, Bell, User, FileText } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
 export default function DashboardLayout({
@@ -13,7 +14,19 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const router = useRouter();
-    const { logout, user } = useAuthStore();
+    const { logout, user, checkAuth } = useAuthStore();
+
+    useEffect(() => {
+        // Ensure user is loaded on mount
+        checkAuth();
+    }, [checkAuth]);
+
+    // Debug: Log user admin status (remove in production)
+    useEffect(() => {
+        if (user) {
+            console.log('User admin status:', { is_admin: user.is_admin, email: user.email });
+        }
+    }, [user]);
 
     const handleLogout = async () => {
         await logout();
@@ -39,6 +52,9 @@ export default function DashboardLayout({
                     <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Drafts" />
                     <NavLink href="/dashboard/analytics" icon={BarChart2} label="Analytics" />
                     <NavLink href="/dashboard/settings" icon={Settings} label="Settings" />
+                    {user && user.is_admin === true && (
+                        <NavLink href="/dashboard/templates" icon={FileText} label="Templates" />
+                    )}
                 </div>
 
                 <div className="p-4 border-t border-border/40">

@@ -52,11 +52,11 @@ class Template(Base):
         comment="Template content with {placeholders}",
     )
     format: Mapped[DraftFormat] = mapped_column(
-        Enum(DraftFormat),
+        Enum(DraftFormat, name='draft_format', create_type=False),
         default=DraftFormat.POST,
     )
     category: Mapped[TemplateCategory] = mapped_column(
-        Enum(TemplateCategory),
+        Enum(TemplateCategory, name='template_category', create_type=False),
         nullable=False,
     )
     tags: Mapped[list] = mapped_column(
@@ -112,7 +112,7 @@ class Template(Base):
         comment="True if user wants to share template with platform",
     )
     contribution_status: Mapped[ContributionStatus] = mapped_column(
-        Enum(ContributionStatus),
+        Enum(ContributionStatus, name='contributionstatus', create_type=False),
         default=ContributionStatus.NONE,
         comment="Moderation status for contributed templates",
     )

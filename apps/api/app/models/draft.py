@@ -84,7 +84,7 @@ class Draft(Base):
         index=True,
     )
     format: Mapped[DraftFormat] = mapped_column(
-        Enum(DraftFormat),
+        Enum(DraftFormat, name='draft_format', create_type=False),
         default=DraftFormat.POST,
     )
     hook: Mapped[str] = mapped_column(Text, nullable=False)

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select, or_
+from sqlalchemy.types import Integer
 
 from app.api.deps import CurrentUser, DBSession, AdminUser
 from app.models.draft import DraftFormat
@@ -52,7 +53,7 @@ async def _get_template_with_stats(template: Template, db: DBSession) -> dict:
     usage_result = await db.execute(
         select(
             func.count(TemplateUsage.id).label("total"),
-            func.sum(func.cast(TemplateUsage.was_approved, type_=func.integer())).label("approved"),
+            func.sum(func.cast(TemplateUsage.was_approved, type_=Integer)).label("approved"),
         ).where(TemplateUsage.template_id == template.id)
     )
     usage_stats = usage_result.first()
@@ -66,6 +67,48 @@ async def _get_template_with_stats(template: Template, db: DBSession) -> dict:
         "usage_count": usage_count,
         "approval_rate": approval_rate,
     }
+
+
+async def _get_templates_with_stats_batch(templates: list[Template], db: DBSession) -> dict[UUID, dict]:
+    """Get usage stats for multiple templates in a single query (optimized)."""
+    if not templates:
+        return {}
+    
+    template_ids = [t.id for t in templates]
+    
+    # Single query to get all stats at once
+    stats_result = await db.execute(
+        select(
+            TemplateUsage.template_id,
+            func.count(TemplateUsage.id).label("total"),
+            func.sum(func.cast(TemplateUsage.was_approved, type_=Integer)).label("approved"),
+        )
+        .where(TemplateUsage.template_id.in_(template_ids))
+        .group_by(TemplateUsage.template_id)
+    )
+    stats_rows = stats_result.all()
+    
+    # Build stats dict
+    stats_dict = {}
+    for row in stats_rows:
+        usage_count = row.total or 0
+        approved_count = row.approved or 0
+        approval_rate = approved_count / usage_count if usage_count > 0 else 0.0
+        stats_dict[row.template_id] = {
+            "usage_count": usage_count,
+            "approval_rate": approval_rate,
+        }
+    
+    # Add zero stats for templates with no usage
+    result = {}
+    for template in templates:
+        stats = stats_dict.get(template.id, {"usage_count": 0, "approval_rate": 0.0})
+        result[template.id] = {
+            **template.__dict__,
+            **stats,
+        }
+    
+    return result
 
 
 # ============ User Template Endpoints ============
@@ -173,8 +216,8 @@ async def list_templates(
         # Filter templates that contain any of the specified tags
         query = query.where(Template.tags.op("&&")(tag_list))
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
+    # Get total count (optimized: count directly instead of subquery)
+    count_query = select(func.count(Template.id)).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -186,11 +229,12 @@ async def list_templates(
     result = await db.execute(query)
     templates = result.scalars().all()
 
-    # Calculate usage stats for each template
-    template_responses = []
-    for template in templates:
-        template_dict = await _get_template_with_stats(template, db)
-        template_responses.append(TemplateResponse.model_validate(template_dict))
+    # Calculate usage stats for all templates in a single batch query (optimized)
+    templates_with_stats = await _get_templates_with_stats_batch(templates, db)
+    template_responses = [
+        TemplateResponse.model_validate(templates_with_stats[template.id])
+        for template in templates
+    ]
 
     return TemplateListResponse(templates=template_responses, total=total)
 
@@ -437,7 +481,7 @@ async def match_templates(
         usage_result = await db.execute(
             select(
                 func.count(TemplateUsage.id).label("total"),
-                func.sum(func.cast(TemplateUsage.was_approved, type_=func.integer())).label("approved"),
+                func.sum(func.cast(TemplateUsage.was_approved, type_=Integer)).label("approved"),
             ).where(
                 TemplateUsage.template_id == template.id,
                 TemplateUsage.profile_id == match_request.profile_id,
@@ -468,7 +512,6 @@ async def match_templates(
 async def analyze_template_content(
     request: SystemTemplateAnalyzeRequest,
     admin_user: AdminUser,
-    db: DBSession,
 ) -> SystemTemplateAnalyzeResponse:
     """
     [Admin Only] Analyze template content to extract metadata via LLM.
@@ -488,8 +531,6 @@ async def analyze_template_content(
         tags=result.get("tags", []),
         use_cases=result.get("use_cases", []),
         tone_fit=result.get("tone_fit", ["professional"]),
-        format=result.get("format", "post"),
-        platform=result.get("platform", "linkedin"),
         suggested_name=result.get("suggested_name"),
         suggested_description=result.get("suggested_description"),
     )
@@ -520,25 +561,50 @@ async def create_system_template(
         user_provided_tags=template_data.tags,
         user_provided_use_cases=template_data.use_cases,
         user_provided_tone_fit=template_data.tone_fit,
-        user_provided_format=template_data.format.value if template_data.format else None,
-        user_provided_platform=template_data.platform,
     )
 
     # Use provided values or fall back to LLM suggestions
     name = template_data.name or analysis.get("suggested_name") or "Untitled Template"
     description = template_data.description or analysis.get("suggested_description")
 
+    # Ensure category is a proper enum (handle both enum and string from LLM)
+    if template_data.category:
+        # If provided, ensure it's an enum (convert if string)
+        if isinstance(template_data.category, str):
+            category_enum = TemplateCategory(template_data.category)
+        else:
+            category_enum = template_data.category
+    else:
+        # Get from LLM analysis, ensure it's a valid category
+        category_str = analysis.get("category", "tips")
+        try:
+            # Validate and convert to enum
+            category_enum = TemplateCategory(category_str)
+        except ValueError:
+            # Fallback to tips if invalid
+            category_enum = TemplateCategory.TIPS
+
+    # Handle format - ensure it's an enum
+    if template_data.format:
+        # Ensure it's an enum (convert if string)
+        if isinstance(template_data.format, str):
+            format_enum = DraftFormat(template_data.format.lower())
+        else:
+            format_enum = template_data.format
+    else:
+        format_enum = DraftFormat.POST
+
     template = Template(
         name=name,
         description=description,
         content=template_data.content,
-        format=template_data.format or analysis.get("format", "post"),
-        category=template_data.category or analysis.get("category", "tips"),
+        format=format_enum,  # Pass enum object (SQLAlchemy sends uppercase name)
+        category=category_enum,  # Pass enum object (SQLAlchemy sends uppercase name)
         tags=analysis.get("tags", []),
         variables=analysis.get("variables", {}),
         use_cases=analysis.get("use_cases", []),
         tone_fit=analysis.get("tone_fit", ["professional"]),
-        platform=template_data.platform or analysis.get("platform", "linkedin"),
+        platform=template_data.platform or "both",
         created_by=admin_user.id,
         is_system=True,  # Mark as system template
     )
@@ -573,8 +639,8 @@ async def list_system_templates(
     if format_filter:
         query = query.where(Template.format == format_filter)
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
+    # Get total count (optimized: count directly instead of subquery)
+    count_query = select(func.count(Template.id)).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -583,10 +649,12 @@ async def list_system_templates(
     result = await db.execute(query)
     templates = result.scalars().all()
 
-    template_responses = []
-    for template in templates:
-        template_dict = await _get_template_with_stats(template, db)
-        template_responses.append(TemplateResponse.model_validate(template_dict))
+    # Calculate usage stats for all templates in a single batch query (optimized)
+    templates_with_stats = await _get_templates_with_stats_batch(templates, db)
+    template_responses = [
+        TemplateResponse.model_validate(templates_with_stats[template.id])
+        for template in templates
+    ]
 
     return TemplateListResponse(templates=template_responses, total=total)
 
@@ -719,8 +787,8 @@ async def list_pending_contributions(
     if status_filter:
         query = query.where(Template.contribution_status == status_filter)
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
+    # Get total count (optimized: count directly instead of subquery)
+    count_query = select(func.count(Template.id)).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -729,10 +797,12 @@ async def list_pending_contributions(
     result = await db.execute(query)
     templates = result.scalars().all()
 
-    template_responses = []
-    for template in templates:
-        template_dict = await _get_template_with_stats(template, db)
-        template_responses.append(TemplateResponse.model_validate(template_dict))
+    # Calculate usage stats for all templates in a single batch query (optimized)
+    templates_with_stats = await _get_templates_with_stats_batch(templates, db)
+    template_responses = [
+        TemplateResponse.model_validate(templates_with_stats[template.id])
+        for template in templates
+    ]
 
     return TemplateListResponse(templates=template_responses, total=total)
 

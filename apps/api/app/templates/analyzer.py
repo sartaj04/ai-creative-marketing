@@ -1,9 +1,14 @@
 """Template analyzer service for auto-extracting metadata using LLM."""
 import json
+import logging
 import re
+from difflib import get_close_matches
 from typing import Any
 
 from app.llm.provider import get_llm_provider
+from app.templates.constants import ALLOWED_USE_CASES, ALLOWED_TAGS, ALLOWED_TONES
+
+logger = logging.getLogger(__name__)
 
 
 def extract_variables(content: str) -> dict[str, dict[str, Any]]:
@@ -51,6 +56,61 @@ def extract_variables(content: str) -> dict[str, dict[str, Any]]:
     return variables
 
 
+def normalize_to_predefined_list(
+    value: str, allowed_list: list[str], threshold: float = 0.6
+) -> str | None:
+    """
+    Normalize a value to the closest match in the predefined list.
+    
+    Args:
+        value: The value to normalize
+        allowed_list: List of allowed values
+        threshold: Minimum similarity ratio (0-1) to consider a match
+        
+    Returns:
+        The closest match from allowed_list, or None if no close match found
+    """
+    value_lower = value.lower().strip()
+    
+    # Exact match (case-insensitive)
+    for allowed in allowed_list:
+        if allowed.lower() == value_lower:
+            return allowed
+    
+    # Fuzzy match
+    matches = get_close_matches(value_lower, [a.lower() for a in allowed_list], n=1, cutoff=threshold)
+    if matches:
+        # Find the original casing
+        match_lower = matches[0]
+        for allowed in allowed_list:
+            if allowed.lower() == match_lower:
+                return allowed
+    
+    return None
+
+
+def normalize_list_to_predefined(
+    values: list[str], allowed_list: list[str], threshold: float = 0.6
+) -> list[str]:
+    """
+    Normalize a list of values to match predefined list.
+    
+    Args:
+        values: List of values to normalize
+        allowed_list: List of allowed values
+        threshold: Minimum similarity ratio (0-1) to consider a match
+        
+    Returns:
+        List of normalized values (only includes values that match predefined list)
+    """
+    normalized = []
+    for value in values:
+        normalized_value = normalize_to_predefined_list(value, allowed_list, threshold)
+        if normalized_value and normalized_value not in normalized:
+            normalized.append(normalized_value)
+    return normalized
+
+
 async def analyze_template_with_llm(
     content: str,
     name: str | None = None,
@@ -89,44 +149,84 @@ Analyze the template and provide the following in JSON format:
    - "announcement" (news, updates)
    - "case_study" (detailed examples)
 
-2. "tags": Array of 3-6 relevant topic tags (lowercase, e.g., ["leadership", "productivity", "career"])
-
-3. "use_cases": Array of 2-4 specific scenarios when to use this template (e.g., ["debunking industry misconceptions", "educational content about best practices"])
-
-4. "tone_fit": Array of 2-4 tones this template works well with. Choose from:
-   ["professional", "casual", "authoritative", "educational", "inspirational", "conversational", "provocative", "empathetic", "humorous", "technical"]
+2. "tags": Array of 3-6 relevant topic tags. MUST choose from this exact list (use lowercase):
+   {', '.join(sorted(ALLOWED_TAGS))}
+   
+3. "use_cases": Array of 2-4 specific scenarios when to use this template. MUST choose from this exact list:
+   {chr(10).join(f'   - "{uc}"' for uc in ALLOWED_USE_CASES)}
+   
+4. "tone_fit": Array of 2-4 tones this template works well with. MUST choose from this exact list:
+   {', '.join(ALLOWED_TONES)}
 
 5. "suggested_name": A concise, descriptive name for this template (if current name is generic or missing)
 
 6. "suggested_description": A 1-2 sentence description of what this template is for and when to use it
 
-7. "format": The best format for this template. Must be ONE of:
-   - "post" (single post)
-   - "thread" (multi-part thread)
-   - "carousel" (slide-based)
-   - "article" (long-form)
-
-8. "platform": Best platform for this template. ONE of: "linkedin", "twitter", "both"
+IMPORTANT: Only extract the fields listed above. Do NOT include format or platform fields.
 
 Respond with ONLY valid JSON, no other text."""
 
     try:
-        response = await llm.generate(
+        logger.info(f"Analyzing template: name={name}, content_length={len(content)}")
+        
+        # Use generate_json for more reliable JSON parsing
+        result = await llm.generate_json(
             prompt=prompt,
             system_prompt="You are a content strategy expert. Analyze templates and extract accurate metadata. Respond with valid JSON only.",
             temperature=0.3,
-            max_tokens=1000,
         )
-
-        # Parse JSON from response
-        json_match = re.search(r"\{[\s\S]*\}", response)
-        if json_match:
-            result = json.loads(json_match.group())
-            return result
-        else:
-            raise ValueError("No JSON found in response")
+        
+        logger.info(f"LLM returned result with keys: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
+        
+        # Ensure result is a dict
+        if not isinstance(result, dict):
+            raise ValueError(f"Expected dict, got {type(result)}")
+        
+        # Log what we got before normalization
+        logger.debug(f"Raw LLM result: {json.dumps(result, indent=2)}")
+        
+        # Normalize AI output to predefined lists
+        if "tags" in result and isinstance(result["tags"], list):
+            original_tags = result["tags"].copy()
+            result["tags"] = normalize_list_to_predefined(result["tags"], ALLOWED_TAGS)
+            if len(result["tags"]) == 0 and len(original_tags) > 0:
+                logger.warning(f"All tags were filtered out. Original tags: {original_tags}")
+        
+        if "use_cases" in result and isinstance(result["use_cases"], list):
+            original_use_cases = result["use_cases"].copy()
+            result["use_cases"] = normalize_list_to_predefined(result["use_cases"], ALLOWED_USE_CASES)
+            if len(result["use_cases"]) == 0 and len(original_use_cases) > 0:
+                logger.warning(f"All use_cases were filtered out. Original use_cases: {original_use_cases}")
+        
+        if "tone_fit" in result and isinstance(result["tone_fit"], list):
+            original_tone_fit = result["tone_fit"].copy()
+            result["tone_fit"] = normalize_list_to_predefined(result["tone_fit"], ALLOWED_TONES)
+            if len(result["tone_fit"]) == 0 and len(original_tone_fit) > 0:
+                logger.warning(f"All tone_fit were filtered out. Original tone_fit: {original_tone_fit}")
+        
+        # Remove format and platform if present (not needed for text templates)
+        result.pop("format", None)
+        result.pop("platform", None)
+        
+        # Ensure required fields exist
+        if "category" not in result:
+            logger.warning("Category missing from LLM response, defaulting to 'tips'")
+            result["category"] = "tips"
+        if "tags" not in result:
+            result["tags"] = []
+        if "use_cases" not in result:
+            result["use_cases"] = []
+        if "tone_fit" not in result:
+            result["tone_fit"] = ["professional"]
+        
+        logger.info(f"Final normalized result: category={result.get('category')}, tags_count={len(result.get('tags', []))}, use_cases_count={len(result.get('use_cases', []))}, tone_fit={result.get('tone_fit')}")
+        
+        return result
 
     except Exception as e:
+        # Log the error for debugging
+        logger.error(f"LLM analysis failed: {e}", exc_info=True)
+        
         # Return sensible defaults if LLM fails
         return {
             "category": "tips",
@@ -135,8 +235,6 @@ Respond with ONLY valid JSON, no other text."""
             "tone_fit": ["professional"],
             "suggested_name": name,
             "suggested_description": description,
-            "format": "post",
-            "platform": "linkedin",
             "error": str(e),
         }
 
@@ -149,8 +247,6 @@ async def analyze_and_enrich_template(
     user_provided_tags: list[str] | None = None,
     user_provided_use_cases: list[str] | None = None,
     user_provided_tone_fit: list[str] | None = None,
-    user_provided_format: str | None = None,
-    user_provided_platform: str | None = None,
 ) -> dict[str, Any]:
     """
     Analyze template and merge LLM suggestions with user-provided values.
@@ -165,15 +261,26 @@ async def analyze_and_enrich_template(
     # Get LLM analysis
     llm_analysis = await analyze_template_with_llm(content, name, description)
 
-    # Merge with user-provided values (user values take precedence)
+    # Normalize user-provided values to predefined lists
+    normalized_tags = None
+    if user_provided_tags:
+        normalized_tags = normalize_list_to_predefined(user_provided_tags, ALLOWED_TAGS)
+    
+    normalized_use_cases = None
+    if user_provided_use_cases:
+        normalized_use_cases = normalize_list_to_predefined(user_provided_use_cases, ALLOWED_USE_CASES)
+    
+    normalized_tone_fit = None
+    if user_provided_tone_fit:
+        normalized_tone_fit = normalize_list_to_predefined(user_provided_tone_fit, ALLOWED_TONES)
+    
+    # Merge with user-provided values (user values take precedence, but normalized)
     result = {
         "variables": variables,
         "category": user_provided_category or llm_analysis.get("category", "tips"),
-        "tags": user_provided_tags if user_provided_tags else llm_analysis.get("tags", []),
-        "use_cases": user_provided_use_cases if user_provided_use_cases else llm_analysis.get("use_cases", []),
-        "tone_fit": user_provided_tone_fit if user_provided_tone_fit else llm_analysis.get("tone_fit", ["professional"]),
-        "format": user_provided_format or llm_analysis.get("format", "post"),
-        "platform": user_provided_platform or llm_analysis.get("platform", "linkedin"),
+        "tags": normalized_tags if normalized_tags else llm_analysis.get("tags", []),
+        "use_cases": normalized_use_cases if normalized_use_cases else llm_analysis.get("use_cases", []),
+        "tone_fit": normalized_tone_fit if normalized_tone_fit else llm_analysis.get("tone_fit", ["professional"]),
         "suggested_name": llm_analysis.get("suggested_name"),
         "suggested_description": llm_analysis.get("suggested_description"),
     }

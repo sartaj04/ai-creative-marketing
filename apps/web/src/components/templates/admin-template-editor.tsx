@@ -7,7 +7,6 @@ import {
   templatesApi,
   AnalyzeTemplateResponse,
 } from '@/lib/api/templates';
-import { DraftFormat } from '@/lib/api/drafts';
 import {
   Dialog,
   DialogHeader,
@@ -53,19 +52,6 @@ const categories: { value: TemplateCategory; label: string }[] = [
   { value: 'case_study', label: 'Case Study' },
 ];
 
-const formats: { value: DraftFormat; label: string }[] = [
-  { value: 'post', label: 'Post' },
-  { value: 'thread', label: 'Thread' },
-  { value: 'carousel', label: 'Carousel' },
-  { value: 'article', label: 'Article' },
-];
-
-const platforms = [
-  { value: 'linkedin', label: 'LinkedIn' },
-  { value: 'twitter', label: 'Twitter' },
-  { value: 'both', label: 'Both' },
-];
-
 export function AdminTemplateEditor({
   template,
   open,
@@ -83,8 +69,6 @@ export function AdminTemplateEditor({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TemplateCategory>('tips');
-  const [format, setFormat] = useState<DraftFormat>('post');
-  const [platform, setPlatform] = useState('linkedin');
   const [tagsInput, setTagsInput] = useState('');
   const [useCasesInput, setUseCasesInput] = useState('');
   const [toneFitInput, setToneFitInput] = useState('');
@@ -102,8 +86,6 @@ export function AdminTemplateEditor({
       setName(template.name);
       setDescription(template.description || '');
       setCategory(template.category);
-      setFormat(template.format);
-      setPlatform(template.platform);
       setTagsInput(template.tags.join(', '));
       setUseCasesInput(template.use_cases.join(', '));
       setToneFitInput(template.tone_fit.join(', '));
@@ -114,8 +96,6 @@ export function AdminTemplateEditor({
       setName('');
       setDescription('');
       setCategory('tips');
-      setFormat('post');
-      setPlatform('linkedin');
       setTagsInput('');
       setUseCasesInput('');
       setToneFitInput('');
@@ -151,26 +131,26 @@ export function AdminTemplateEditor({
 
       setSuggestions(analysis);
 
-      // Auto-fill empty fields with suggestions
-      if (!name && analysis.suggested_name) {
+      // Auto-fill ALL fields with AI suggestions (overwrite existing values)
+      if (analysis.suggested_name) {
         setName(analysis.suggested_name);
       }
-      if (!description && analysis.suggested_description) {
+      if (analysis.suggested_description) {
         setDescription(analysis.suggested_description);
       }
-      if (!tagsInput && analysis.tags.length > 0) {
+      if (analysis.category) {
+        setCategory(analysis.category);
+      }
+      if (analysis.tags.length > 0) {
         setTagsInput(analysis.tags.join(', '));
       }
-      if (!useCasesInput && analysis.use_cases.length > 0) {
+      if (analysis.use_cases.length > 0) {
         setUseCasesInput(analysis.use_cases.join(', '));
       }
-      if (!toneFitInput && analysis.tone_fit.length > 0) {
+      if (analysis.tone_fit.length > 0) {
         setToneFitInput(analysis.tone_fit.join(', '));
       }
 
-      setCategory(analysis.category);
-      setFormat(analysis.format);
-      setPlatform(analysis.platform);
       setHasAnalyzed(true);
 
       toast({
@@ -207,8 +187,6 @@ export function AdminTemplateEditor({
           description: description.trim() || undefined,
           content: content.trim(),
           category,
-          format,
-          platform,
           tags: parseCommaSeparated(tagsInput),
           use_cases: parseCommaSeparated(useCasesInput),
           tone_fit: parseCommaSeparated(toneFitInput),
@@ -218,14 +196,12 @@ export function AdminTemplateEditor({
           description: 'System template has been saved.',
         });
       } else {
-        // Create new system template
+        // Create new system template (format defaults to "post", platform defaults to "both" in backend)
         await templatesApi.admin.createSystemTemplate({
           content: content.trim(),
           name: name.trim() || undefined,
           description: description.trim() || undefined,
           category,
-          format,
-          platform,
           tags: parseCommaSeparated(tagsInput),
           use_cases: parseCommaSeparated(useCasesInput),
           tone_fit: parseCommaSeparated(toneFitInput),
@@ -426,38 +402,6 @@ Here's why this matters:
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief description of when to use this template"
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="format">Format</Label>
-                <Select
-                  id="format"
-                  value={format}
-                  onChange={(e) => setFormat(e.target.value as DraftFormat)}
-                >
-                  {formats.map((f) => (
-                    <option key={f.value} value={f.value}>
-                      {f.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="platform">Platform</Label>
-                <Select
-                  id="platform"
-                  value={platform}
-                  onChange={(e) => setPlatform(e.target.value)}
-                >
-                  {platforms.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
             </div>
 
             <div className="space-y-2">

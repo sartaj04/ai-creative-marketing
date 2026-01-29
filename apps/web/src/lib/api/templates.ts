@@ -95,8 +95,6 @@ export interface AnalyzeTemplateResponse {
   tags: string[];
   use_cases: string[];
   tone_fit: string[];
-  format: DraftFormat;
-  platform: string;
   suggested_name: string | null;
   suggested_description: string | null;
 }
