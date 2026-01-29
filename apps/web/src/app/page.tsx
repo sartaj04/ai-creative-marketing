@@ -11,41 +11,45 @@ import {
   PricingSection,
   CTASection,
 } from '@/components/landing/sections';
+import { SystemBackground } from '@/components/landing/system-background';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen font-sans selection:bg-cyan-500/20 bg-white">
+    <div className="min-h-screen font-sans selection:bg-cyan-500/20">
+      <SystemBackground />
       <Navbar />
 
-      {/* Hero Section */}
-      <HeroSection />
+      <main className="relative z-10">
+        {/* Hero Section */}
+        <HeroSection />
 
-      {/* Problem Section */}
-      <ProblemSection />
+        {/* Problem Section */}
+        <ProblemSection />
 
-      {/* How It Works */}
-      <HowItWorksSection />
+        {/* How It Works */}
+        <HowItWorksSection />
 
-      {/* Feature Grid */}
-      <FeaturesSection />
+        {/* Feature Grid */}
+        <FeaturesSection />
 
-      {/* Comparison Section */}
-      <ComparisonSection />
+        {/* Comparison Section */}
+        <ComparisonSection />
 
-      {/* Use Cases */}
-      <UseCasesSection />
+        {/* Use Cases */}
+        <UseCasesSection />
 
-      {/* Enterprise Section */}
-      <EnterpriseSection />
+        {/* Enterprise Section */}
+        <EnterpriseSection />
 
-      {/* Pricing Section */}
-      <PricingSection />
+        {/* Pricing Section */}
+        <PricingSection />
 
-      {/* FAQ */}
-      <FAQSection />
+        {/* FAQ */}
+        <FAQSection />
 
-      {/* Final CTA */}
-      <CTASection />
+        {/* Final CTA */}
+        <CTASection />
+      </main>
 
       <Footer />
     </div>

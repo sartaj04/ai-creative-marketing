@@ -73,21 +73,18 @@ export function FeaturesSection() {
             return (
               <StaggerItem key={i}>
                 <Card
-                  className={`p-7 border rounded-2xl ${
-                    feature.highlight
-                      ? 'border-cyan-200 bg-gradient-to-br from-cyan-50/50 to-white shadow-lg'
-                      : 'border-slate-200 hover:border-slate-300'
-                  } transition-all duration-300 hover:shadow-lg`}
+                  className={`p-7 border rounded-2xl ${feature.highlight
+                      ? 'border-cyan-200 bg-gradient-to-br from-cyan-50/80 to-white shadow-lg shadow-cyan-900/5'
+                      : 'border-slate-100 bg-white hover:border-cyan-100 hover:shadow-lg hover:shadow-slate-900/5'
+                    } transition-all duration-300`}
                 >
                   <div
-                    className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 ${
-                      feature.highlight ? 'bg-cyan-100' : 'bg-slate-100'
-                    }`}
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 ${feature.highlight ? 'bg-cyan-100' : 'bg-slate-100'
+                      }`}
                   >
                     <Icon
-                      className={`w-7 h-7 ${
-                        feature.highlight ? 'text-cyan-600' : 'text-slate-500'
-                      }`}
+                      className={`w-7 h-7 ${feature.highlight ? 'text-cyan-600' : 'text-slate-500'
+                        }`}
                     />
                   </div>
                   <h3 className="text-lg font-semibold text-slate-900 tracking-tight mb-2">

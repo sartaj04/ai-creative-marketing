@@ -38,7 +38,7 @@ export function ProblemSection() {
         >
           {problems.map((item, i) => (
             <StaggerItem key={i}>
-              <div className="group p-8 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-xl transition-all duration-300">
+              <div className="group p-8 rounded-2xl border border-slate-200 bg-white hover:border-cyan-200 hover:shadow-lg hover:shadow-cyan-900/5 transition-all duration-300">
                 <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-7 group-hover:bg-cyan-50 group-hover:scale-105 transition-all duration-300">
                   <item.icon className="w-7 h-7 text-slate-500 group-hover:text-cyan-600 transition-colors" />
                 </div>
