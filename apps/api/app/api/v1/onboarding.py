@@ -14,12 +14,7 @@ from app.models.user import User
 from app.models.document import ExtractedDocument, SourceType
 from app.schemas.onboarding import (
     OnboardingCompleteResponse,
-    OnboardingExtractRequest,
     OnboardingExtractResponse,
-    OnboardingMessageRequest,
-    OnboardingMessageResponse,
-    OnboardingStartRequest,
-    OnboardingStartResponse,
     OnboardingStatusResponse,
     OnboardingStepSaveRequest,
     OnboardingStepSaveResponse,
@@ -92,32 +87,6 @@ async def get_onboarding_status(
     service = OnboardingService(db)
     status_result = await service.get_onboarding_status(profile.id)
     return status_result
-
-
-@router.post("/start", response_model=OnboardingStartResponse)
-async def start_onboarding(
-    request: OnboardingStartRequest,
-    current_user: CurrentUser,
-    db: DBSession,
-):
-    """Start the onboarding conversation."""
-    profile = await get_or_create_user_profile(current_user.id, db, current_user.name)
-    service = OnboardingService(db)
-    result = await service.start_onboarding(profile.id, request.method)
-    return result
-
-
-@router.post("/message", response_model=OnboardingMessageResponse)
-async def send_message(
-    request: OnboardingMessageRequest,
-    current_user: CurrentUser,
-    db: DBSession,
-):
-    """Send a message to the onboarding AI."""
-    profile = await get_or_create_user_profile(current_user.id, db, current_user.name)
-    service = OnboardingService(db)
-    result = await service.handle_message(profile.id, request.message)
-    return result
 
 
 @router.post("/save-step", response_model=OnboardingStepSaveResponse)

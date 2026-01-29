@@ -4,41 +4,6 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 
-class OnboardingStartRequest(BaseModel):
-    """Request to start onboarding."""
-
-    method: str = "chat"
-
-
-class OnboardingStartResponse(BaseModel):
-    """Response from starting onboarding."""
-
-    message: str
-    step: Optional[str] = None
-    complete: bool = False
-
-
-class OnboardingMessageRequest(BaseModel):
-    """Request to send a message during onboarding."""
-
-    message: str
-
-
-class OnboardingMessageResponse(BaseModel):
-    """Response from sending a message."""
-
-    message: str
-    complete: bool
-    ui_hint: Optional[str] = None  # "show_upload", "show_linkedin_helper", "show_confirmation"
-
-
-class OnboardingExtractRequest(BaseModel):
-    """Request to extract data from external source."""
-
-    source_type: str
-    input_value: str
-
-
 class ExtractionSummary(BaseModel):
     """Summary of extracted data for UI display."""
 

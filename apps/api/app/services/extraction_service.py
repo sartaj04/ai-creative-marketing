@@ -313,12 +313,14 @@ class ExtractionService:
     """Service for extracting data from various sources."""
 
     def __init__(self):
-        self.linkedin = LinkedInScraper()
+        # LinkedInScraper kept for potential future use (currently unused - users upload PDFs instead)
+        # self.linkedin = LinkedInScraper()
         self.resume = ResumeParser()
 
-    async def extract_linkedin(self, url: str) -> Dict[str, Any]:
-        """Extract data from LinkedIn profile."""
-        return await self.linkedin.scrape_profile(url)
+    # LinkedIn extraction method removed - users upload LinkedIn profile PDFs instead
+    # async def extract_linkedin(self, url: str) -> Dict[str, Any]:
+    #     """Extract data from LinkedIn profile."""
+    #     return await self.linkedin.scrape_profile(url)
 
     async def extract_resume(self, file_path: str, file_type: str) -> Dict[str, Any]:
         """Extract data from resume file."""

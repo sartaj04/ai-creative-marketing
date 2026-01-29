@@ -1,11 +1,5 @@
 import { apiClient } from './client';
 
-export interface StartResponse {
-    message: string;
-    step?: string;
-    complete: boolean;
-}
-
 export interface OnboardingStatusResponse {
     is_complete: boolean;
     step: string | null;
@@ -26,12 +20,6 @@ export interface ExtractResponse {
     data?: Record<string, any>;
     extraction_summary?: ExtractionSummary;
     error?: string;
-}
-
-export interface MessageResponse {
-    message: string;
-    complete: boolean;
-    ui_hint?: 'show_upload' | 'show_linkedin_helper' | 'show_confirmation' | null;
 }
 
 // Step-specific data interfaces
@@ -72,30 +60,6 @@ export const onboardingApi = {
      */
     getStatus: async (): Promise<OnboardingStatusResponse> => {
         const { data } = await apiClient.get<OnboardingStatusResponse>('/onboarding/status');
-        return data;
-    },
-
-    /**
-     * Start or resume onboarding conversation
-     */
-    start: async (method: string = 'chat'): Promise<StartResponse> => {
-        const { data } = await apiClient.post<StartResponse>('/onboarding/start', { method });
-        return data;
-    },
-
-    /**
-     * Send a message during onboarding conversation
-     */
-    sendMessage: async (message: string): Promise<MessageResponse> => {
-        const { data } = await apiClient.post<MessageResponse>('/onboarding/message', { message });
-        return data;
-    },
-
-    /**
-     * Extract data from LinkedIn profile
-     */
-    extract: async (source_type: string, input_value: string): Promise<ExtractResponse> => {
-        const { data } = await apiClient.post<ExtractResponse>('/onboarding/extract', { source_type, input_value });
         return data;
     },
 
