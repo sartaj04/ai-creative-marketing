@@ -159,6 +159,57 @@ class GeminiProvider(LLMProvider):
             logger.error(f"Gemini generation error: {e}")
             raise
 
+    async def generate_content(
+        self,
+        contents: Any,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+    ) -> str:
+        """Generate content from multimodal inputs using Gemini.
+        
+        Args:
+            contents: The content to process (string, list of strings, or list of Parts)
+            system_prompt: Optional system prompt
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+            
+        Returns:
+            Generated text response
+        """
+        if not self._initialized or not self._client:
+            raise RuntimeError("Gemini provider not initialized. Check GCP credentials.")
+
+        try:
+            # Configure generation
+            config = types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+            )
+            
+            if system_prompt:
+                config.system_instruction = system_prompt
+
+            # Run blocking SDK call in thread pool to avoid blocking event loop
+            response = await asyncio.get_event_loop().run_in_executor(
+                _executor,
+                lambda: self._client.models.generate_content(
+                    model="gemini-2.0-flash-001",  # Use specialized model for multimodal
+                    contents=contents,
+                    config=config,
+                )
+            )
+
+            if response and response.text:
+                return response.text
+            else:
+                logger.warning("Empty response from Gemini generate_content")
+                return ""
+
+        except Exception as e:
+            logger.error(f"Gemini generate_content error: {e}")
+            raise
+
     async def generate_json(
         self,
         prompt: str,

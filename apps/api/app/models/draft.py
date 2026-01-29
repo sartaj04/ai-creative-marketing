@@ -93,7 +93,7 @@ class Draft(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     sources_json: Mapped[list] = mapped_column(JSONB, default=list)
     generated_by: Mapped[AgentType | None] = mapped_column(
-        Enum(AgentType, name='agent_type', create_type=False),
+        Enum(AgentType, name='agent_type', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
     )
     scheduled_at: Mapped[datetime | None] = mapped_column(

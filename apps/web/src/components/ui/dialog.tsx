@@ -8,9 +8,10 @@ interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
+  className?: string;
 }
 
-export function Dialog({ open, onOpenChange, children }: DialogProps) {
+export function Dialog({ open, onOpenChange, children, className }: DialogProps) {
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -39,7 +40,10 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       />
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <div
-          className="relative max-h-[90vh] w-full max-w-lg overflow-auto rounded-lg bg-background shadow-lg"
+          className={cn(
+            "relative max-h-[90vh] w-full max-w-lg overflow-auto rounded-lg bg-background shadow-lg",
+            className
+          )}
           onClick={(e) => e.stopPropagation()}
         >
           {children}

@@ -27,6 +27,11 @@ email-validator
 google-genai  # New Google Gen AI SDK (replaces deprecated vertexai.generative_models)
 boto3
 
+# LangChain (Multi-Agent Generation)
+langchain>=0.3.0
+langchain-google-genai>=2.0.0  # Non-deprecated replacement for ChatVertexAI, supports Vertex AI with service accounts
+langgraph>=0.2.0
+
 # RSS/Feed parsing
 feedparser
 
@@ -41,6 +46,9 @@ aioboto3
 apify-client
 pypdf
 python-docx
+
+# Content Extraction
+youtube-transcript-api
 
 # Utils
 python-dateutil

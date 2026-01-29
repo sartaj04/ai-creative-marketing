@@ -15,6 +15,8 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { X, Check, Edit2, Linkedin, Twitter, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { PixoCharacter } from '@/components/auth/PixoCharacter';
 import { draftsApi, Draft } from '@/lib/api/drafts';
 import { useProfileStore } from '@/stores/profile-store';
 import { useToast } from '@/components/ui/use-toast';
@@ -140,21 +142,30 @@ export default function InboxPage() {
     }
 
     return (
-        <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden">
+        <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden -mt-6 -ml-6 md:-mt-8 md:-ml-8 pt-8">
             <motion.div style={{ backgroundColor: bg }} className="absolute inset-0 z-0 transition-colors" />
 
             {/* Header */}
-            <div className="text-center mb-8 z-10 space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600 mb-2">
-                    <Sparkles className="w-3 h-3 text-cyan-600" />
-                    {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
+            <div className="w-full max-w-5xl mb-8 z-10 space-y-2 mt-2">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 overflow-hidden flex-shrink-0 relative">
+                        <div className="absolute inset-0 flex items-center justify-center [transform:scale(0.25)]">
+                            <PixoCharacter />
+                        </div>
+                    </div>
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Agent Inbox</h1>
                 </div>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Agent Inbox</h1>
-                <p className="text-slate-500">Swipe right to approve, left to reject.</p>
+                <div className="flex items-center justify-between">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600">
+                        <Sparkles className="w-3 h-3 text-cyan-600" />
+                        {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
+                    </div>
+                    <p className="text-slate-500 text-sm">Swipe right to approve, left to reject.</p>
+                </div>
             </div>
 
             {/* Card Stack */}
-            <div className="relative w-full max-w-md h-[550px] flex items-center justify-center z-10 px-4">
+            <div className="relative w-full max-w-5xl h-[700px] flex items-center justify-center z-10 px-4">
                 <AnimatePresence>
                     {cards.map((draft, index) => {
                         const isFront = index === 0;
@@ -178,7 +189,7 @@ export default function InboxPage() {
                                 exit={{ x: x.get() < 0 ? -500 : 500, opacity: 0, transition: { duration: 0.2 } }}
                                 className="absolute w-full"
                             >
-                                <Card className="h-[480px] w-full shadow-2xl shadow-slate-200/50 border-slate-100 flex flex-col overflow-hidden bg-white select-none cursor-grab active:cursor-grabbing rounded-3xl ring-1 ring-slate-900/5">
+                                <Card className="h-[620px] w-full shadow-2xl shadow-slate-200/50 border-slate-100 flex flex-col overflow-hidden bg-white select-none cursor-grab active:cursor-grabbing rounded-3xl ring-1 ring-slate-900/5">
                                     {/* Card Header */}
                                     <div className="p-6 pb-4 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
                                         <div className="flex items-center gap-3">
@@ -196,10 +207,90 @@ export default function InboxPage() {
                                     </div>
 
                                     {/* Card Content */}
-                                    <div className="p-8 flex-1 flex flex-col bg-white overflow-y-auto">
-                                        <p className="text-slate-600 leading-relaxed text-lg whitespace-pre-line font-medium">
-                                            {draft.hook}{draft.body ? `\n\n${draft.body}` : ''}
-                                        </p>
+                                    <div className="p-10 flex-1 flex flex-col bg-white overflow-y-auto">
+                                        {(() => {
+                                            // Check if body already starts with the hook to avoid duplication
+                                            const hookTrimmed = draft.hook.trim();
+                                            const bodyTrimmed = draft.body?.trim() || '';
+                                            
+                                            // Check if body starts with hook (case-insensitive, allowing for slight variations)
+                                            const hookLower = hookTrimmed.toLowerCase();
+                                            const bodyLower = bodyTrimmed.toLowerCase();
+                                            const bodyStartsWithHook = hookLower && bodyLower.startsWith(hookLower);
+                                            
+                                            // If body starts with hook, remove it from body to avoid duplication
+                                            let displayBody = bodyTrimmed;
+                                            if (bodyStartsWithHook && hookTrimmed) {
+                                                // Remove the hook from the beginning of body
+                                                displayBody = bodyTrimmed.substring(hookTrimmed.length).trim();
+                                            }
+                                            
+                                            return (
+                                                <div className="space-y-6 flex-1 flex flex-col">
+                                                    {hookTrimmed && (
+                                                        <div className="pb-6 border-b border-slate-100">
+                                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Hook</p>
+                                                            <p className="text-slate-900 leading-relaxed text-2xl font-bold">
+                                                                {hookTrimmed}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {displayBody && (
+                                                        <div className="flex-1">
+                                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Content</p>
+                                                            <div className="text-slate-600 leading-relaxed text-lg prose prose-slate max-w-none">
+                                                                <ReactMarkdown
+                                                                    components={{
+                                                                        p: ({ children }) => (
+                                                                            <p className="mb-4 leading-relaxed">{children}</p>
+                                                                        ),
+                                                                        strong: ({ children }) => (
+                                                                            <strong className="font-semibold text-slate-900">{children}</strong>
+                                                                        ),
+                                                                        em: ({ children }) => (
+                                                                            <em className="italic">{children}</em>
+                                                                        ),
+                                                                        ul: ({ children }) => (
+                                                                            <ul className="list-disc list-outside ml-6 mb-4 space-y-2">{children}</ul>
+                                                                        ),
+                                                                        ol: ({ children }) => (
+                                                                            <ol className="list-decimal list-outside ml-6 mb-4 space-y-2">{children}</ol>
+                                                                        ),
+                                                                        li: ({ children }) => (
+                                                                            <li className="leading-relaxed">{children}</li>
+                                                                        ),
+                                                                        h1: ({ children }) => (
+                                                                            <h1 className="text-2xl font-bold text-slate-900 mt-6 mb-4">{children}</h1>
+                                                                        ),
+                                                                        h2: ({ children }) => (
+                                                                            <h2 className="text-xl font-bold text-slate-900 mt-5 mb-3">{children}</h2>
+                                                                        ),
+                                                                        h3: ({ children }) => (
+                                                                            <h3 className="text-lg font-semibold text-slate-900 mt-4 mb-2">{children}</h3>
+                                                                        ),
+                                                                        blockquote: ({ children }) => (
+                                                                            <blockquote className="border-l-4 border-cyan-500 pl-4 my-4 italic text-slate-600">{children}</blockquote>
+                                                                        ),
+                                                                        code: ({ children }) => (
+                                                                            <code className="bg-slate-100 px-1.5 py-0.5 rounded text-sm font-mono text-slate-800">{children}</code>
+                                                                        ),
+                                                                        pre: ({ children }) => (
+                                                                            <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto mb-4">{children}</pre>
+                                                                        ),
+                                                                        a: ({ href, children }) => (
+                                                                            <a href={href} className="text-cyan-600 hover:text-cyan-700 underline" target="_blank" rel="noopener noreferrer">{children}</a>
+                                                                        ),
+                                                                        hr: () => <hr className="my-6 border-slate-200" />,
+                                                                    }}
+                                                                >
+                                                                    {displayBody}
+                                                                </ReactMarkdown>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
 
                                         <div className="mt-auto pt-6 flex flex-wrap gap-2">
                                             <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">

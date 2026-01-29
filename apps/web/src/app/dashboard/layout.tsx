@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { LayoutDashboard, Layers, BarChart2, Settings, LogOut, PlusCircle, User, FileText } from 'lucide-react';
+import { LayoutDashboard, Layers, BarChart2, Settings, LogOut, PlusCircle, User, FileText, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProfileStore } from '@/stores/profile-store';
 import { draftsApi } from '@/lib/api/drafts';
@@ -57,6 +57,7 @@ export default function DashboardLayout({
 
                 <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                     <NavLink href="/dashboard" icon={LayoutDashboard} label="Overview" active />
+                    <NavLink href="/dashboard/generate" icon={Sparkles} label="Generate" />
                     <NavLink href="/dashboard/inbox" icon={Layers} label="Inbox" badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} />
                     <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Drafts" />
                     <NavLink href="/dashboard/analytics" icon={BarChart2} label="Analytics" />
