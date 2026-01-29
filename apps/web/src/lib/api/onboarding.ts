@@ -34,6 +34,38 @@ export interface MessageResponse {
     ui_hint?: 'show_upload' | 'show_linkedin_helper' | 'show_confirmation' | null;
 }
 
+// Step-specific data interfaces
+export interface ProfessionalStepData {
+    current_role: string;
+    industry: string;
+    years_experience?: string;
+    expertise_areas: string[];
+    career_highlight?: string;
+}
+
+export interface InterestsStepData {
+    interests: string[];
+    aspirations?: string;
+    topics_of_interest: string[];
+}
+
+export interface VoiceStepData {
+    selected_post_ids: string[];
+}
+
+export interface StepSaveRequest {
+    step_name: 'professional' | 'interests' | 'voice';
+    professional_data?: ProfessionalStepData;
+    interests_data?: InterestsStepData;
+    voice_data?: VoiceStepData;
+}
+
+export interface StepSaveResponse {
+    success: boolean;
+    next_step?: string;
+    message?: string;
+}
+
 export const onboardingApi = {
     /**
      * Get onboarding status without modifying state (read-only)
@@ -78,6 +110,14 @@ export const onboardingApi = {
                 'Content-Type': 'multipart/form-data',
             },
         });
+        return data;
+    },
+
+    /**
+     * Save step data during onboarding
+     */
+    saveStep: async (request: StepSaveRequest): Promise<StepSaveResponse> => {
+        const { data } = await apiClient.post<StepSaveResponse>('/onboarding/save-step', request);
         return data;
     },
 

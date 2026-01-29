@@ -21,6 +21,8 @@ from app.schemas.onboarding import (
     OnboardingStartRequest,
     OnboardingStartResponse,
     OnboardingStatusResponse,
+    OnboardingStepSaveRequest,
+    OnboardingStepSaveResponse,
 )
 from app.services.onboarding_service import OnboardingService
 
@@ -115,6 +117,25 @@ async def send_message(
     profile = await get_or_create_user_profile(current_user.id, db, current_user.name)
     service = OnboardingService(db)
     result = await service.handle_message(profile.id, request.message)
+    return result
+
+
+@router.post("/save-step", response_model=OnboardingStepSaveResponse)
+async def save_onboarding_step(
+    request: OnboardingStepSaveRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+):
+    """Save configuration data for a specific onboarding step."""
+    profile = await get_or_create_user_profile(current_user.id, db, current_user.name)
+    service = OnboardingService(db)
+    result = await service.save_step_data(
+        profile_id=profile.id,
+        step_name=request.step_name,
+        professional_data=request.professional_data,
+        interests_data=request.interests_data,
+        voice_data=request.voice_data,
+    )
     return result
 
 

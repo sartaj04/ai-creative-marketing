@@ -9,8 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import ExtractedDocument
-from app.models.identity import IdentityGraph
+from app.models.identity import IdentityGraph, StyleProfile
 from app.models.profile import Profile
+from app.schemas.onboarding import (
+    ProfessionalStepData,
+    InterestsStepData,
+    VoiceStepData,
+)
 from app.llm.gemini import GeminiProvider
 from app.services.extraction_service import ExtractionService
 
@@ -591,3 +596,183 @@ You can:
             score += 5
 
         return min(score, 100)
+
+    # Voice post style mappings - maps post IDs to tone slider adjustments
+    VOICE_POST_STYLES = {
+        # Formal/Professional posts (2-3)
+        "formal_1": {"formal_casual": 0.2, "technical_simple": 0.1, "serious_playful": 0.2, "humble_confident": 0.1},
+        "formal_2": {"formal_casual": 0.15, "technical_simple": 0.05, "serious_playful": 0.15, "humble_confident": 0.15},
+        "formal_3": {"formal_casual": 0.25, "technical_simple": 0.15, "serious_playful": 0.1, "humble_confident": 0.05},
+        # Casual/Conversational posts (2-3)
+        "casual_1": {"formal_casual": -0.25, "technical_simple": -0.1, "serious_playful": -0.15, "humble_confident": 0.0},
+        "casual_2": {"formal_casual": -0.2, "technical_simple": -0.15, "serious_playful": -0.1, "humble_confident": 0.05},
+        "casual_3": {"formal_casual": -0.15, "technical_simple": -0.05, "serious_playful": -0.2, "humble_confident": -0.05},
+        # Storytelling/Narrative posts (2-3)
+        "story_1": {"formal_casual": -0.1, "technical_simple": -0.15, "serious_playful": -0.05, "humble_confident": 0.1},
+        "story_2": {"formal_casual": -0.05, "technical_simple": -0.2, "serious_playful": 0.0, "humble_confident": 0.05},
+        "story_3": {"formal_casual": 0.0, "technical_simple": -0.1, "serious_playful": -0.1, "humble_confident": 0.15},
+        # Data-driven/Analytical posts (2-3)
+        "data_1": {"formal_casual": 0.1, "technical_simple": 0.25, "serious_playful": 0.15, "humble_confident": 0.1},
+        "data_2": {"formal_casual": 0.15, "technical_simple": 0.2, "serious_playful": 0.1, "humble_confident": 0.05},
+        "data_3": {"formal_casual": 0.05, "technical_simple": 0.15, "serious_playful": 0.2, "humble_confident": 0.15},
+        # Inspirational/Motivational posts (2-3)
+        "inspire_1": {"formal_casual": -0.05, "technical_simple": -0.1, "serious_playful": -0.1, "humble_confident": 0.2},
+        "inspire_2": {"formal_casual": 0.0, "technical_simple": -0.15, "serious_playful": -0.05, "humble_confident": 0.25},
+        "inspire_3": {"formal_casual": 0.05, "technical_simple": -0.05, "serious_playful": 0.0, "humble_confident": 0.15},
+        # Humorous/Playful posts (2-3)
+        "humor_1": {"formal_casual": -0.2, "technical_simple": -0.1, "serious_playful": -0.25, "humble_confident": -0.1},
+        "humor_2": {"formal_casual": -0.25, "technical_simple": -0.05, "serious_playful": -0.2, "humble_confident": 0.0},
+    }
+
+    async def save_step_data(
+        self,
+        profile_id: UUID,
+        step_name: str,
+        professional_data: Optional[ProfessionalStepData] = None,
+        interests_data: Optional[InterestsStepData] = None,
+        voice_data: Optional[VoiceStepData] = None,
+    ) -> Dict[str, Any]:
+        """Save configuration data for a specific onboarding step."""
+        graph = await self.get_or_create_identity_graph(profile_id)
+        
+        # Get or create style profile
+        stmt = select(StyleProfile).where(StyleProfile.profile_id == profile_id)
+        result = await self.db.execute(stmt)
+        style_profile = result.scalar_one_or_none()
+        
+        if not style_profile:
+            style_profile = StyleProfile(profile_id=profile_id)
+            self.db.add(style_profile)
+        
+        # Update onboarding context
+        ctx = dict(graph.onboarding_context) if graph.onboarding_context else {}
+        extracted_data = dict(ctx.get("extracted_data", {}))
+        
+        next_step = None
+        message = None
+        
+        if step_name == "professional" and professional_data:
+            # Save professional data directly to IdentityGraph
+            graph.current_role = professional_data.current_role
+            graph.industry = professional_data.industry
+            
+            if professional_data.years_experience:
+                graph.career_stage = professional_data.years_experience
+            
+            if professional_data.expertise_areas:
+                graph.expertise_areas = professional_data.expertise_areas
+            
+            if professional_data.career_highlight:
+                current_highlights = graph.career_highlights or []
+                if professional_data.career_highlight not in current_highlights:
+                    current_highlights.append(professional_data.career_highlight)
+                graph.career_highlights = current_highlights
+            
+            # Also update extracted_data for completeness tracking
+            extracted_data["current_role"] = professional_data.current_role
+            extracted_data["industry"] = professional_data.industry
+            extracted_data["career_stage"] = professional_data.years_experience
+            extracted_data["expertise_areas"] = professional_data.expertise_areas
+            
+            ctx["professional_completed"] = True
+            next_step = "interests"
+            message = "Professional background saved successfully"
+            
+        elif step_name == "interests" and interests_data:
+            # Save interests data to IdentityGraph
+            if interests_data.interests:
+                graph.interests = interests_data.interests
+                extracted_data["interests"] = interests_data.interests
+            
+            if interests_data.aspirations:
+                graph.aspirations = interests_data.aspirations
+                extracted_data["aspirations"] = interests_data.aspirations
+            
+            if interests_data.topics_of_interest:
+                # Add to themes/content_pillars
+                current_themes = graph.themes or []
+                for topic in interests_data.topics_of_interest:
+                    if topic not in current_themes:
+                        current_themes.append(topic)
+                graph.themes = current_themes
+                extracted_data["themes"] = current_themes
+            
+            ctx["interests_completed"] = True
+            next_step = "voice"
+            message = "Interests and aspirations saved successfully"
+            
+        elif step_name == "voice" and voice_data:
+            # Calculate tone sliders from selected posts
+            tone_sliders = {
+                "formal_casual": 0.5,
+                "technical_simple": 0.5,
+                "serious_playful": 0.5,
+                "humble_confident": 0.5,
+            }
+            
+            preferred_hooks = []
+            
+            if voice_data.selected_post_ids:
+                # Aggregate adjustments from selected posts
+                for post_id in voice_data.selected_post_ids:
+                    if post_id in self.VOICE_POST_STYLES:
+                        adjustments = self.VOICE_POST_STYLES[post_id]
+                        for key, adjustment in adjustments.items():
+                            tone_sliders[key] += adjustment
+                        
+                        # Track preferred hook styles
+                        if post_id.startswith("formal"):
+                            if "professional" not in preferred_hooks:
+                                preferred_hooks.append("professional")
+                        elif post_id.startswith("casual"):
+                            if "conversational" not in preferred_hooks:
+                                preferred_hooks.append("conversational")
+                        elif post_id.startswith("story"):
+                            if "storytelling" not in preferred_hooks:
+                                preferred_hooks.append("storytelling")
+                        elif post_id.startswith("data"):
+                            if "data-driven" not in preferred_hooks:
+                                preferred_hooks.append("data-driven")
+                        elif post_id.startswith("inspire"):
+                            if "inspirational" not in preferred_hooks:
+                                preferred_hooks.append("inspirational")
+                        elif post_id.startswith("humor"):
+                            if "humorous" not in preferred_hooks:
+                                preferred_hooks.append("humorous")
+                
+                # Clamp values to 0-1 range
+                for key in tone_sliders:
+                    tone_sliders[key] = max(0.0, min(1.0, tone_sliders[key]))
+            
+            # Save to StyleProfile
+            style_profile.tone_sliders = tone_sliders
+            style_profile.preferred_hooks = preferred_hooks
+            
+            # Also update tone_markers in IdentityGraph for compatibility
+            graph.tone_markers = {
+                "professional": 1.0 - tone_sliders["formal_casual"] + 0.5,
+                "casual": tone_sliders["formal_casual"] + 0.5,
+                "technical": tone_sliders["technical_simple"],
+                "storytelling": 1.0 - tone_sliders["serious_playful"],
+            }
+            
+            ctx["voice_completed"] = True
+            next_step = "completion"
+            message = "Voice preferences saved successfully"
+        
+        # Update context
+        ctx["extracted_data"] = extracted_data
+        graph.onboarding_context = ctx
+        
+        # Recalculate completeness score
+        graph.completeness_score = self._calculate_completeness_score(graph)
+        
+        self.db.add(graph)
+        self.db.add(style_profile)
+        await self.db.commit()
+        
+        return {
+            "success": True,
+            "next_step": next_step,
+            "message": message,
+        }
