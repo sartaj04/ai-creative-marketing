@@ -42,17 +42,17 @@ export function AgentPanel({ step, totalSteps, agentState }: AgentPanelProps) {
     };
 
     return (
-        <div className="h-full w-full bg-slate-900 text-white p-8 flex flex-col justify-between relative overflow-hidden">
+        <div className="h-full w-full bg-slate-50/80 text-slate-900 p-8 flex flex-col justify-between relative overflow-hidden">
             {/* Background Ambience */}
-            <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-blue-500 rounded-full blur-[100px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-cyan-500 rounded-full blur-[100px]" />
+            <div className="absolute top-0 left-0 w-full h-full opacity-60 pointer-events-none mix-blend-multiply">
+                <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-blue-100 rounded-full blur-[80px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-cyan-100 rounded-full blur-[80px]" />
             </div>
 
             {/* Header */}
             <div className="relative z-10">
                 <div className="flex items-center gap-1.5 mb-8">
-                    <div className="w-10 h-10 relative rounded-lg overflow-hidden">
+                    <div className="w-10 h-10 relative rounded-lg overflow-hidden shadow-sm">
                         <Image
                             src="/android-chrome-192x192.png"
                             alt="Pixo Logo"
@@ -60,15 +60,15 @@ export function AgentPanel({ step, totalSteps, agentState }: AgentPanelProps) {
                             className="object-cover"
                         />
                     </div>
-                    <span className="text-[28px] font-display font-bold tracking-tight text-white">
-                        Pixo<sup className="text-[12px] font-semibold text-cyan-400 ml-0.5 -top-2">ai</sup>
+                    <span className="text-[28px] font-display font-bold tracking-tight text-slate-800">
+                        Pixo<sup className="text-[12px] font-semibold text-blue-500 ml-0.5 -top-2">ai</sup>
                     </span>
                 </div>
 
                 <div className="space-y-4">
-                    <h1 className="text-3xl font-light text-slate-100 leading-tight">
+                    <h1 className="text-3xl font-light text-slate-900 leading-tight">
                         Setting up your <br />
-                        <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+                        <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">
                             Identity Model
                         </span>
                     </h1>
@@ -81,18 +81,18 @@ export function AgentPanel({ step, totalSteps, agentState }: AgentPanelProps) {
                     {/* Core Orb */}
                     <motion.div
                         animate={getOrbVariants()}
-                        className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 blur-md absolute z-10"
+                        className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 blur-md absolute z-10 shadow-lg shadow-cyan-500/20"
                     />
                     {/* Outer Rings */}
                     <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                        className="w-32 h-32 rounded-full border border-slate-700/50 absolute"
+                        className="w-32 h-32 rounded-full border border-slate-200 absolute"
                     />
                     <motion.div
                         animate={{ rotate: -360 }}
                         transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                        className="w-40 h-40 rounded-full border border-slate-700/30 border-dashed absolute"
+                        className="w-40 h-40 rounded-full border border-slate-200 border-dashed absolute"
                     />
                 </div>
 
@@ -103,14 +103,14 @@ export function AgentPanel({ step, totalSteps, agentState }: AgentPanelProps) {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="mt-8 flex items-center space-x-3 bg-slate-800/50 px-4 py-2 rounded-full border border-slate-700/50 backdrop-blur-sm"
+                        className="mt-8 flex items-center space-x-3 bg-white/60 px-4 py-2 rounded-full border border-slate-200/60 backdrop-blur-md shadow-sm"
                     >
                         {agentState.status === 'analyzing' || agentState.status === 'building' ? (
-                            <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+                            <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
                         ) : (
-                            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
                         )}
-                        <span className="text-sm font-medium text-cyan-100 tracking-wide">
+                        <span className="text-sm font-medium text-slate-700 tracking-wide">
                             {agentState.message}
                         </span>
                     </motion.div>
@@ -120,11 +120,11 @@ export function AgentPanel({ step, totalSteps, agentState }: AgentPanelProps) {
             {/* Footer Progress */}
             <div className="relative z-10">
                 <div className="flex flex-col space-y-4">
-                    <div className="flex justify-between text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <div className="flex justify-between text-xs font-medium text-slate-500 uppercase tracking-wider">
                         <span>System Initialization</span>
                         <span>{Math.round((step / totalSteps) * 100)}% Complete</span>
                     </div>
-                    <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
                         <motion.div
                             className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
                             initial={{ width: 0 }}
@@ -134,7 +134,7 @@ export function AgentPanel({ step, totalSteps, agentState }: AgentPanelProps) {
                     </div>
 
                     <div className="pt-4 flex items-center space-x-2 text-xs text-slate-500">
-                        <div className="w-2 h-2 rounded-full bg-green-500/50" />
+                        <div className="w-2 h-2 rounded-full bg-green-500/80" />
                         <span>Secure Environment Active</span>
                     </div>
                 </div>
