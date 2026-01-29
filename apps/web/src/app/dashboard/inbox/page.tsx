@@ -1,58 +1,143 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { X, Check, Edit2, Share2, Linkedin, Twitter, Sparkles, RefreshCw } from 'lucide-react';
-
-const DUMMY_CARDS = [
-    {
-        id: 1,
-        topic: 'AI Agent Evolution',
-        channel: 'LinkedIn',
-        confidence: 94,
-        content: "The agency model isn't dying, it's evolving. In 2026, the most successful firms won't just sell services, they'll sell intelligent outcomes independent of human hours.\n\nHere is why this shift is inevitable and how you can prepare...",
-        tags: ['Future of Work', 'AI Strategy']
-    },
-    {
-        id: 2,
-        topic: 'Founder Mental Health',
-        channel: 'Twitter',
-        confidence: 88,
-        content: "1/5 Founders often confuse 'grind' with 'progress'.\n\nReal progress is often invisible. It's the decision you didn't make. The meeting you cancelled. The feature you cut.\n\nEfficiency is doing things right. Effectiveness is doing the right things.",
-        tags: ['Leadership', 'Mindset']
-    },
-    {
-        id: 3,
-        topic: 'Async Culture',
-        channel: 'Blog',
-        confidence: 91,
-        content: "Remote work culture is broken because we tried to copy-paste the office into Zoom. It's time to rebuild async-first.\n\nWe need to shift from 'presence' to 'productivity' and measure output over hours.",
-        tags: ['Remote Work', 'Culture']
-    },
-];
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import { X, Check, Edit2, Linkedin, Twitter, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { draftsApi, Draft } from '@/lib/api/drafts';
+import { useProfileStore } from '@/stores/profile-store';
+import { useToast } from '@/components/ui/use-toast';
+import { getErrorMessage } from '@/lib/api/client';
 
 export default function InboxPage() {
-    const [cards, setCards] = useState(DUMMY_CARDS);
+    const { currentProfile } = useProfileStore();
+    const { toast } = useToast();
+    const [cards, setCards] = useState<Draft[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isActioning, setIsActioning] = useState(false);
+    const [editDraft, setEditDraft] = useState<Draft | null>(null);
+    const [editHook, setEditHook] = useState('');
+    const [editBody, setEditBody] = useState('');
+
     const x = useMotionValue(0);
     const rotate = useTransform(x, [-200, 200], [-15, 15]);
-    const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
-
-    // Background color change based on swipe direction
     const bg = useTransform(x, [-200, 0, 200], ["rgba(239, 68, 68, 0.05)", "rgba(255,255,255,0)", "rgba(8, 145, 178, 0.05)"]);
+    const approveOverlayOpacity = useTransform(x, [50, 150], [0, 1]);
+    const rejectOverlayOpacity = useTransform(x, [-150, -50], [1, 0]);
 
-    const handleDragEnd = (event: any, info: any) => {
-        if (info.offset.x > 100) {
-            removeCard(cards[0].id); // Right swipe (Approve)
-        } else if (info.offset.x < -100) {
-            removeCard(cards[0].id); // Left swipe (Reject)
+    const loadInbox = useCallback(async () => {
+        if (!currentProfile) return;
+        setIsLoading(true);
+        try {
+            const response = await draftsApi.list({
+                profile_id: currentProfile.id,
+                status: 'inbox',
+                limit: 20,
+            });
+            setCards(response.drafts);
+        } catch (error) {
+            toast({ title: 'Failed to load inbox', description: getErrorMessage(error), variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [currentProfile, toast]);
+
+    useEffect(() => {
+        loadInbox();
+    }, [loadInbox]);
+
+    const handleApprove = async (draft: Draft) => {
+        if (isActioning) return;
+        setIsActioning(true);
+        try {
+            await draftsApi.action(draft.id, { action: 'approve' });
+            setCards(prev => prev.filter(c => c.id !== draft.id));
+            toast({ title: 'Draft approved' });
+        } catch (error) {
+            toast({ title: 'Failed to approve', description: getErrorMessage(error), variant: 'destructive' });
+        } finally {
+            setIsActioning(false);
         }
     };
 
-    const removeCard = (id: number) => {
-        setCards((pv) => pv.filter((c) => c.id !== id));
+    const handleReject = async (draft: Draft) => {
+        if (isActioning) return;
+        setIsActioning(true);
+        try {
+            await draftsApi.action(draft.id, { action: 'reject' });
+            setCards(prev => prev.filter(c => c.id !== draft.id));
+            toast({ title: 'Draft rejected' });
+        } catch (error) {
+            toast({ title: 'Failed to reject', description: getErrorMessage(error), variant: 'destructive' });
+        } finally {
+            setIsActioning(false);
+        }
     };
+
+    const handleEdit = (draft: Draft) => {
+        setEditDraft(draft);
+        setEditHook(draft.hook);
+        setEditBody(draft.body);
+    };
+
+    const handleEditSubmit = async () => {
+        if (!editDraft || isActioning) return;
+        setIsActioning(true);
+        try {
+            await draftsApi.action(editDraft.id, {
+                action: 'edit',
+                edited_hook: editHook,
+                edited_body: editBody,
+            });
+            setCards(prev => prev.filter(c => c.id !== editDraft.id));
+            setEditDraft(null);
+            toast({ title: 'Draft edited and approved' });
+        } catch (error) {
+            toast({ title: 'Failed to save edit', description: getErrorMessage(error), variant: 'destructive' });
+        } finally {
+            setIsActioning(false);
+        }
+    };
+
+    const handleDragEnd = (_event: any, info: any) => {
+        if (isActioning || cards.length === 0) return;
+        if (info.offset.x > 100) {
+            handleApprove(cards[0]);
+        } else if (info.offset.x < -100) {
+            handleReject(cards[0]);
+        }
+    };
+
+    const getPlatformIcon = (platform: string | null) => {
+        if (platform === 'linkedin') return <Linkedin className="w-5 h-5 text-[#0077b5]" />;
+        if (platform === 'twitter') return <Twitter className="w-5 h-5 text-[#1DA1F2]" />;
+        return <Edit2 className="w-5 h-5 text-slate-400" />;
+    };
+
+    const getPlatformLabel = (platform: string | null) => {
+        if (platform === 'linkedin') return 'LinkedIn';
+        if (platform === 'twitter') return 'Twitter';
+        return 'Post';
+    };
+
+    if (isLoading) {
+        return (
+            <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-cyan-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden">
@@ -62,7 +147,7 @@ export default function InboxPage() {
             <div className="text-center mb-8 z-10 space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600 mb-2">
                     <Sparkles className="w-3 h-3 text-cyan-600" />
-                    {cards.length} Drafts Ready
+                    {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">Agent Inbox</h1>
                 <p className="text-slate-500">Swipe right to approve, left to reject.</p>
@@ -71,11 +156,12 @@ export default function InboxPage() {
             {/* Card Stack */}
             <div className="relative w-full max-w-md h-[550px] flex items-center justify-center z-10 px-4">
                 <AnimatePresence>
-                    {cards.map((card, index) => {
+                    {cards.map((draft, index) => {
                         const isFront = index === 0;
+                        const confidencePercent = Math.round(draft.confidence * 100);
                         return (
                             <motion.div
-                                key={card.id}
+                                key={draft.id}
                                 style={{
                                     zIndex: cards.length - index,
                                     x: isFront ? x : 0,
@@ -84,7 +170,7 @@ export default function InboxPage() {
                                     y: index * 15,
                                     opacity: index > 2 ? 0 : 1
                                 }}
-                                drag={isFront ? "x" : false}
+                                drag={isFront && !isActioning ? "x" : false}
                                 dragConstraints={{ left: 0, right: 0 }}
                                 onDragEnd={handleDragEnd}
                                 initial={{ scale: 0.95, opacity: 0 }}
@@ -97,42 +183,42 @@ export default function InboxPage() {
                                     <div className="p-6 pb-4 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
-                                                {card.channel === 'LinkedIn' ? <Linkedin className="w-5 h-5 text-[#0077b5]" /> :
-                                                    card.channel === 'Twitter' ? <Twitter className="w-5 h-5 text-[#1DA1F2]" /> :
-                                                        <Edit2 className="w-5 h-5 text-slate-400" />}
+                                                {getPlatformIcon(draft.platform)}
                                             </div>
                                             <div>
-                                                <h3 className="font-semibold text-slate-900 text-sm">{card.topic}</h3>
-                                                <p className="text-xs text-slate-500">{card.channel} • {new Date().toLocaleDateString()}</p>
+                                                <h3 className="font-semibold text-slate-900 text-sm">{draft.topic || 'Untitled Draft'}</h3>
+                                                <p className="text-xs text-slate-500">{getPlatformLabel(draft.platform)} &bull; {new Date(draft.created_at).toLocaleDateString()}</p>
                                             </div>
                                         </div>
-                                        <div className={`px-2 py-1 rounded-md text-xs font-bold border ${card.confidence > 90 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                            }`}>
-                                            {card.confidence}% Match
+                                        <div className={`px-2 py-1 rounded-md text-xs font-bold border ${confidencePercent > 90 ? 'bg-green-50 text-green-700 border-green-200' : confidencePercent > 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                            {confidencePercent}% Match
                                         </div>
                                     </div>
 
                                     {/* Card Content */}
-                                    <div className="p-8 flex-1 flex flex-col bg-white">
+                                    <div className="p-8 flex-1 flex flex-col bg-white overflow-y-auto">
                                         <p className="text-slate-600 leading-relaxed text-lg whitespace-pre-line font-medium">
-                                            {card.content}
+                                            {draft.hook}{draft.body ? `\n\n${draft.body}` : ''}
                                         </p>
 
                                         <div className="mt-auto pt-6 flex flex-wrap gap-2">
-                                            {card.tags.map(tag => (
-                                                <span key={tag} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                                    #{tag}
+                                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                                                {draft.format}
+                                            </span>
+                                            {draft.topic && (
+                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                                                    #{draft.topic}
                                                 </span>
-                                            ))}
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Action Hints Overlay */}
-                                    <motion.div style={{ opacity: useTransform(x, [50, 150], [0, 1]) }} className="absolute inset-0 bg-cyan-500/90 flex flex-col items-center justify-center text-white z-20">
+                                    <motion.div style={{ opacity: approveOverlayOpacity }} className="absolute inset-0 bg-cyan-500/90 flex flex-col items-center justify-center text-white z-20 pointer-events-none">
                                         <Check className="w-20 h-20 mb-4" />
                                         <span className="text-2xl font-bold tracking-wide uppercase">Approve</span>
                                     </motion.div>
-                                    <motion.div style={{ opacity: useTransform(x, [-150, -50], [1, 0]) }} className="absolute inset-0 bg-red-500/90 flex flex-col items-center justify-center text-white z-20">
+                                    <motion.div style={{ opacity: rejectOverlayOpacity }} className="absolute inset-0 bg-red-500/90 flex flex-col items-center justify-center text-white z-20 pointer-events-none">
                                         <X className="w-20 h-20 mb-4" />
                                         <span className="text-2xl font-bold tracking-wide uppercase">Reject</span>
                                     </motion.div>
@@ -142,7 +228,7 @@ export default function InboxPage() {
                     })}
                 </AnimatePresence>
 
-                {cards.length === 0 && (
+                {cards.length === 0 && !isLoading && (
                     <div className="text-center space-y-6 animate-fade-in-up">
                         <div className="w-24 h-24 bg-slate-50 border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center mx-auto">
                             <RefreshCw className="w-10 h-10 text-slate-300" />
@@ -153,21 +239,23 @@ export default function InboxPage() {
                                 Great job reviewing. Your agents are researching new opportunities for tomorrow.
                             </p>
                         </div>
-                        <Button onClick={() => setCards(DUMMY_CARDS)} variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
-                            Regenerate Demo Drafts
+                        <Button onClick={loadInbox} variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Refresh Inbox
                         </Button>
                     </div>
                 )}
             </div>
 
-            {/* Action Buttons (Mobile/Desktop) */}
+            {/* Action Buttons */}
             {cards.length > 0 && (
                 <div className="flex gap-8 mt-8 z-10">
                     <Button
                         size="icon"
                         variant="ghost"
                         className="h-16 w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-red-50 hover:border-red-200 hover:text-red-500 hover:scale-110 transition-all duration-300"
-                        onClick={() => removeCard(cards[0].id)}
+                        onClick={() => handleReject(cards[0])}
+                        disabled={isActioning}
                     >
                         <X className="w-8 h-8 text-slate-400" />
                     </Button>
@@ -176,6 +264,8 @@ export default function InboxPage() {
                         size="icon"
                         variant="ghost"
                         className="h-14 w-14 rounded-full bg-white border border-slate-200 shadow-lg shadow-slate-200/50 text-slate-400 hover:text-cyan-600 hover:border-cyan-200 transition-all"
+                        onClick={() => handleEdit(cards[0])}
+                        disabled={isActioning}
                     >
                         <Edit2 className="w-6 h-6" />
                     </Button>
@@ -184,12 +274,50 @@ export default function InboxPage() {
                         size="icon"
                         variant="ghost"
                         className="h-16 w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-600 hover:scale-110 transition-all duration-300"
-                        onClick={() => removeCard(cards[0].id)}
+                        onClick={() => handleApprove(cards[0])}
+                        disabled={isActioning}
                     >
                         <Check className="w-8 h-8 text-slate-400" />
                     </Button>
                 </div>
             )}
+
+            {/* Edit Dialog */}
+            <Dialog open={!!editDraft} onOpenChange={(open) => { if (!open) setEditDraft(null); }}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Edit Draft</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Hook</Label>
+                            <Input
+                                value={editHook}
+                                onChange={(e) => setEditHook(e.target.value)}
+                                placeholder="The opening line / hook"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Body</Label>
+                            <Textarea
+                                value={editBody}
+                                onChange={(e) => setEditBody(e.target.value)}
+                                placeholder="The main content"
+                                className="min-h-[200px]"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDraft(null)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleEditSubmit} disabled={isActioning} className="bg-cyan-600 hover:bg-cyan-500">
+                            {isActioning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                            Save &amp; Approve
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

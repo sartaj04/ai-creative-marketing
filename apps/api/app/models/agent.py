@@ -27,7 +27,7 @@ class AgentRun(Base):
         index=True,
     )
     agent_type: Mapped[AgentType] = mapped_column(
-        Enum(AgentType),
+        Enum(AgentType, name='agent_type', create_type=False),
         nullable=False,
         index=True,
     )

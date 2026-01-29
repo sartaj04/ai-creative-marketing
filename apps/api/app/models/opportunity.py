@@ -39,12 +39,12 @@ class Opportunity(Base):
     angle: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_type: Mapped[SourceType | None] = mapped_column(
-        Enum(SourceType),
+        Enum(SourceType, name='source_type', create_type=False),
         nullable=True,
     )
     relevance_score: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[OpportunityStatus] = mapped_column(
-        Enum(OpportunityStatus),
+        Enum(OpportunityStatus, name='opportunity_status', create_type=False),
         default=OpportunityStatus.NEW,
         index=True,
     )

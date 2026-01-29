@@ -1,24 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-    Sparkles, 
-    TrendingUp, 
-    Zap, 
-    FileText, 
-    ArrowRight, 
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    TrendingUp,
+    Zap,
+    FileText,
     CheckCircle2,
-    User,
-    Briefcase,
-    Heart,
     MessageSquare,
     Target
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { onboardingApi } from '@/lib/api/onboarding';
+import { draftsApi } from '@/lib/api/drafts';
+import { analyticsApi, AnalyticsSummary } from '@/lib/api/analytics';
 import { useAuthStore } from '@/stores/auth-store';
+import { useProfileStore } from '@/stores/profile-store';
 import Link from 'next/link';
 
 interface DashboardData {
@@ -30,7 +27,10 @@ interface DashboardData {
 
 export default function DashboardPage() {
     const { user } = useAuthStore();
+    const { currentProfile } = useProfileStore();
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const [inboxCount, setInboxCount] = useState<number>(0);
+    const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -46,6 +46,23 @@ export default function DashboardPage() {
         };
         fetchData();
     }, []);
+
+    useEffect(() => {
+        if (!currentProfile) return;
+        const fetchStats = async () => {
+            const results = await Promise.allSettled([
+                draftsApi.list({ profile_id: currentProfile.id, status: 'inbox', limit: 1 }),
+                analyticsApi.getSummary(currentProfile.id, '30d'),
+            ]);
+            if (results[0].status === 'fulfilled') {
+                setInboxCount(results[0].value.total);
+            }
+            if (results[1].status === 'fulfilled') {
+                setAnalyticsSummary(results[1].value);
+            }
+        };
+        fetchStats();
+    }, [currentProfile?.id]);
 
     if (loading) {
         return (
@@ -76,21 +93,13 @@ export default function DashboardPage() {
             className="space-y-8"
         >
             {/* Welcome Section */}
-            <motion.div variants={itemVariants} className="flex items-start justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                        Welcome back, {user?.name?.split(' ')[0] || 'there'}!
-                    </h1>
-                    <p className="text-slate-500 mt-1">
-                        Here's what's happening with your personal brand today.
-                    </p>
-                </div>
-                <Link href="/dashboard/drafts">
-                    <Button className="bg-primary hover:bg-primary/90 shadow-md">
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Generate Content
-                    </Button>
-                </Link>
+            <motion.div variants={itemVariants}>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                    Welcome back, {user?.name?.split(' ')[0] || 'there'}!
+                </h1>
+                <p className="text-slate-500 mt-1">
+                    Here's what's happening with your personal brand today.
+                </p>
             </motion.div>
 
             {/* Profile Completeness */}
@@ -144,7 +153,7 @@ export default function DashboardPage() {
                                 <FileText className="w-6 h-6 text-blue-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-slate-900">0</p>
+                                <p className="text-2xl font-bold text-slate-900">{inboxCount}</p>
                                 <p className="text-sm text-slate-500">Drafts in Pipeline</p>
                             </div>
                         </div>
@@ -158,8 +167,8 @@ export default function DashboardPage() {
                                 <Zap className="w-6 h-6 text-purple-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-slate-900">0</p>
-                                <p className="text-sm text-slate-500">Posts Generated</p>
+                                <p className="text-2xl font-bold text-slate-900">{analyticsSummary?.total_drafts_generated ?? 0}</p>
+                                <p className="text-sm text-slate-500">Drafts Generated</p>
                             </div>
                         </div>
                     </CardContent>
@@ -172,124 +181,59 @@ export default function DashboardPage() {
                                 <TrendingUp className="w-6 h-6 text-amber-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-slate-900">--</p>
-                                <p className="text-sm text-slate-500">Engagement Rate</p>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {analyticsSummary ? `${(analyticsSummary.approval_rate * 100).toFixed(0)}%` : '--'}
+                                </p>
+                                <p className="text-sm text-slate-500">Approval Rate</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
             </motion.div>
 
-            {/* Identity Overview */}
+            {/* Quick Actions */}
             <motion.div variants={itemVariants}>
-                <h2 className="text-xl font-semibold text-slate-900 mb-4">Your Brand Identity</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Professional Identity */}
-                    <Card className="border-slate-200">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold text-slate-900 mb-4">Quick Actions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Link href="/dashboard/inbox" className="block">
+                        <Card className="border-slate-200 hover:border-cyan-300 hover:shadow-md transition-all cursor-pointer">
+                            <CardContent className="p-6 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center">
+                                    <Zap className="w-5 h-5 text-cyan-600" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-900">Review Inbox</p>
+                                    <p className="text-sm text-slate-500">Approve or reject AI drafts</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/dashboard/drafts" className="block">
+                        <Card className="border-slate-200 hover:border-cyan-300 hover:shadow-md transition-all cursor-pointer">
+                            <CardContent className="p-6 flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                                    <Briefcase className="w-5 h-5 text-blue-600" />
+                                    <FileText className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-base">Professional Background</CardTitle>
-                                    <CardDescription>Your career and expertise</CardDescription>
+                                    <p className="font-semibold text-slate-900">Content Pipeline</p>
+                                    <p className="text-sm text-slate-500">Manage drafts by status</p>
                                 </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-slate-600">
-                                Your professional identity has been captured from your onboarding. 
-                                Visit settings to view and edit your expertise areas, career highlights, and target audience.
-                            </p>
-                            <Link href="/dashboard/settings">
-                                <Button variant="link" className="px-0 mt-2 text-primary">
-                                    View Details <ArrowRight className="w-4 h-4 ml-1" />
-                                </Button>
-                            </Link>
-                        </CardContent>
-                    </Card>
-
-                    {/* Personal Interests */}
-                    <Card className="border-slate-200">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center">
-                                    <Heart className="w-5 h-5 text-pink-600" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-base">Interests & Personality</CardTitle>
-                                    <CardDescription>What makes you unique</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-slate-600">
-                                Your personal interests and aspirations help us create authentic content 
-                                that resonates with your audience and reflects your true personality.
-                            </p>
-                            <Link href="/dashboard/settings">
-                                <Button variant="link" className="px-0 mt-2 text-primary">
-                                    View Details <ArrowRight className="w-4 h-4 ml-1" />
-                                </Button>
-                            </Link>
-                        </CardContent>
-                    </Card>
-
-                    {/* Voice Profile */}
-                    <Card className="border-slate-200">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center gap-3">
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/dashboard/settings" className="block">
+                        <Card className="border-slate-200 hover:border-cyan-300 hover:shadow-md transition-all cursor-pointer">
+                            <CardContent className="p-6 flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
                                     <MessageSquare className="w-5 h-5 text-indigo-600" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-base">Voice & Tone</CardTitle>
-                                    <CardDescription>How you communicate</CardDescription>
+                                    <p className="font-semibold text-slate-900">Agent Settings</p>
+                                    <p className="text-sm text-slate-500">Adjust voice and tone</p>
                                 </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-slate-600">
-                                Based on your voice selection, we've calibrated your content style. 
-                                Your preferred hooks include conversational, storytelling, and inspirational approaches.
-                            </p>
-                            <Link href="/dashboard/settings">
-                                <Button variant="link" className="px-0 mt-2 text-primary">
-                                    Adjust Voice <ArrowRight className="w-4 h-4 ml-1" />
-                                </Button>
-                            </Link>
-                        </CardContent>
-                    </Card>
-
-                    {/* Quick Actions */}
-                    <Card className="border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100/50">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                    <Sparkles className="w-5 h-5 text-primary" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-base">Quick Actions</CardTitle>
-                                    <CardDescription>Get started with content</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Link href="/dashboard/drafts" className="block">
-                                <Button variant="outline" className="w-full justify-start h-10 hover:bg-white">
-                                    <FileText className="w-4 h-4 mr-3 text-slate-500" />
-                                    Create a new draft
-                                </Button>
-                            </Link>
-                            <Link href="/dashboard/inbox" className="block">
-                                <Button variant="outline" className="w-full justify-start h-10 hover:bg-white">
-                                    <Zap className="w-4 h-4 mr-3 text-slate-500" />
-                                    Review AI suggestions
-                                </Button>
-                            </Link>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    </Link>
                 </div>
             </motion.div>
         </motion.div>

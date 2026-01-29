@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { LayoutDashboard, Layers, BarChart2, Settings, LogOut, PlusCircle, Bell, User, FileText } from 'lucide-react';
+import { LayoutDashboard, Layers, BarChart2, Settings, LogOut, PlusCircle, User, FileText } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { useProfileStore } from '@/stores/profile-store';
+import { draftsApi } from '@/lib/api/drafts';
 
 export default function DashboardLayout({
     children,
@@ -15,18 +17,25 @@ export default function DashboardLayout({
 }) {
     const router = useRouter();
     const { logout, user, checkAuth } = useAuthStore();
+    const { fetchProfiles, profiles, currentProfile } = useProfileStore();
+    const [inboxCount, setInboxCount] = useState<number | null>(null);
 
     useEffect(() => {
-        // Ensure user is loaded on mount
         checkAuth();
     }, [checkAuth]);
 
-    // Debug: Log user admin status (remove in production)
     useEffect(() => {
-        if (user) {
-            console.log('User admin status:', { is_admin: user.is_admin, email: user.email });
+        if (user && profiles.length === 0) {
+            fetchProfiles();
         }
-    }, [user]);
+    }, [user, profiles.length, fetchProfiles]);
+
+    useEffect(() => {
+        if (!currentProfile) return;
+        draftsApi.list({ profile_id: currentProfile.id, status: 'inbox', limit: 1 })
+            .then(res => setInboxCount(res.total))
+            .catch(() => {});
+    }, [currentProfile?.id]);
 
     const handleLogout = async () => {
         await logout();
@@ -48,7 +57,7 @@ export default function DashboardLayout({
 
                 <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                     <NavLink href="/dashboard" icon={LayoutDashboard} label="Overview" active />
-                    <NavLink href="/dashboard/inbox" icon={Layers} label="Inbox" badge="3" />
+                    <NavLink href="/dashboard/inbox" icon={Layers} label="Inbox" badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} />
                     <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Drafts" />
                     <NavLink href="/dashboard/analytics" icon={BarChart2} label="Analytics" />
                     <NavLink href="/dashboard/settings" icon={Settings} label="Settings" />
@@ -82,18 +91,8 @@ export default function DashboardLayout({
             {/* Main Content */}
             <main className="flex-1 md:ml-64 min-h-screen flex flex-col transition-all duration-300">
                 {/* Top Header (Mobile specific checks usually go here, keeping simple for now) */}
-                <header className="h-16 border-b border-border/40 bg-white/80 backdrop-blur-md sticky top-0 z-20 px-6 flex items-center justify-between">
+                <header className="h-16 border-b border-border/40 bg-white/80 backdrop-blur-md sticky top-0 z-20 px-6 flex items-center">
                     <h1 className="font-semibold text-lg">Dashboard</h1>
-                    <div className="flex items-center gap-4">
-                        <Button size="icon" variant="ghost" className="relative text-muted-foreground hover:text-primary">
-                            <Bell className="w-5 h-5" />
-                            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-                        </Button>
-                        <Button className="h-9 px-4 shadow-md bg-primary hover:bg-primary/90">
-                            <PlusCircle className="w-4 h-4 mr-2" />
-                            New Request
-                        </Button>
-                    </div>
                 </header>
 
                 <div className="p-6 md:p-8 animate-fade-in">

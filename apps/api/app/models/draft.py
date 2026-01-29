@@ -79,7 +79,7 @@ class Draft(Base):
         nullable=True,
     )
     status: Mapped[DraftStatus] = mapped_column(
-        Enum(DraftStatus),
+        Enum(DraftStatus, name='draft_status', create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=DraftStatus.INBOX,
         index=True,
     )
@@ -93,7 +93,7 @@ class Draft(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     sources_json: Mapped[list] = mapped_column(JSONB, default=list)
     generated_by: Mapped[AgentType | None] = mapped_column(
-        Enum(AgentType),
+        Enum(AgentType, name='agent_type', create_type=False),
         nullable=True,
     )
     scheduled_at: Mapped[datetime | None] = mapped_column(
@@ -105,7 +105,7 @@ class Draft(Base):
         nullable=True,
     )
     platform: Mapped[PlatformType | None] = mapped_column(
-        Enum(PlatformType),
+        Enum(PlatformType, name='platform_type', create_type=False),
         nullable=True,
     )
     external_post_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -160,7 +160,7 @@ class DraftEvent(Base):
         index=True,
     )
     action: Mapped[DraftAction] = mapped_column(
-        Enum(DraftAction),
+        Enum(DraftAction, name='draft_action', create_type=False),
         nullable=False,
         index=True,
     )
@@ -199,7 +199,7 @@ class Schedule(Base):
         index=True,
     )
     platform: Mapped[PlatformType] = mapped_column(
-        Enum(PlatformType),
+        Enum(PlatformType, name='platform_type', create_type=False),
         nullable=False,
     )
     status: Mapped[str] = mapped_column(
