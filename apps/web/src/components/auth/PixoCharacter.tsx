@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 
 type ActionState = 'idle' | 'typing' | 'happy' | 'waving' | 'throwing';
 
@@ -111,9 +112,14 @@ export function PixoCharacter() {
                     >
                         {/* Back of Laptop Lid (Facing Viewer) */}
                         <div className="w-14 h-10 sm:w-18 sm:h-12 md:w-24 md:h-16 bg-slate-300 rounded-lg border-2 border-slate-400 flex items-center justify-center relative shadow-lg">
-                            {/* Logo on lid */}
-                            <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-6 md:h-6 bg-cyan-500 rounded-full flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 border-2 border-white rounded-full" />
+                            {/* Favicon on lid */}
+                            <div className="relative w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-6 md:h-6">
+                                <Image
+                                    src="/android-chrome-192x192.png"
+                                    alt="Pixo Logo"
+                                    fill
+                                    className="object-contain rounded-lg"
+                                />
                             </div>
                         </div>
                         {/* BaseEdge (hinge area) */}
