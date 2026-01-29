@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { useProfileStore } from '@/stores/profile-store';
 import { Sidebar } from '@/components/layout/sidebar';
+import { onboardingApi } from '@/lib/api/onboarding';
 
 export default function DashboardLayout({
   children,
@@ -13,7 +14,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { isAuthenticated, checkAuth, isLoading: authLoading } = useAuthStore();
-  const { fetchProfiles, profiles } = useProfileStore();
+  const { fetchProfiles } = useProfileStore();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -21,7 +23,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push('/auth');
     }
   }, [isAuthenticated, authLoading, router]);
 
@@ -31,20 +33,36 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, fetchProfiles]);
 
-  // Check if user needs onboarding
+  // Check if user needs onboarding via identity_graph completion
   useEffect(() => {
-    if (isAuthenticated && profiles.length === 0 && !authLoading) {
-      // Give time for profiles to load
-      const timer = setTimeout(() => {
-        if (profiles.length === 0) {
-          router.push('/onboarding');
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, profiles, authLoading, router]);
+    const checkOnboardingStatus = async () => {
+      if (!isAuthenticated || authLoading || onboardingChecked) return;
 
-  if (authLoading) {
+      try {
+        const status = await onboardingApi.getStatus();
+        console.log('Onboarding status:', status);
+        
+        // Mark as checked first to prevent re-checking
+        setOnboardingChecked(true);
+        
+        // If onboarding is not complete, redirect immediately
+        if (!status.is_complete) {
+          console.log('Onboarding not complete, redirecting to onboarding...');
+          router.push('/onboarding');
+          return;
+        }
+      } catch (error) {
+        // If status check fails (e.g., no profile yet), redirect to onboarding
+        console.error('Failed to check onboarding status:', error);
+        setOnboardingChecked(true);
+        router.push('/onboarding');
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [isAuthenticated, authLoading, onboardingChecked, router]);
+
+  if (authLoading || !onboardingChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>

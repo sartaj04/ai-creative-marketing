@@ -33,7 +33,7 @@ class Profile(Base):
         index=True,
     )
     type: Mapped[ProfileType] = mapped_column(
-        Enum(ProfileType),
+        Enum(ProfileType, name='profile_type', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=ProfileType.INDIVIDUAL,
     )

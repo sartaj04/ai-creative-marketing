@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   Inbox,
@@ -25,8 +25,14 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { logout, user } = useAuthStore();
   const { currentProfile } = useProfileStore();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/auth');
+  };
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-card">
@@ -96,7 +102,7 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={logout}
+            onClick={handleLogout}
             title="Sign out"
           >
             <LogOut className="h-4 w-4" />

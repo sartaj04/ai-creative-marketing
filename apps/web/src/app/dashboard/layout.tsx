@@ -1,13 +1,25 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { LayoutDashboard, Layers, BarChart2, Settings, LogOut, PlusCircle, Bell, User } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const router = useRouter();
+    const { logout, user } = useAuthStore();
+
+    const handleLogout = async () => {
+        await logout();
+        router.push('/auth');
+    };
+
     return (
         <div className="min-h-screen bg-slate-50/50 flex">
             {/* Sidebar */}
@@ -35,10 +47,18 @@ export default function DashboardLayout({
                             <User className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Sartaj Syed</p>
-                            <p className="text-xs text-muted-foreground truncate">Free Plan</p>
+                            <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
+                            <p className="text-xs text-muted-foreground truncate">{user?.email || 'Free Plan'}</p>
                         </div>
-                        <LogOut className="w-4 h-4 text-muted-foreground hover:text-destructive transition-colors" />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleLogout}
+                            className="h-8 w-8"
+                            title="Sign out"
+                        >
+                            <LogOut className="w-4 h-4 text-muted-foreground hover:text-destructive transition-colors" />
+                        </Button>
                     </div>
                 </div>
             </aside>

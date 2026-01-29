@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,17 +25,43 @@ class IdentityGraph(Base):
         nullable=False,
         unique=True,
     )
+    
     # Core identity components
-    themes: Mapped[list] = mapped_column(
-        JSONB,
-        default=list,
-        comment="Main topics/themes the person talks about",
-    )
-    expertise_keywords: Mapped[list] = mapped_column(
-        JSONB,
-        default=list,
-        comment="Areas of expertise and skills",
-    )
+    current_role: Mapped[str | None] = mapped_column(String, nullable=True)
+    industry: Mapped[str | None] = mapped_column(String, nullable=True)
+    
+    # Professional details
+    expertise_areas: Mapped[list] = mapped_column(JSONB, default=list, comment="Main areas of expertise")
+    career_highlights: Mapped[list] = mapped_column(JSONB, default=list, comment="Key career achievements")
+    career_stage: Mapped[str | None] = mapped_column(String, nullable=True)
+    education: Mapped[list] = mapped_column(JSONB, default=list, comment="Education history")
+    bio_summary: Mapped[str | None] = mapped_column(String, nullable=True, comment="Professional bio summary")
+    
+    # Brand Strategy
+    target_audience: Mapped[str | None] = mapped_column(String, nullable=True)
+    desired_positioning: Mapped[str | None] = mapped_column(String, nullable=True)
+    unique_angles: Mapped[list] = mapped_column(JSONB, default=list, comment="Unique perspectives or angles")
+    aspirations: Mapped[str | None] = mapped_column(String, nullable=True)
+    goals: Mapped[str | None] = mapped_column(String, nullable=True)
+    
+    # Personality & Content
+    interests: Mapped[list] = mapped_column(JSONB, default=list, comment="Personal interests/hobbies")
+    beliefs: Mapped[list] = mapped_column(JSONB, default=list, comment="Core beliefs or contrarian views")
+    contrarian_views: Mapped[list] = mapped_column(JSONB, default=list, comment="Contrarian views (legacy field support)")
+    
+    # Content Strategy
+    content_pillars: Mapped[list] = mapped_column(JSONB, default=list, comment="Derived content pillars")
+    narrative_themes: Mapped[list] = mapped_column(JSONB, default=list, comment="Recurring story patterns")
+    
+    # Onboarding State
+    onboarding_context: Mapped[dict] = mapped_column(JSONB, default=dict, comment="Transient state for onboarding conversation")
+
+    
+    # Legacy/Existing fields (kept for compatibility if needed, but redefined above where cleaner)
+    themes: Mapped[list] = mapped_column(JSONB, default=list, comment="Main topics/themes the person talks about")
+    expertise_keywords: Mapped[list] = mapped_column(JSONB, default=list, comment="Areas of expertise and skills")
+    authority_angles: Mapped[list] = mapped_column(JSONB, default=list, comment="Credibility and authority markers")
+    
     tone_markers: Mapped[dict] = mapped_column(
         JSONB,
         default=dict,
@@ -46,16 +72,9 @@ class IdentityGraph(Base):
         default=dict,
         comment="Target audience information",
     )
-    authority_angles: Mapped[list] = mapped_column(
-        JSONB,
-        default=list,
-        comment="Credibility and authority markers",
-    )
-    narrative_themes: Mapped[list] = mapped_column(
-        JSONB,
-        default=list,
-        comment="Recurring story patterns",
-    )
+
+    completeness_score: Mapped[int] = mapped_column(Integer, default=0)
+
     # Metadata
     version: Mapped[int] = mapped_column(Integer, default=1)
     last_updated_at: Mapped[datetime] = mapped_column(

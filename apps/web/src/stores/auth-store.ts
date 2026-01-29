@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi, User } from '@/lib/api/auth';
+import { getErrorMessage } from '@/lib/api/client';
 
 interface AuthState {
   user: User | null;
@@ -37,7 +38,7 @@ export const useAuthStore = create<AuthState>()(
           });
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Login failed',
+            error: getErrorMessage(error) || 'Login failed',
             isLoading: false,
           });
           throw error;
@@ -57,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
           });
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Registration failed',
+            error: getErrorMessage(error) || 'Registration failed',
             isLoading: false,
           });
           throw error;

@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     LLM_PRIMARY_PROVIDER: str = "gemini"  # gemini or bedrock
     LLM_COMPLEX_PROVIDER: str = "bedrock"  # For complex tasks like style analysis
 
+    # Apify (LinkedIn Scraping)
+    APIFY_TOKEN: Optional[str] = None
+
     class Config:
 
         env_file = ".env"

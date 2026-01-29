@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/auth-store';
+import { onboardingApi } from '@/lib/api/onboarding';
 import { ArrowLeft, Linkedin, Loader2, CheckCircle2 } from 'lucide-react';
 
 function AuthContent() {
@@ -46,9 +47,22 @@ function AuthContent() {
                 await login(email, password);
                 toast({
                     title: 'Welcome back',
-                    description: 'Accessing your agent inbox...',
+                    description: 'Checking your profile...',
                 });
-                router.push('/dashboard/inbox');
+                
+                // Check onboarding status before redirecting
+                try {
+                    const status = await onboardingApi.getStatus();
+                    if (!status.is_complete) {
+                        router.push('/onboarding');
+                    } else {
+                        router.push('/dashboard/inbox');
+                    }
+                } catch (error) {
+                    // If status check fails, redirect to onboarding to be safe
+                    console.error('Failed to check onboarding status:', error);
+                    router.push('/onboarding');
+                }
             }
         } catch (err) {
             toast({

@@ -37,7 +37,7 @@ async def get_analytics_summary(
     current_user: CurrentUser,
     db: DBSession,
     profile_id: UUID = Query(...),
-    period: str = Query("30d", regex="^(7d|30d|90d)$"),
+    period: str = Query("30d", pattern="^(7d|30d|90d)$"),
 ) -> AnalyticsSummary:
     """Get analytics summary for a profile."""
     # Verify profile ownership
@@ -96,7 +96,7 @@ async def get_topic_analytics(
     current_user: CurrentUser,
     db: DBSession,
     profile_id: UUID = Query(...),
-    period: str = Query("30d", regex="^(7d|30d|90d)$"),
+    period: str = Query("30d", pattern="^(7d|30d|90d)$"),
 ) -> TopicAnalytics:
     """Get topic performance analytics."""
     # Verify profile ownership
@@ -150,7 +150,7 @@ async def get_format_analytics(
     current_user: CurrentUser,
     db: DBSession,
     profile_id: UUID = Query(...),
-    period: str = Query("30d", regex="^(7d|30d|90d)$"),
+    period: str = Query("30d", pattern="^(7d|30d|90d)$"),
 ) -> FormatAnalytics:
     """Get format performance analytics."""
     # Verify profile ownership

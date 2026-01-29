@@ -2,23 +2,42 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing configuration
+BCRYPT_SALT_ROUNDS = 12
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a password against its hash using bcrypt."""
+    try:
+        if not plain_password or not hashed_password:
+            return False
+            
+        password_bytes = plain_password.encode('utf-8')
+        # Bcrypt has a 72-byte limit. We truncate to match standard bcrypt behavior
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+            
+        return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
+    except Exception:
+        # If verification fails for any reason (e.g. invalid hash format), return False
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Generate password hash."""
-    return pwd_context.hash(password)
+    """Generate password hash using bcrypt."""
+    password_bytes = password.encode('utf-8')
+    # Bcrypt has a 72-byte limit
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+        
+    salt = bcrypt.gensalt(rounds=BCRYPT_SALT_ROUNDS)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 def create_access_token(

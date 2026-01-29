@@ -37,7 +37,7 @@ class ExtractedDocument(Base):
         index=True,
     )
     source_type: Mapped[SourceType] = mapped_column(
-        Enum(SourceType),
+        Enum(SourceType, name='source_type', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
     )
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)

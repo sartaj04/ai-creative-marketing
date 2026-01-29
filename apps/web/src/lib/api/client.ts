@@ -30,7 +30,7 @@ apiClient.interceptors.response.use(
       // Clear token and redirect to login
       localStorage.removeItem('token');
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/auth';
       }
     }
     return Promise.reject(error);
@@ -46,7 +46,25 @@ export interface ApiError {
 // Helper to extract error message
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    return error.response?.data?.detail || error.message || 'An error occurred';
+    const detail = error.response?.data?.detail;
+    
+    // Handle FastAPI validation errors (array of error objects)
+    if (Array.isArray(detail)) {
+      return detail
+        .map((err: any) => {
+          const field = err.loc?.slice(-1)[0] || 'field';
+          const message = err.msg || 'Invalid value';
+          return `${field}: ${message}`;
+        })
+        .join(', ') || 'Validation error';
+    }
+    
+    // Handle string detail
+    if (typeof detail === 'string') {
+      return detail;
+    }
+    
+    return error.message || 'An error occurred';
   }
   if (error instanceof Error) {
     return error.message;

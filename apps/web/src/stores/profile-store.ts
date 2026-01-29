@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Profile, profilesApi } from '@/lib/api/profiles';
+import { getErrorMessage } from '@/lib/api/client';
 
 interface ProfileState {
   profiles: Profile[];
@@ -37,7 +38,7 @@ export const useProfileStore = create<ProfileState>()(
           }
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Failed to fetch profiles',
+            error: getErrorMessage(error) || 'Failed to fetch profiles',
             isLoading: false,
           });
         }
@@ -59,7 +60,7 @@ export const useProfileStore = create<ProfileState>()(
           return profile;
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Failed to create profile',
+            error: getErrorMessage(error) || 'Failed to create profile',
             isLoading: false,
           });
           throw error;
@@ -77,7 +78,7 @@ export const useProfileStore = create<ProfileState>()(
           }));
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Failed to update profile',
+            error: getErrorMessage(error) || 'Failed to update profile',
             isLoading: false,
           });
           throw error;
@@ -101,7 +102,7 @@ export const useProfileStore = create<ProfileState>()(
           });
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Failed to delete profile',
+            error: getErrorMessage(error) || 'Failed to delete profile',
             isLoading: false,
           });
           throw error;
@@ -113,7 +114,7 @@ export const useProfileStore = create<ProfileState>()(
           await profilesApi.triggerIngestion(id);
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Failed to trigger ingestion',
+            error: getErrorMessage(error) || 'Failed to trigger ingestion',
           });
           throw error;
         }

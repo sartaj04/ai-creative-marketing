@@ -1,6 +1,20 @@
 """Alembic migration environment configuration."""
 import asyncio
+import os
 from logging.config import fileConfig
+from pathlib import Path
+
+# Load .env file before importing settings
+from dotenv import load_dotenv
+# Look for .env file relative to this file (alembic/env.py -> apps/api/.env)
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path, override=True)
+    print(f"[Alembic] Loaded .env from: {env_path}")
+else:
+    # Try current directory and parent directories
+    load_dotenv(override=True)
+    print(f"[Alembic] Tried to load .env from current directory")
 
 from alembic import context
 from sqlalchemy import pool
@@ -35,7 +49,14 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Override sqlalchemy.url with actual database URL
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+database_url = settings.DATABASE_URL
+if not database_url:
+    raise ValueError("DATABASE_URL not set in environment variables")
+
+# Debug: print first 50 chars of URL (without password)
+print(f"[Alembic] Using DATABASE_URL: {database_url.split('@')[0]}@...")
+
+config.set_main_option("sqlalchemy.url", database_url)
 
 
 def run_migrations_offline() -> None:
