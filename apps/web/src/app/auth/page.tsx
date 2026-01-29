@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/auth-store';
 import { onboardingApi } from '@/lib/api/onboarding';
 import { ArrowLeft, Linkedin, Loader2, CheckCircle2 } from 'lucide-react';
+import { PixoCharacter } from '@/components/auth/PixoCharacter';
 
 function AuthContent() {
     const searchParams = useSearchParams();
@@ -49,7 +50,7 @@ function AuthContent() {
                     title: 'Welcome back',
                     description: 'Checking your profile...',
                 });
-                
+
                 // Check onboarding status before redirecting
                 try {
                     const status = await onboardingApi.getStatus();
@@ -209,28 +210,23 @@ function AuthContent() {
             </div>
 
             {/* Right Panel - Visual */}
-            <div className="hidden lg:flex relative bg-slate-900 overflow-hidden items-center justify-center p-16">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-blue-500/10" />
+            <div className="hidden lg:flex relative bg-slate-50/50 overflow-hidden items-center justify-center p-16 border-l border-slate-100">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px]" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-50/50 via-transparent to-blue-50/50" />
 
                 {/* Floating Elements */}
-                <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[128px] pointer-events-none" />
-                <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[128px] pointer-events-none" />
+                <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-200/20 rounded-full blur-[128px] pointer-events-none" />
+                <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-blue-200/20 rounded-full blur-[128px] pointer-events-none" />
 
-                <div className="relative z-10 max-w-lg text-center space-y-8 p-10 border border-slate-700/50 bg-slate-800/50 backdrop-blur-3xl rounded-3xl shadow-2xl">
-                    <div className="w-20 h-20 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-cyan-500/20">
-                        <CheckCircle2 className="w-10 h-10 text-white" />
-                    </div>
+                <div className="relative z-10 max-w-lg text-center space-y-8 p-10 bg-white/40 backdrop-blur-xl rounded-3xl border border-white/50 shadow-xl flex flex-col items-center">
+                    <PixoCharacter />
 
-                    <blockquote className="text-2xl font-medium leading-relaxed text-slate-100">
-                        "Pixo has completely transformed how I manage my online presence. It feels like having a full-time PR team."
-                    </blockquote>
-
-                    <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-700/50">
-                        <div className="w-12 h-12 rounded-full bg-slate-700 border-2 border-slate-600" />
-                        <div className="text-left">
-                            <div className="font-semibold text-white">Sarah Jenkins</div>
-                            <div className="text-sm text-cyan-400">Founder @ TechFlow</div>
+                    <div className="space-y-4">
+                        <blockquote className="text-2xl font-medium leading-relaxed text-slate-800">
+                            "I'm so excited to help you build your authority! Let's get started!"
+                        </blockquote>
+                        <div className="text-cyan-600 font-bold text-lg tracking-wide uppercase text-xs">
+                            — Pixo AI
                         </div>
                     </div>
                 </div>

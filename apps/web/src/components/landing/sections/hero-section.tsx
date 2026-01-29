@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { ArrowRight, Play, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PixoCharacter } from '@/components/auth/PixoCharacter';
 import { ScrollReveal } from '../scroll-reveal';
 import { SystemHeroVisual } from '../system-hero-visual';
 
 export function HeroSection() {
   return (
-    <section className="pt-32 pb-20 lg:pt-48 lg:pb-32 px-6 md:px-12 lg:px-16 relative overflow-visible z-10 min-h-screen flex items-center justify-center">
+    <section className="pt-12 pb-20 lg:pt-16 lg:pb-32 px-6 md:px-12 lg:px-16 relative overflow-visible z-10 min-h-screen flex items-center justify-center">
       {/* Background Visual Layer */}
       <div className="absolute inset-0 z-0 pointer-events-none scale-95 origin-center select-none">
         <SystemHeroVisual />
@@ -15,15 +16,12 @@ export function HeroSection() {
       <div className="max-w-7xl mx-auto relative z-10 w-full">
         <div className="flex flex-col items-center text-center">
 
-          {/* Badge */}
+          {/* Pixo Mascot - Center Top */}
           <ScrollReveal direction="down" duration={0.5}>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm text-slate-600 text-sm font-medium mb-8 hover:border-cyan-300 transition-colors cursor-default group">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
-              </span>
-              <span>Proprietary Branding OS</span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-500 transition-colors ml-1" />
+            <div className="flex justify-center mb-12">
+              <div className="scale-125 origin-center">
+                <PixoCharacter />
+              </div>
             </div>
           </ScrollReveal>
 

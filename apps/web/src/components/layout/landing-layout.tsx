@@ -22,7 +22,7 @@ export function Navbar() {
   const [useCasesOpen, setUseCasesOpen] = useState(false);
 
   return (
-    <nav className="fixed top-4 left-0 right-0 z-50 transition-all duration-300 py-2.5 px-4 bg-white/80 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/60 rounded-full max-w-5xl mx-auto">
+    <nav className="fixed top-8 left-0 right-0 z-50 transition-all duration-300 py-2.5 px-4 bg-white/80 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/60 rounded-full max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 pl-2">
