@@ -2,7 +2,9 @@
 # FastAPI and async
 fastapi
 uvicorn[standard]
+gunicorn
 python-multipart
+
 
 # Database
 sqlalchemy[asyncio]
@@ -25,7 +27,7 @@ email-validator
 
 # LLM Providers
 google-genai  # New Google Gen AI SDK (replaces deprecated vertexai.generative_models)
-boto3
+boto3>=1.42.5
 
 # LangChain (Multi-Agent Generation)
 langchain>=0.3.0
@@ -40,8 +42,8 @@ feedparser
 httpx
 aiohttp
 
-# AWS S3
-aioboto3
+# AWS S3 (async support)
+aiobotocore[boto3]>=2.15.0
 
 # Document Extraction
 apify-client
