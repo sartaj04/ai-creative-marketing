@@ -56,9 +56,9 @@ export const metadata: Metadata = {
     siteName: siteConfig.name,
     images: [
       {
-        url: siteConfig.ogImage,
-        width: 1200,
-        height: 630,
+        url: `${siteConfig.url}${siteConfig.ogImage}`,
+        width: 1024,
+        height: 1024,
         alt: `${siteConfig.name} - ${siteConfig.tagline}`,
       },
     ],
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     site: siteConfig.twitter.site,
     creator: siteConfig.twitter.handle,
-    images: [siteConfig.twitterImage],
+    images: [`${siteConfig.url}${siteConfig.twitterImage}`],
   },
   robots: {
     index: true,

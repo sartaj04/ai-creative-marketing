@@ -22,7 +22,10 @@ export function generateMetadata({
     ? `${title} | ${siteConfig.name}`
     : `${siteConfig.name} - ${siteConfig.tagline}`;
   const metaDescription = description || siteConfig.description;
-  const metaImage = image || siteConfig.ogImage;
+  const absoluteImage = image || siteConfig.ogImage;
+  const metaImage = absoluteImage.startsWith('/')
+    ? `${siteConfig.url}${absoluteImage}`
+    : absoluteImage;
   const url = `${siteConfig.url}${path}`;
   const allKeywords = [...siteConfig.keywords, ...keywords];
 
@@ -46,8 +49,8 @@ export function generateMetadata({
       images: [
         {
           url: metaImage,
-          width: 1200,
-          height: 630,
+          width: 1024,
+          height: 1024,
           alt: metaTitle,
         },
       ],
