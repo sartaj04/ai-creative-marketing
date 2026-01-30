@@ -35,6 +35,7 @@ export function PricingSection() {
         'Community Support',
       ],
       highlighted: false,
+      comingSoon: false,
     },
     {
       name: 'Basic',
@@ -51,6 +52,7 @@ export function PricingSection() {
         'Email Support',
       ],
       highlighted: false,
+      comingSoon: false,
     },
     {
       name: 'Pro',
@@ -68,6 +70,7 @@ export function PricingSection() {
         'Opportunity Scout',
       ],
       highlighted: true,
+      comingSoon: false,
     },
     {
       name: 'Team',
@@ -85,6 +88,7 @@ export function PricingSection() {
         'Dedicated Account Manager',
       ],
       highlighted: false,
+      comingSoon: true,
     },
   ];
 
@@ -106,8 +110,8 @@ export function PricingSection() {
             <button
               onClick={() => setCurrency('USD')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${currency === 'USD'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
                 }`}
             >
               USD ($)
@@ -115,8 +119,8 @@ export function PricingSection() {
             <button
               onClick={() => setCurrency('INR')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${currency === 'INR'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
                 }`}
             >
               INR (₹)
@@ -177,14 +181,24 @@ export function PricingSection() {
                   <p className="text-sm text-slate-500 mb-8 leading-relaxed h-[40px]">
                     {tier.description}
                   </p>
-                  <Link href={tier.name === 'Team' ? '/contact' : '/auth?mode=signup'}>
+                  {tier.comingSoon ? (
                     <Button
                       variant="outline"
-                      className="w-full mb-8 border-slate-200 hover:bg-slate-50"
+                      disabled
+                      className="w-full mb-8 border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
                     >
-                      {tier.cta}
+                      Coming Soon
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link href={tier.name === 'Team' ? '/contact' : '/auth?mode=signup'}>
+                      <Button
+                        variant="outline"
+                        className="w-full mb-8 border-slate-200 hover:bg-slate-50"
+                      >
+                        {tier.cta}
+                      </Button>
+                    </Link>
+                  )}
                   <ul className="space-y-4">
                     {tier.features.map((feat, j) => (
                       <li
