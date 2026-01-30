@@ -51,7 +51,6 @@ export default async function Image({ params }: { params: { slug: string } }) {
                     style={{
                         fontSize: 70,
                         fontWeight: 'bold',
-                        color: 'white',
                         lineHeight: 1.1,
                         textAlign: 'center',
                         marginBottom: '20px',
