@@ -2,6 +2,7 @@
 from functools import lru_cache
 from typing import List, Optional
 
+from pydantic import validator
 from pydantic_settings import BaseSettings
 
 
@@ -16,6 +17,17 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str
+
+    @validator("DATABASE_URL", pre=True)
+    def normalize_database_url(cls, v: str) -> str:
+        """Ensure the database URL uses the asyncpg driver."""
+        if not v:
+            return v
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
 
     # Redis
     REDIS_URL: str
