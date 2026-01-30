@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 import { getPostBySlug } from '@/lib/mdx';
 import { siteConfig } from '@/lib/seo/config';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export const alt = 'Pixo Blog Post';
 export const size = {
