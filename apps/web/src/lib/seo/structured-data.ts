@@ -8,7 +8,7 @@ export function generateOrganizationSchema() {
     description: siteConfig.description,
     url: siteConfig.url,
     logo: `${siteConfig.url}/android-chrome-512x512.png`,
-    sameAs: [siteConfig.links.twitter, siteConfig.links.linkedin],
+    sameAs: [siteConfig.links.linkedin].filter(Boolean),
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer support',

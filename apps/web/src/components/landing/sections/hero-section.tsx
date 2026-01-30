@@ -7,7 +7,7 @@ import { SystemHeroVisual } from '../system-hero-visual';
 
 export function HeroSection() {
   return (
-    <section className="pt-32 pb-20 lg:pt-40 lg:pb-32 px-6 md:px-12 lg:px-16 relative overflow-visible z-10 min-h-screen flex items-center justify-center">
+    <section className="pt-32 pb-20 lg:pt-20 lg:pb-32 px-6 md:px-12 lg:px-16 relative overflow-visible z-10 min-h-screen flex items-center justify-center">
       {/* Background Visual Layer */}
       <div className="absolute inset-0 z-0 pointer-events-none scale-95 origin-center select-none">
         <SystemHeroVisual />
