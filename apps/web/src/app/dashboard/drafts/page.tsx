@@ -1,92 +1,37 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, Loader2, Linkedin, Twitter, ChevronDown } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Calendar, Loader2 } from 'lucide-react';
 import { draftsApi, Draft, DraftStatus } from '@/lib/api/drafts';
 import { useProfileStore } from '@/stores/profile-store';
 import { useToast } from '@/components/ui/use-toast';
 import { getErrorMessage } from '@/lib/api/client';
-
-const COLUMN_CONFIG: { id: DraftStatus; title: string; color: string }[] = [
-    { id: 'inbox', title: 'Inbox', color: 'bg-slate-50' },
-    { id: 'approved', title: 'Approved', color: 'bg-cyan-50/50' },
-    { id: 'scheduled', title: 'Scheduled', color: 'bg-purple-50/50' },
-    { id: 'published', title: 'Published', color: 'bg-emerald-50/50' },
-];
-
-const STATUS_OPTIONS: { value: DraftStatus; label: string }[] = [
-    { value: 'inbox', label: 'Inbox' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'scheduled', label: 'Scheduled' },
-    { value: 'published', label: 'Published' },
-    { value: 'rejected', label: 'Rejected' },
-];
-
-function getRelativeTime(dateString: string): string {
-    const now = Date.now();
-    const created = new Date(dateString).getTime();
-    const diffMs = now - created;
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 60) return `${diffMins}m`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d`;
-}
-
-function PlatformBadge({ draft }: { draft: Draft }) {
-    const platform = draft.platform;
-    if (platform === 'linkedin') {
-        return (
-            <span className="text-[10px] font-bold px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-100 flex items-center gap-1">
-                <Linkedin className="w-3 h-3" /> LINKEDIN
-            </span>
-        );
-    }
-    if (platform === 'twitter') {
-        return (
-            <span className="text-[10px] font-bold px-2 py-1 rounded border bg-sky-50 text-sky-700 border-sky-100 flex items-center gap-1">
-                <Twitter className="w-3 h-3" /> TWITTER
-            </span>
-        );
-    }
-    return (
-        <span className="text-[10px] font-bold px-2 py-1 rounded border bg-slate-50 text-slate-600 border-slate-200 uppercase">
-            {draft.format}
-        </span>
-    );
-}
+import { KanbanBoard } from '@/components/drafts/kanban-board';
+import { EditDraftDialog } from '@/components/drafts/edit-draft-dialog';
+import { PixoCharacter } from '@/components/auth/PixoCharacter';
 
 export default function DraftsPage() {
     const { currentProfile } = useProfileStore();
     const { toast } = useToast();
-    const [draftsByStatus, setDraftsByStatus] = useState<Record<DraftStatus, Draft[]>>({
-        inbox: [], approved: [], scheduled: [], published: [], rejected: [],
-    });
+    const [drafts, setDrafts] = useState<Draft[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-    const loadDrafts = useCallback(async () => {
+    const loadDrafts = useCallback(async (showLoading = true) => {
         if (!currentProfile) return;
-        setIsLoading(true);
+        if (showLoading) setIsLoading(true);
         try {
             const response = await draftsApi.list({
                 profile_id: currentProfile.id,
                 limit: 100,
             });
-            const grouped: Record<DraftStatus, Draft[]> = {
-                inbox: [], approved: [], scheduled: [], published: [], rejected: [],
-            };
-            response.drafts.forEach(d => {
-                grouped[d.status].push(d);
-            });
-            setDraftsByStatus(grouped);
+            setDrafts(response.drafts);
         } catch (error) {
             toast({ title: 'Failed to load drafts', description: getErrorMessage(error), variant: 'destructive' });
         } finally {
-            setIsLoading(false);
+            if (showLoading) setIsLoading(false);
         }
     }, [currentProfile, toast]);
 
@@ -95,12 +40,65 @@ export default function DraftsPage() {
     }, [loadDrafts]);
 
     const handleStatusChange = async (draftId: string, newStatus: DraftStatus) => {
+        // Optimistic update
+        const previousDrafts = [...drafts];
+        setDrafts(drafts.map(d => d.id === draftId ? { ...d, status: newStatus } : d));
+
         try {
             await draftsApi.updateStatus(draftId, newStatus);
-            toast({ title: `Draft moved to ${newStatus}` });
-            loadDrafts();
+            // Don't reload, just notify success silently or very subtly
+            // toast({ title: `Draft moved to ${newStatus}` });
         } catch (error) {
+            // Revert
+            setDrafts(previousDrafts);
             toast({ title: 'Failed to update status', description: getErrorMessage(error), variant: 'destructive' });
+        }
+    };
+
+    const handleEdit = (draft: Draft) => {
+        setEditingDraft(draft);
+        setIsEditDialogOpen(true);
+    };
+
+    const handleDelete = async (draft: Draft) => {
+        // Optimistic delete (move to rejected or actually delete if API supported, but we use rejected as 'bin')
+        if (confirm('Are you sure you want to move this draft to trash?')) {
+            const previousDrafts = [...drafts];
+            // If we treat Rejected as trash, just move it there.
+            // If it's already rejected, maybe nothing else to do?
+            // But if user clicks delete, they expect it to be gone from view if 'Rejected' column isn't the trash can.
+            // But since we have a Rejected column, it just moves there.
+
+            const targetStatus: DraftStatus = 'rejected';
+
+            setDrafts(drafts.map(d => d.id === draft.id ? { ...d, status: targetStatus } : d));
+
+            try {
+                await draftsApi.updateStatus(draft.id, targetStatus);
+                toast({ title: 'Draft moved to rejected' });
+            } catch (error) {
+                setDrafts(previousDrafts);
+                toast({ title: 'Failed to delete draft', description: getErrorMessage(error), variant: 'destructive' });
+            }
+        }
+    };
+
+    const handleSaveEdit = async (draftId: string, hook: string, body: string) => {
+        try {
+            await draftsApi.action(draftId, {
+                action: 'edit',
+                edited_hook: hook,
+                edited_body: body,
+            });
+
+            // Update local state
+            setDrafts(drafts.map(d => d.id === draftId ? { ...d, hook, body, status: 'approved' } : d));
+            // Note: backend 'edit' action sets status to APPROVED automatically. I should reflect that.
+
+            toast({ title: 'Draft updated' });
+        } catch (error) {
+            toast({ title: 'Failed to update draft', description: getErrorMessage(error), variant: 'destructive' });
+            throw error; // Re-throw to let dialog handle loading state or error display
         }
     };
 
@@ -115,102 +113,38 @@ export default function DraftsPage() {
     return (
         <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-8 px-1">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Content Pipeline</h1>
-                    <p className="text-slate-500">Manage your content generation workflow</p>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 overflow-hidden flex-shrink-0 relative">
+                        <div className="absolute inset-0 flex items-center justify-center [transform:scale(0.25)]">
+                            <PixoCharacter />
+                        </div>
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Content Pipeline</h1>
+                        <p className="text-slate-500">Manage your content generation workflow</p>
+                    </div>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="outline" className="gap-2" onClick={loadDrafts}>
+                    <Button variant="outline" className="gap-2" onClick={() => loadDrafts(true)}>
                         <Calendar className="w-4 h-4" />
                         Refresh
                     </Button>
                 </div>
             </div>
 
-            <div className="flex gap-6 overflow-x-auto pb-8 h-full">
-                {COLUMN_CONFIG.map((col) => {
-                    const columnDrafts = draftsByStatus[col.id];
-                    return (
-                        <div key={col.id} className="min-w-[320px] flex flex-col bg-slate-100/50 rounded-xl p-4 border border-slate-200">
-                            <div className="flex justify-between items-center mb-4 px-2">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-bold text-sm uppercase tracking-wider text-slate-600">{col.title}</h3>
-                                    <span className="bg-white text-slate-500 text-xs px-2 py-0.5 rounded-full border border-slate-200 font-mono font-medium">
-                                        {columnDrafts.length}
-                                    </span>
-                                </div>
-                            </div>
+            <KanbanBoard
+                drafts={drafts}
+                onStatusChange={handleStatusChange}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+            />
 
-                            <div className="space-y-3 flex-1 overflow-y-auto pr-2">
-                                {columnDrafts.length === 0 && (
-                                    <div className="text-center py-8 text-slate-400 text-sm">
-                                        No drafts
-                                    </div>
-                                )}
-                                {columnDrafts.map((draft, i) => (
-                                    <motion.div
-                                        key={draft.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: i * 0.05 }}
-                                    >
-                                        <Card className="hover:shadow-lg transition-all border-slate-200 hover:border-cyan-300 group">
-                                            <CardContent className="p-4 space-y-3">
-                                                <div className="flex justify-between items-start">
-                                                    <PlatformBadge draft={draft} />
-                                                    <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <select
-                                                            value=""
-                                                            onChange={(e) => {
-                                                                if (e.target.value) {
-                                                                    handleStatusChange(draft.id, e.target.value as DraftStatus);
-                                                                    e.target.value = '';
-                                                                }
-                                                            }}
-                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                        >
-                                                            <option value="">Move to...</option>
-                                                            {STATUS_OPTIONS.filter(s => s.value !== draft.status).map(s => (
-                                                                <option key={s.value} value={s.value}>
-                                                                    {s.label}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none" />
-                                                    </div>
-                                                </div>
-
-                                                <p className="text-sm font-semibold leading-relaxed text-slate-800 line-clamp-2">
-                                                    {draft.hook || draft.topic || 'Untitled Draft'}
-                                                </p>
-
-                                                {draft.body && (
-                                                    <p className="text-xs text-slate-500 line-clamp-2">
-                                                        {draft.body}
-                                                    </p>
-                                                )}
-
-                                                <div className="flex items-center justify-between pt-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-[8px] text-white font-bold">
-                                                            AI
-                                                        </div>
-                                                        <span className="text-xs text-slate-500 font-medium capitalize">{draft.format}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 text-xs text-slate-400">
-                                                        <Clock className="w-3 h-3" />
-                                                        <span>{getRelativeTime(draft.created_at)}</span>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+            <EditDraftDialog
+                draft={editingDraft}
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                onSave={handleSaveEdit}
+            />
         </div>
     );
 }
