@@ -39,7 +39,7 @@ export default function BlogPage() {
               Blog
             </p>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-[-0.02em] text-slate-900 leading-[1.1] mb-6">
-              Insights on Personal Branding
+              Insights on Brand Authority
             </h1>
             <p className="text-lg sm:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
               Strategies, frameworks, and practical advice for building a professional

@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Inbox, 
-  SwatchBook, 
-  Calendar, 
-  BarChart3, 
-  Check, 
-  X, 
+import {
+  Inbox,
+  SwatchBook,
+  Calendar,
+  BarChart3,
+  Check,
+  X,
   Pencil,
   Sparkles,
   Clock,
@@ -165,13 +165,12 @@ function ScheduleContent() {
         {days.map((day, i) => (
           <div key={day} className="text-center">
             <span className="text-[10px] font-medium text-slate-400">{day}</span>
-            <div className={`mt-2 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1 ${
-              slots[i].filled 
-                ? 'border-cyan-200 bg-cyan-50' 
-                : slots[i].optimal 
-                  ? 'border-green-200 bg-green-50' 
+            <div className={`mt-2 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1 ${slots[i].filled
+                ? 'border-cyan-200 bg-cyan-50'
+                : slots[i].optimal
+                  ? 'border-green-200 bg-green-50'
                   : 'border-slate-200'
-            }`}>
+              }`}>
               {slots[i].filled ? (
                 <>
                   <div className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center">
@@ -210,7 +209,7 @@ function ScheduleContent() {
 // Analytics Tab Content
 function AnalyticsContent() {
   const bars = [35, 42, 58, 45, 72, 68, 85];
-  
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -302,7 +301,7 @@ export function HeroProductPreview() {
   const ActiveContent = tabContent[activeTab];
 
   return (
-    <div 
+    <div
       className="w-full max-w-[580px] mx-auto"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -317,7 +316,7 @@ export function HeroProductPreview() {
             <div className="w-3 h-3 rounded-full bg-[#28CA41] shadow-sm" />
           </div>
           <div className="ml-4 flex-1 h-7 bg-white rounded-lg border border-slate-200 flex items-center px-3 shadow-inner">
-            <span className="text-[11px] text-slate-400 font-medium tracking-tight">app.pixo.ai</span>
+            <span className="text-[11px] text-slate-400 font-medium tracking-tight">app.trypixo.com</span>
           </div>
         </div>
 
@@ -333,9 +332,8 @@ export function HeroProductPreview() {
                   setActiveTab(tab.id);
                   setProgress(0);
                 }}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors relative ${
-                  isActive ? 'text-cyan-600' : 'text-slate-400 hover:text-slate-600'
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors relative ${isActive ? 'text-cyan-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{tab.label}</span>

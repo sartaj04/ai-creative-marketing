@@ -9,7 +9,7 @@ import { generateMetadata as generateSEOMetadata } from '@/lib/seo/metadata';
 
 export const metadata: Metadata = generateSEOMetadata({
     title: 'About Us',
-    description: 'We represent the future of personal branding. Learn about our mission to help everyone build professional authority with AI.',
+    description: 'We represent the future of brand management. Learn about our mission to help everyone build professional authority with AI.',
     path: '/about',
 });
 

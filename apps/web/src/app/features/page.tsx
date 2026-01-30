@@ -24,13 +24,13 @@ import { features } from '@/data/features';
 export const metadata: Metadata = generateSEOMetadata({
   title: 'Features',
   description:
-    'Discover all the powerful features of Pixo - from AI-powered content generation to smart scheduling. Everything you need to build a strong personal brand.',
+    'Discover all the powerful features of Pixo - from AI-powered content generation to smart scheduling. Everything you need to build a strong brand presence.',
   path: '/features',
   keywords: [
-    'AI personal branding features',
+    'AI brand management features',
     'content automation',
     'linkedin tools',
-    'personal branding software features',
+    'brand operating system features',
   ],
 });
 
@@ -94,21 +94,18 @@ export default function FeaturesPage() {
               return (
                 <StaggerItem key={feature.id}>
                   <div
-                    className={`grid grid-cols-1 lg:grid-cols-2 gap-12 items-center ${
-                      !isEven ? 'lg:flex-row-reverse' : ''
-                    }`}
+                    className={`grid grid-cols-1 lg:grid-cols-2 gap-12 items-center ${!isEven ? 'lg:flex-row-reverse' : ''
+                      }`}
                   >
                     {/* Content */}
                     <div className={!isEven ? 'lg:order-2' : ''}>
                       <div
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${
-                          feature.highlight ? 'bg-cyan-100' : 'bg-slate-100'
-                        }`}
+                        className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${feature.highlight ? 'bg-cyan-100' : 'bg-slate-100'
+                          }`}
                       >
                         <Icon
-                          className={`w-7 h-7 ${
-                            feature.highlight ? 'text-cyan-600' : 'text-slate-500'
-                          }`}
+                          className={`w-7 h-7 ${feature.highlight ? 'text-cyan-600' : 'text-slate-500'
+                            }`}
                         />
                       </div>
                       <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 mb-4">
@@ -133,19 +130,17 @@ export default function FeaturesPage() {
                     {/* Visual */}
                     <div className={!isEven ? 'lg:order-1' : ''}>
                       <Card
-                        className={`p-8 border rounded-2xl h-64 flex items-center justify-center ${
-                          feature.highlight
+                        className={`p-8 border rounded-2xl h-64 flex items-center justify-center ${feature.highlight
                             ? 'border-cyan-200 bg-gradient-to-br from-cyan-50/50 to-white'
                             : 'border-slate-200 bg-slate-50'
-                        }`}
+                          }`}
                       >
                         <div className="text-center">
                           <Icon
-                            className={`w-16 h-16 mx-auto mb-4 ${
-                              feature.highlight
+                            className={`w-16 h-16 mx-auto mb-4 ${feature.highlight
                                 ? 'text-cyan-400'
                                 : 'text-slate-300'
-                            }`}
+                              }`}
                           />
                           <p className="text-sm text-slate-400 font-medium">
                             {feature.shortTitle} Preview
@@ -170,7 +165,7 @@ export default function FeaturesPage() {
 
               <div className="relative">
                 <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-white tracking-[-0.02em] leading-tight mb-4">
-                  Ready to transform your personal brand?
+                  Ready to transform your brand presence?
                 </h2>
                 <p className="text-slate-400 mb-8">
                   Start for free. No credit card required.

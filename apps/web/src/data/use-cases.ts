@@ -34,13 +34,13 @@ export const useCases: UseCase[] = [
   {
     slug: 'founders',
     title: 'Pixo for Founders',
-    metaTitle: 'Personal Branding for Startup Founders',
+    metaTitle: 'Brand Operating System for Startup Founders',
     metaDescription:
-      'Build authority while building your company. Pixo\'s AI agents prepare content so founders can maintain brand presence in just 5 minutes daily.',
+      'Build authority while building your company. Pixo\'s autonomous agents prepare content so founders can maintain brand presence in just 5 minutes daily.',
     heroTitle: 'Build your brand while you build your company',
-    heroSubtitle: 'Personal Branding for Founders',
+    heroSubtitle: 'Brand Operating System for Founders',
     heroDescription:
-      'Founders don\'t have time for daily content creation. Between fundraising, product, and team - personal branding falls to the bottom. Pixo\'s agents work in the background so you can focus on what matters.',
+      'Founders don\'t have time for daily content creation. Between fundraising, product, and team - brand presence falls to the bottom. Pixo\'s agents work in the background so you can focus on what matters.',
     problems: [
       {
         title: 'No time for content',
@@ -97,11 +97,11 @@ export const useCases: UseCase[] = [
   {
     slug: 'executives',
     title: 'Pixo for Executives',
-    metaTitle: 'Executive Personal Branding Platform',
+    metaTitle: 'Executive Brand Operating System',
     metaDescription:
       'Build executive presence without becoming a full-time content creator. Pixo helps C-suite leaders maintain professional visibility in 5 minutes daily.',
     heroTitle: 'Executive presence without the content grind',
-    heroSubtitle: 'Personal Branding for Executives',
+    heroSubtitle: 'Brand Operating System for Executives',
     heroDescription:
       'C-suite leaders need professional visibility, but can\'t spend hours on social media. Pixo delivers polished, executive-appropriate content that builds authority.',
     problems: [
@@ -160,13 +160,13 @@ export const useCases: UseCase[] = [
   {
     slug: 'consultants',
     title: 'Pixo for Consultants',
-    metaTitle: 'Personal Branding for Consultants & Advisors',
+    metaTitle: 'Brand Operating System for Consultants',
     metaDescription:
       'Build the visibility that wins clients. Pixo helps consultants and advisors maintain consistent thought leadership without the daily content grind.',
     heroTitle: 'The visibility that wins clients',
-    heroSubtitle: 'Personal Branding for Consultants',
+    heroSubtitle: 'Brand Operating System for Consultants',
     heroDescription:
-      'Consultants live and die by their reputation. But when you\'re busy with client work, personal branding slips. Pixo keeps your thought leadership consistent.',
+      'Consultants live and die by their reputation. But when you\'re busy with client work, brand presence slips. Pixo keeps your thought leadership consistent.',
     problems: [
       {
         title: 'Feast or famine visibility',
@@ -223,11 +223,11 @@ export const useCases: UseCase[] = [
   {
     slug: 'teams',
     title: 'Pixo for Teams',
-    metaTitle: 'Team Personal Branding Platform',
+    metaTitle: 'Enterprise Brand Operating System',
     metaDescription:
-      'Scale personal branding across your entire organization. Pixo helps teams build unified professional presence with approval workflows and brand consistency.',
-    heroTitle: 'Personal branding at organizational scale',
-    heroSubtitle: 'Team Branding Platform',
+      'Scale brand presence across your entire organization. Pixo helps teams build unified professional presence with approval workflows and brand consistency.',
+    heroTitle: 'Brand presence at organizational scale',
+    heroSubtitle: 'Enterprise Brand Operating System',
     heroDescription:
       'Modern companies know that employee personal brands drive business results. But managing this at scale is nearly impossible - until now.',
     problems: [

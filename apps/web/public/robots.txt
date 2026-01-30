@@ -1,5 +1,5 @@
-# Pixo - Agentic Personal Branding Platform
-# https://pixo.ai
+# Pixo - Autonomous Brand Operating System
+# https://www.trypixo.com
 
 User-agent: *
 Allow: /
@@ -14,4 +14,4 @@ Disallow: /analytics/
 Disallow: /settings/
 
 # Sitemap
-Sitemap: https://pixo.ai/sitemap.xml
+Sitemap: https://www.trypixo.com/sitemap.xml
