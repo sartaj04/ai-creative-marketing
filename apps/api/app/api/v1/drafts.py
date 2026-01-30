@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession
-from app.models.draft import Draft, DraftAction, DraftEvent, DraftStatus, Schedule
+from app.models.draft import AgentType, Draft, DraftAction, DraftEvent, DraftStatus, Schedule
 from app.models.profile import Profile
 from app.models.template import TemplateUsage
 from app.schemas.draft import (
@@ -28,6 +28,7 @@ async def list_drafts(
     db: DBSession,
     profile_id: Optional[UUID] = Query(None),
     status_filter: Optional[DraftStatus] = Query(None, alias="status"),
+    generated_by: Optional[AgentType] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ) -> DraftListResponse:
@@ -54,6 +55,9 @@ async def list_drafts(
 
     if status_filter:
         query = query.where(Draft.status == status_filter)
+
+    if generated_by:
+        query = query.where(Draft.generated_by == generated_by)
 
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
@@ -169,6 +173,17 @@ async def perform_draft_action(
             feedback=action_data.feedback,
         )
         db.add(usage)
+
+    # Track feedback for persona learning (approve, reject, or edit actions)
+    if action_data.action in [DraftAction.APPROVE, DraftAction.REJECT, DraftAction.EDIT]:
+        profile = draft.profile
+        profile.feedback_count_since_last_learn = (profile.feedback_count_since_last_learn or 0) + 1
+        
+        # Trigger learning when threshold reached
+        if profile.feedback_count_since_last_learn >= 10:
+            from app.tasks.persona_synthesizer import synthesize_persona_with_feedback_task
+            synthesize_persona_with_feedback_task.delay(str(profile.id))
+            # Counter will be reset by the task after successful learning
 
     await db.commit()
     await db.refresh(draft)

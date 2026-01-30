@@ -89,6 +89,10 @@ async def update_identity_graph(
     await db.commit()
     await db.refresh(identity_graph)
 
+    # Trigger async persona re-synthesis after identity changes
+    from app.tasks.persona_synthesizer import synthesize_persona_task
+    synthesize_persona_task.delay(str(profile_id))
+
     return IdentityGraphResponse.model_validate(identity_graph)
 
 
@@ -163,5 +167,9 @@ async def update_style_profile(
 
     await db.commit()
     await db.refresh(style_profile)
+
+    # Trigger async persona re-synthesis after style changes
+    from app.tasks.persona_synthesizer import synthesize_persona_task
+    synthesize_persona_task.delay(str(profile_id))
 
     return StyleProfileResponse.model_validate(style_profile)

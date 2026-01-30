@@ -17,6 +17,7 @@ export interface Draft {
   topic: string | null;
   confidence: number;
   sources_json: any[];
+  generated_by: string | null;
   scheduled_at: string | null;
   published_at: string | null;
   platform: PlatformType | null;
@@ -47,6 +48,7 @@ export const draftsApi = {
   list: async (params?: {
     profile_id?: string;
     status?: DraftStatus;
+    generated_by?: string;
     limit?: number;
     offset?: number;
   }): Promise<DraftListResponse> => {

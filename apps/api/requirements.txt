@@ -31,6 +31,7 @@ boto3
 langchain>=0.3.0
 langchain-google-genai>=2.0.0  # Non-deprecated replacement for ChatVertexAI, supports Vertex AI with service accounts
 langgraph>=0.2.0
+langchain-aws>=1.2.0  # ChatBedrockConverse for Claude via AWS Bedrock
 
 # RSS/Feed parsing
 feedparser

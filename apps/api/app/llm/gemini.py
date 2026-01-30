@@ -194,7 +194,7 @@ class GeminiProvider(LLMProvider):
             response = await asyncio.get_event_loop().run_in_executor(
                 _executor,
                 lambda: self._client.models.generate_content(
-                    model="gemini-2.0-flash-001",  # Use specialized model for multimodal
+                    model="gemini-2.5-flash",  # Use specialized model for multimodal
                     contents=contents,
                     config=config,
                 )

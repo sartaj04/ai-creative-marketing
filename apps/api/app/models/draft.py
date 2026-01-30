@@ -50,6 +50,7 @@ class AgentType(str, PyEnum):
     FEEDBACK_LOOP = "feedback_loop"
     REPURPOSING = "repurposing"
     ANALYTICS_DIGEST = "analytics_digest"
+    CONTENT_AGENCY = "content_agency"
 
 
 class Draft(Base):
@@ -160,7 +161,7 @@ class DraftEvent(Base):
         index=True,
     )
     action: Mapped[DraftAction] = mapped_column(
-        Enum(DraftAction, name='draft_action', create_type=False),
+        Enum(DraftAction, name='draft_action', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         index=True,
     )

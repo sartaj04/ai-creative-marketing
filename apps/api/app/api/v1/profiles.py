@@ -164,31 +164,3 @@ async def delete_profile(
     await db.delete(profile)
     await db.commit()
 
-
-@router.post("/{profile_id}/ingest", status_code=status.HTTP_202_ACCEPTED)
-async def trigger_ingestion(
-    profile_id: UUID,
-    current_user: CurrentUser,
-    db: DBSession,
-) -> dict:
-    """Trigger profile source ingestion."""
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
-
-    # Trigger Celery task
-    from app.tasks.style_learner import style_learner_task
-
-    task = style_learner_task.delay(str(profile_id))
-
-    return {
-        "message": "Ingestion started",
-        "task_id": task.id,
-    }

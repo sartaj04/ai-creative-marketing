@@ -10,6 +10,12 @@ import {
     Youtube,
     Link2,
     Sparkles,
+    Lightbulb,
+    Target,
+    AlertTriangle,
+    Layers,
+    Wrench,
+    TrendingUp
 } from 'lucide-react';
 import { PixoCharacter } from '@/components/auth/PixoCharacter';
 import { ScratchModal } from '@/components/generators/scratch-modal';
@@ -18,6 +24,8 @@ import { PDFModal } from '@/components/generators/pdf-modal';
 import { YouTubeModal } from '@/components/generators/youtube-modal';
 import { ArticleModal } from '@/components/generators/article-modal';
 import { FormatModal } from '@/components/generators/format-modal';
+import { TemplateGeneratorModal } from '@/components/generators/template-generator-modal';
+import { Badge } from '@/components/ui/badge';
 
 type GeneratorMode = 'scratch' | 'audio' | 'pdf' | 'youtube' | 'article' | 'format' | null;
 
@@ -81,8 +89,69 @@ const GENERATOR_CARDS: GeneratorCard[] = [
     },
 ];
 
+interface TemplateCard {
+    id: string;
+    title: string;
+    description: string;
+    category: string; // Used for backend goal/tag mapping
+    icon: React.ElementType;
+    colors: string;
+}
+
+const RECOMMENDED_TEMPLATES: TemplateCard[] = [
+    {
+        id: 'myth_buster',
+        title: 'Myth Buster',
+        description: 'Challenge a common industry misconception.',
+        category: 'contrarian',
+        icon: AlertTriangle,
+        colors: 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:border-yellow-400'
+    },
+    {
+        id: 'case_study',
+        title: 'Case Study',
+        description: 'Share a customer success story or project win.',
+        category: 'story',
+        icon: Target,
+        colors: 'bg-green-50 text-green-600 border-green-200 hover:border-green-400'
+    },
+    {
+        id: 'mistake_story',
+        title: 'Mistake Story',
+        description: 'Share a lesson learned from a past mistake.',
+        category: 'story',
+        icon: AlertTriangle,
+        colors: 'bg-orange-50 text-orange-600 border-orange-200 hover:border-orange-400'
+    },
+    {
+        id: 'framework',
+        title: 'Framework',
+        description: 'Explain a concept using a step-by-step framework.',
+        category: 'educational',
+        icon: Layers,
+        colors: 'bg-blue-50 text-blue-600 border-blue-200 hover:border-blue-400'
+    },
+    {
+        id: 'tool_review',
+        title: 'Tool Review',
+        description: 'Review a tool or resource you use.',
+        category: 'promotional',
+        icon: Wrench,
+        colors: 'bg-purple-50 text-purple-600 border-purple-200 hover:border-purple-400'
+    },
+    {
+        id: 'prediction',
+        title: 'Prediction',
+        description: 'Share a prediction for your industry future.',
+        category: 'thought_leadership',
+        icon: TrendingUp,
+        colors: 'bg-cyan-50 text-cyan-600 border-cyan-200 hover:border-cyan-400'
+    }
+];
+
 export default function GeneratePage() {
     const [activeModal, setActiveModal] = useState<GeneratorMode>(null);
+    const [activeTemplate, setActiveTemplate] = useState<TemplateCard | null>(null);
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -121,34 +190,9 @@ export default function GeneratePage() {
                 </p>
             </motion.div>
 
-            {/* How it works */}
-            <motion.div variants={itemVariants}>
-                <div className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl border border-cyan-100">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2">How our Pixo agents work together:</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs text-slate-600">
-                        <div className="flex items-start gap-2">
-                            <span className="w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold flex-shrink-0">1</span>
-                            <span><strong>Identity Agent</strong> analyzes your professional brand</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <span className="w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold flex-shrink-0">2</span>
-                            <span><strong>Style Agent</strong> matches your communication tone</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <span className="w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold flex-shrink-0">3</span>
-                            <span><strong>Content Agent</strong> extracts key insights</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <span className="w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold flex-shrink-0">4</span>
-                            <span><strong>Synthesis Agent</strong> creates the final post</span>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-
             {/* Generator Cards Grid */}
             <motion.div variants={itemVariants}>
-                <h2 className="text-lg font-semibold text-slate-900 mb-4">Choose a Generation Mode</h2>
+                {/* <h2 className="text-lg font-semibold text-slate-900 mb-4">Choose a Generation Mode</h2> */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {GENERATOR_CARDS.map((card) => {
                         const Icon = card.icon;
@@ -179,11 +223,54 @@ export default function GeneratePage() {
                 </div>
             </motion.div>
 
-            {/* Note about templates */}
-            <motion.div variants={itemVariants}>
-                <p className="text-sm text-slate-500 text-center">
-                    Each mode includes an optional template selection step to guide the structure of your post.
-                </p>
+            {/* Recommended Templates Section */}
+            <motion.div variants={itemVariants} className="pt-6 border-t border-slate-100">
+                <div className="flex items-center gap-2 mb-6">
+                    <Lightbulb className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                    <h2 className="text-xl font-bold text-slate-900">Recommended Templates</h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {RECOMMENDED_TEMPLATES.map((template) => {
+                        const Icon = template.icon;
+                        return (
+                            <div
+                                key={template.id}
+                                onClick={() => setActiveTemplate(template)}
+                                className={`
+                                    relative overflow-hidden rounded-xl border p-5 cursor-pointer transition-all duration-300
+                                    hover:shadow-md hover:-translate-y-1 group bg-white
+                                    ${template.colors.includes('border') ? '' : 'border-slate-200'}
+                                    ${template.colors.split(' ').find(c => c.startsWith('border-')) || 'border-slate-200'}
+                                `}
+                            >
+                                <div className={`absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity`}>
+                                    <Icon className="w-24 h-24" />
+                                </div>
+
+                                <div className="relative z-10 flex flex-col h-full">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${template.colors.split(' ')[0]} ${template.colors.split(' ')[1]}`}>
+                                        <Icon className="w-5 h-5" />
+                                    </div>
+
+                                    <h3 className="font-bold text-slate-900 mb-1Group-hover:text-cyan-700 transition-colors">
+                                        {template.title}
+                                    </h3>
+
+                                    <p className="text-sm text-slate-500 leading-relaxed mb-4">
+                                        {template.description}
+                                    </p>
+
+                                    <div className="mt-auto">
+                                        <Badge variant="outline" className="bg-white/50 text-slate-500 font-normal text-xs group-hover:bg-white group-hover:text-cyan-600 transition-colors">
+                                            Use Template &rarr;
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </motion.div>
 
             {/* Modals */}
@@ -210,6 +297,14 @@ export default function GeneratePage() {
             <FormatModal
                 open={activeModal === 'format'}
                 onClose={() => setActiveModal(null)}
+            />
+
+            {/* Template Generator Modal */}
+            <TemplateGeneratorModal
+                open={!!activeTemplate}
+                onClose={() => setActiveTemplate(null)}
+                templateCategory={activeTemplate?.category || ''}
+                categoryTitle={activeTemplate?.title || 'Template'}
             />
         </motion.div>
     );

@@ -99,7 +99,20 @@ class GeneratorService:
             Generated Draft
         """
         # Transcribe audio
-        transcript = await transcribe_audio(audio_content, filename)
+        try:
+            if not audio_content:
+                raise ValueError("Audio file is empty.")
+
+            transcript = await transcribe_audio(audio_content, filename)
+            
+            if not transcript or not transcript.strip():
+                raise ValueError("Audio transcription failed or returned empty text.")
+                
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise e
+            logger.error(f"Audio transcription error: {e}")
+            raise ValueError(f"Failed to process audio: {str(e)}")
 
         source_data = {
             "transcript": transcript,
@@ -194,8 +207,20 @@ Do not lose important context or nuances.
         Returns:
             Generated Draft
         """
-        # Get transcript
-        transcript = await get_youtube_transcript(youtube_url)
+        try:
+            # Get transcript
+            transcript = await get_youtube_transcript(youtube_url)
+            
+            if not transcript or not transcript.strip():
+                raise ValueError("No transcript available for this video.")
+                
+        except Exception as e:
+            # Re-raise ValueErrors (like "No transcript available") directly
+            if isinstance(e, ValueError):
+                raise e
+            # Log other errors and provide a friendly message
+            logger.error(f"YouTube transcript error: {e}")
+            raise ValueError(f"Failed to retrieve transcript: {str(e)}")
 
         source_data = {
             "transcript": transcript,
@@ -225,12 +250,26 @@ Do not lose important context or nuances.
         Returns:
             Generated Draft
         """
-        # Scrape article
-        article = await scrape_article(article_url)
+        try:
+            # Scrape article
+            article = await scrape_article(article_url)
+            
+            if not article or not article.get("content"):
+                raise ValueError("Unable to extract content from this article.")
+            
+            content = article["content"]
+            if len(content.strip()) < 200:
+                raise ValueError("Article content is too short or could not be fully extracted.")
+                
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise e
+            logger.error(f"Article scraping error: {e}")
+            raise ValueError(f"Failed to scrape article: {str(e)}")
 
         source_data = {
-            "title": article["title"],
-            "content": article["content"],
+            "title": article.get("title", "Article"),
+            "content": content,
         }
 
         return await self.generator.generate(

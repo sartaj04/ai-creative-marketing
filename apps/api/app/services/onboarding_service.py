@@ -299,6 +299,12 @@ class OnboardingService:
 
         self.db.add(graph)
         await self.db.commit()
+
+        # Trigger async persona synthesis now that identity is complete
+        from app.tasks.persona_synthesizer import synthesize_persona_task
+        synthesize_persona_task.delay(str(profile_id))
+        logger.info(f"Queued persona synthesis task for profile {profile_id}")
+
         return True
 
     def _calculate_completeness_score(self, graph: IdentityGraph) -> int:

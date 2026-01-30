@@ -18,6 +18,7 @@ import { X, Check, Edit2, Linkedin, Twitter, Sparkles, RefreshCw, Loader2 } from
 import ReactMarkdown from 'react-markdown';
 import { PixoCharacter } from '@/components/auth/PixoCharacter';
 import { draftsApi, Draft } from '@/lib/api/drafts';
+import { generatorsApi } from '@/lib/api/generators';
 import { useProfileStore } from '@/stores/profile-store';
 import { useToast } from '@/components/ui/use-toast';
 import { getErrorMessage } from '@/lib/api/client';
@@ -28,6 +29,7 @@ export default function InboxPage() {
     const [cards, setCards] = useState<Draft[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isActioning, setIsActioning] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
     const [editDraft, setEditDraft] = useState<Draft | null>(null);
     const [editHook, setEditHook] = useState('');
     const [editBody, setEditBody] = useState('');
@@ -46,6 +48,7 @@ export default function InboxPage() {
                 profile_id: currentProfile.id,
                 status: 'inbox',
                 limit: 20,
+                generated_by: 'content_agency'
             });
             setCards(response.drafts);
         } catch (error) {
@@ -121,6 +124,28 @@ export default function InboxPage() {
         }
     };
 
+    const handleGenerateTrending = async () => {
+        if (!currentProfile) return;
+        setIsGenerating(true);
+        try {
+            await generatorsApi.triggerContentAgency(currentProfile.id);
+            toast({
+                title: 'Content Agency Activated!',
+                description: 'Pixo is researching trending topics and creating drafts for you.'
+            });
+            // Reload inbox after a delay to show new drafts
+            setTimeout(loadInbox, 3000);
+        } catch (error) {
+            toast({
+                title: 'Failed to trigger agency',
+                description: getErrorMessage(error),
+                variant: 'destructive'
+            });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const getPlatformIcon = (platform: string | null) => {
         if (platform === 'linkedin') return <Linkedin className="w-5 h-5 text-[#0077b5]" />;
         if (platform === 'twitter') return <Twitter className="w-5 h-5 text-[#1DA1F2]" />;
@@ -160,7 +185,27 @@ export default function InboxPage() {
                         <Sparkles className="w-3 h-3 text-cyan-600" />
                         {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
                     </div>
-                    <p className="text-slate-500 text-sm">Swipe right to approve, left to reject.</p>
+                    <Button
+                        onClick={handleGenerateTrending}
+                        disabled={isGenerating}
+                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 transition-all"
+                    >
+                        {isGenerating ? (
+                            <>
+                                <div className="w-5 h-5 mr-2 relative overflow-hidden flex items-center justify-center">
+                                    <div className="absolute inset-0 flex items-center justify-center [transform:scale(0.15)] animate-bounce">
+                                        <PixoCharacter />
+                                    </div>
+                                </div>
+                                Generating...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Generate Trending Posts
+                            </>
+                        )}
+                    </Button>
                 </div>
             </div>
 
@@ -212,19 +257,19 @@ export default function InboxPage() {
                                             // Check if body already starts with the hook to avoid duplication
                                             const hookTrimmed = draft.hook.trim();
                                             const bodyTrimmed = draft.body?.trim() || '';
-                                            
+
                                             // Check if body starts with hook (case-insensitive, allowing for slight variations)
                                             const hookLower = hookTrimmed.toLowerCase();
                                             const bodyLower = bodyTrimmed.toLowerCase();
                                             const bodyStartsWithHook = hookLower && bodyLower.startsWith(hookLower);
-                                            
+
                                             // If body starts with hook, remove it from body to avoid duplication
                                             let displayBody = bodyTrimmed;
                                             if (bodyStartsWithHook && hookTrimmed) {
                                                 // Remove the hook from the beginning of body
                                                 displayBody = bodyTrimmed.substring(hookTrimmed.length).trim();
                                             }
-                                            
+
                                             return (
                                                 <div className="space-y-6 flex-1 flex flex-col">
                                                     {hookTrimmed && (
@@ -330,10 +375,29 @@ export default function InboxPage() {
                                 Great job reviewing. Your agents are researching new opportunities for tomorrow.
                             </p>
                         </div>
-                        <Button onClick={loadInbox} variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Refresh Inbox
-                        </Button>
+                        <div className="flex flex-col gap-3">
+                            <Button onClick={loadInbox} variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Refresh Inbox
+                            </Button>
+                            <Button
+                                onClick={handleGenerateTrending}
+                                disabled={isGenerating}
+                                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-50 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 w-full"
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        Generating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                        Generate Trending Posts
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>

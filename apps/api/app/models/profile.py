@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,6 +49,35 @@ class Profile(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    # Cached persona prompt (synthesized from identity + style)
+    persona_prompt: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Pre-synthesized natural language prompt from identity+style",
+    )
+    persona_prompt_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When persona prompt was last synthesized",
+    )
+
+    # Learned preferences from feedback (updated incrementally)
+    learned_preferences: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Summary of learned content preferences from user feedback",
+    )
+    learned_preferences_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When learned preferences were last updated",
+    )
+    feedback_count_since_last_learn: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        comment="Number of feedback events since last learning run",
     )
 
     # Relationships

@@ -143,4 +143,13 @@ export const generatorsApi = {
     const response = await apiClient.post('/generators/format', data);
     return response.data;
   },
+
+  /**
+   * Trigger the Content Agency to generate trending posts
+   */
+  triggerContentAgency: async (profileId: string): Promise<{ task_id: string; message: string }> => {
+    const response = await apiClient.post(`/generators/agency/run?profile_id=${profileId}`);
+    return response.data;
+  },
 };
+

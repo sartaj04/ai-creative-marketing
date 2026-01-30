@@ -493,3 +493,40 @@ async def generate_formatted(
     except Exception as e:
         logger.error(f"Error generating formatted: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to format content. Please try again.")
+
+
+# ============================================================================
+# Content Agency Trigger Endpoint
+# ============================================================================
+
+@router.post("/agency/run")
+async def trigger_content_agency(
+    profile_id: UUID = Query(..., description="Profile UUID to run agency for"),
+) -> dict:
+    """Manually trigger the Content Agency for a profile.
+    
+    The Content Agency is a multi-agent system that autonomously:
+    1. Discovers content opportunities (Scout Agent)
+    2. Selects best topics and creates briefs (Strategist Agent)
+    3. Writes initial drafts (Writer Agent)
+    4. Refines and polishes content (Editor Agent)
+    5. Validates brand voice and quality (QA Agent)
+    
+    This triggers the agency as a background task and returns immediately.
+    
+    Args:
+        profile_id: Profile UUID to run the agency for
+        
+    Returns:
+        Task ID for tracking the background job
+    """
+    from app.tasks.content_agency import run_content_agency_task
+    
+    task = run_content_agency_task.delay(str(profile_id))
+    
+    return {
+        "message": "Content Agency triggered successfully",
+        "task_id": task.id,
+        "profile_id": str(profile_id),
+    }
+

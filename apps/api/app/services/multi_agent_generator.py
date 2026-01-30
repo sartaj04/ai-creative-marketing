@@ -13,7 +13,9 @@ import logging
 from typing import Any, Optional
 from uuid import UUID
 
+import boto3
 from google.oauth2 import service_account
+from langchain_aws import ChatBedrockConverse
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 # Use ChatGoogleGenerativeAI which supports Vertex AI with service account credentials
@@ -41,16 +43,13 @@ logger = logging.getLogger(__name__)
 class GenerationState(TypedDict):
     """State passed between agents in the LangGraph workflow."""
 
-    # Input data
-    identity_data: dict
-    style_data: dict
+    # Input data (persona_prompt replaces identity_data + style_data)
+    persona_prompt: str  # Pre-synthesized natural language context
     source_type: str
     source_content: str
     template_content: Optional[str]
 
-    # Agent outputs
-    identity_analysis: Optional[dict]
-    style_analysis: Optional[dict]
+    # Agent outputs (identity_analysis and style_analysis removed - no longer needed)
     content_analysis: Optional[dict]
 
     # Final output
@@ -152,13 +151,10 @@ Provide your analysis as JSON:
     "content_hooks": ["potential hook 1", "potential hook 2"]
 }}"""
 
-SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Three specialist agents have analyzed a content creation request. Your job is to synthesize their analyses and create the final LinkedIn post.
+SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Your job is to create the final LinkedIn post based on persona context and content analysis.
 
-=== IDENTITY ANALYSIS ===
-{identity_analysis}
-
-=== STYLE ANALYSIS ===
-{style_analysis}
+=== PERSONA CONTEXT ===
+{persona_prompt}
 
 === CONTENT ANALYSIS ===
 {content_analysis}
@@ -177,8 +173,8 @@ Create a LinkedIn post that:
 IMPORTANT GUIDELINES:
 - The hook should be punchy and attention-grabbing (first line people see)
 - Keep the post focused and valuable
-- Match the tone preferences exactly
-- Avoid anything in the "things to avoid" list
+- Match the tone preferences from the persona context exactly
+- Avoid anything mentioned in "things to avoid" in the persona context
 - If a template structure was provided, follow it as guidance
 - If regeneration_feedback is provided, address those specific concerns
 
@@ -188,7 +184,7 @@ Output the final post as JSON:
     "body": "The complete post including hook and body",
     "topic": "A short topic label (2-4 words)",
     "confidence": 0.85,
-    "reasoning": "Brief explanation of how the post reflects all three analyses"
+    "reasoning": "Brief explanation of how the post reflects the persona and content"
 }}"""
 
 REVIEW_AGENT_PROMPT = """You are the Review Agent, a strict quality gatekeeper. Your role is to ensure the generated LinkedIn post meets EXCELLENT quality standards before it's saved. Be thorough and demanding - only approve posts that are truly great.
@@ -197,11 +193,8 @@ REVIEW_AGENT_PROMPT = """You are the Review Agent, a strict quality gatekeeper. 
 Hook: {hook}
 Body: {body}
 
-=== IDENTITY GUIDELINES ===
-{identity_analysis}
-
-=== STYLE REQUIREMENTS ===
-{style_analysis}
+=== PERSONA CONTEXT ===
+{persona_prompt}
 
 === CONTENT SOURCE ===
 Source Type: {source_type}
@@ -346,12 +339,12 @@ class MultiAgentGenerator:
     """LangGraph-based multi-agent system for content generation."""
 
     def __init__(self):
-        """Initialize the LLM and build the graph."""
+        """Initialize the LLMs and build the graph."""
         credentials = _get_credentials()
 
-        # ChatGoogleGenerativeAI automatically uses Vertex AI when project and credentials are provided
+        # Gemini LLM for Identity, Style, and Content agents (simpler analysis tasks)
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-001",
+            model="gemini-2.5-flash",
             project=settings.GCP_PROJECT_ID,
             location=settings.GCP_LOCATION,
             credentials=credentials,
@@ -359,23 +352,102 @@ class MultiAgentGenerator:
             max_output_tokens=2048,
         )
 
+        # Claude LLM for Synthesis and Review agents (quality-critical tasks)
+        self.claude_llm = self._init_claude_llm()
+
         self.graph = self._build_graph()
 
+    def _init_claude_llm(self):
+        """Initialize Claude LLM via Bedrock for quality-critical agents.
+
+        Returns ChatBedrockConverse instance, or None if Bedrock credentials
+        are not configured (agents will fall back to Gemini).
+        """
+        if not settings.AWS_BEDROCK_ACCESS_KEY_ID or not settings.AWS_BEDROCK_SECRET_ACCESS_KEY:
+            logger.warning(
+                "AWS Bedrock credentials not configured. "
+                "Synthesis and Review agents will fall back to Gemini."
+            )
+            return None
+
+        try:
+            bedrock_client = boto3.client(
+                "bedrock-runtime",
+                region_name=settings.AWS_BEDROCK_REGION,
+                aws_access_key_id=settings.AWS_BEDROCK_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_BEDROCK_SECRET_ACCESS_KEY,
+            )
+
+            claude_llm = ChatBedrockConverse(
+                client=bedrock_client,
+                model=settings.BEDROCK_MODEL_ID,
+                temperature=0.7,
+                max_tokens=4096,
+            )
+
+            logger.info(
+                f"Claude LLM initialized via Bedrock "
+                f"(model={settings.BEDROCK_MODEL_ID}, region={settings.AWS_BEDROCK_REGION})"
+            )
+            return claude_llm
+
+        except Exception as e:
+            logger.error(f"Failed to initialize Claude LLM: {e}. Falling back to Gemini.")
+            return None
+
+    def _invoke_with_fallback(
+        self,
+        prompt: ChatPromptTemplate,
+        variables: dict,
+        agent_name: str,
+    ) -> dict:
+        """Invoke an LLM chain, preferring Claude with Gemini fallback.
+
+        Args:
+            prompt: The ChatPromptTemplate to use
+            variables: Template variables to pass to invoke()
+            agent_name: Name of the agent (for logging)
+
+        Returns:
+            Parsed JSON dict from the LLM response
+
+        Raises:
+            Exception: If both Claude and Gemini fail
+        """
+        llm = self.claude_llm if self.claude_llm is not None else self.llm
+        provider_name = "claude" if llm is not self.llm else "gemini"
+        chain = prompt | llm | JsonOutputParser()
+
+        try:
+            result = chain.invoke(variables)
+            logger.info(f"{agent_name} completed (using {provider_name})")
+            return result
+        except Exception as e:
+            if llm is not self.llm:
+                logger.warning(f"{agent_name} failed with Claude: {e}. Retrying with Gemini.")
+                fallback_chain = prompt | self.llm | JsonOutputParser()
+                result = fallback_chain.invoke(variables)
+                logger.info(f"{agent_name} completed via Gemini fallback")
+                return result
+            raise
+
     def _build_graph(self) -> StateGraph:
-        """Build the LangGraph workflow."""
+        """Build the LangGraph workflow.
+        
+        Optimized 3-agent flow (was 5 agents):
+        Content Agent → Synthesis Agent → Review Agent
+        
+        Identity/Style agents removed - persona_prompt now provides this context.
+        """
         workflow = StateGraph(GenerationState)
 
-        # Add agent nodes
-        workflow.add_node("identity_agent", self._identity_agent)
-        workflow.add_node("style_agent", self._style_agent)
+        # Add agent nodes (identity_agent and style_agent removed)
         workflow.add_node("content_agent", self._content_agent)
         workflow.add_node("synthesis_agent", self._synthesis_agent)
         workflow.add_node("review_agent", self._review_agent)
 
-        # Set entry point and edges
-        workflow.set_entry_point("identity_agent")
-        workflow.add_edge("identity_agent", "style_agent")
-        workflow.add_edge("style_agent", "content_agent")
+        # Set entry point and edges (now starts with content_agent)
+        workflow.set_entry_point("content_agent")
         workflow.add_edge("content_agent", "synthesis_agent")
         workflow.add_edge("synthesis_agent", "review_agent")
         
@@ -515,21 +587,19 @@ class MultiAgentGenerator:
             regeneration_feedback += "\nPlease regenerate with these concerns addressed.\n"
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are an expert LinkedIn content creator who synthesizes multiple perspectives into compelling posts."),
+            ("system", "You are an expert LinkedIn content creator who synthesizes persona context and content insights into compelling posts. You MUST respond with ONLY valid JSON, no additional text."),
             ("user", SYNTHESIS_AGENT_PROMPT),
         ])
 
-        chain = prompt | self.llm | JsonOutputParser()
+        variables = {
+            "persona_prompt": state.get("persona_prompt", "No persona context available."),
+            "content_analysis": json.dumps(state.get("content_analysis", {}), indent=2),
+            "template_section": template_section,
+            "regeneration_feedback": regeneration_feedback,
+        }
 
         try:
-            result = chain.invoke({
-                "identity_analysis": json.dumps(state.get("identity_analysis", {}), indent=2),
-                "style_analysis": json.dumps(state.get("style_analysis", {}), indent=2),
-                "content_analysis": json.dumps(state.get("content_analysis", {}), indent=2),
-                "template_section": template_section,
-                "regeneration_feedback": regeneration_feedback,
-            })
-            logger.info("Synthesis Agent completed - draft generated")
+            result = self._invoke_with_fallback(prompt, variables, "Synthesis Agent")
             return {"final_draft": result}
         except Exception as e:
             logger.error(f"Synthesis Agent error: {e}")
@@ -579,25 +649,24 @@ class MultiAgentGenerator:
             }
         
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are a quality assurance expert who reviews LinkedIn content for style adherence, quality, and appropriateness."),
+            ("system", "You are a quality assurance expert who reviews LinkedIn content for style adherence, quality, and appropriateness. You MUST respond with ONLY valid JSON, no additional text."),
             ("user", REVIEW_AGENT_PROMPT),
         ])
-
-        chain = prompt | self.llm | JsonOutputParser()
 
         try:
             # Prepare source content preview (truncated)
             source_preview = state.get("source_content", "")[:500] + "..." if len(state.get("source_content", "")) > 500 else state.get("source_content", "")
-            
-            result = chain.invoke({
+
+            variables = {
                 "hook": hook,
                 "body": body,
-                "identity_analysis": json.dumps(state.get("identity_analysis", {}), indent=2),
-                "style_analysis": json.dumps(state.get("style_analysis", {}), indent=2),
+                "persona_prompt": state.get("persona_prompt", "No persona context available."),
                 "source_type": state.get("source_type", "unknown"),
                 "source_content_preview": source_preview,
-            })
-            
+            }
+
+            result = self._invoke_with_fallback(prompt, variables, "Review Agent")
+
             approved = result.get("approved", False)
             overall_score = result.get("overall_score", 0.0)
             issues = result.get("issues", [])
@@ -715,37 +784,23 @@ class MultiAgentGenerator:
         # Prepare source content based on type
         source_content = self._prepare_source_content(source_type, source_data)
 
-        # Prepare identity data
-        identity_data = {
-            "current_role": identity.current_role,
-            "industry": identity.industry,
-            "expertise_areas": identity.expertise_areas or [],
-            "career_highlights": identity.career_highlights or [],
-            "themes": identity.themes or [],
-            "authority_angles": identity.authority_angles or [],
-            "target_audience": identity.target_audience,
-            "unique_angles": identity.unique_angles or [],
-            "content_pillars": identity.content_pillars or [],
-            "bio_summary": identity.bio_summary,
-        }
+        # Get cached persona prompt (synthesized from identity + style)
+        persona_prompt = profile.persona_prompt
+        if not persona_prompt:
+            # Fallback: generate on-the-fly if not cached (for backward compatibility)
+            logger.warning(f"Profile {profile_id} has no cached persona_prompt, generating on-the-fly")
+            from app.services.persona_synthesizer import PersonaSynthesizerService
+            synthesizer = PersonaSynthesizerService()
+            persona_prompt = await synthesizer.synthesize_persona_prompt(db, profile_id)
+            if not persona_prompt:
+                raise ValueError("Failed to generate persona prompt. Please complete onboarding first.")
 
-        # Prepare style data
-        style_data = {
-            "tone_sliders": style.tone_sliders if style else {},
-            "format_preferences": style.format_preferences if style else {},
-            "preferred_hooks": style.preferred_hooks if style else [],
-            "taboo_list": style.taboo_list if style else [],
-        }
-
-        # Build initial state
+        # Build initial state (simplified - no need for identity_data/style_data)
         initial_state: GenerationState = {
-            "identity_data": identity_data,
-            "style_data": style_data,
+            "persona_prompt": persona_prompt,
             "source_type": source_type,
             "source_content": source_content,
             "template_content": template_content,
-            "identity_analysis": None,
-            "style_analysis": None,
             "content_analysis": None,
             "final_draft": None,
             "review_approved": None,
