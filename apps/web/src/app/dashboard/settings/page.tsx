@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Slider } from '@/components/ui/slider';
-import { Linkedin, Globe, RefreshCw, Loader2, Save, CheckCircle } from 'lucide-react';
+import { Linkedin, Globe, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
 import { useProfileStore } from '@/stores/profile-store';
 import { useAuthStore } from '@/stores/auth-store';
-import { identityApi } from '@/lib/api/identity';
 import { useToast } from '@/components/ui/use-toast';
 import { getErrorMessage } from '@/lib/api/client';
 
@@ -19,66 +16,7 @@ export default function SettingsPage() {
     const { currentProfile, triggerIngestion } = useProfileStore();
     const { user } = useAuthStore();
     const { toast } = useToast();
-
-    // Style profile state
-    const [styleLoading, setStyleLoading] = useState(false);
-    const [styleSaving, setStyleSaving] = useState(false);
     const [retraining, setRetraining] = useState(false);
-
-    // Editable tone sliders
-    const [formalCasual, setFormalCasual] = useState(50);
-    const [technicalSimple, setTechnicalSimple] = useState(50);
-    const [seriousPlayful, setSeriousPlayful] = useState(50);
-    const [humbleConfident, setHumbleConfident] = useState(50);
-    const [customInstructions, setCustomInstructions] = useState('');
-
-    const loadStyleProfile = useCallback(async () => {
-        if (!currentProfile) return;
-        setStyleLoading(true);
-        try {
-            const profile = await identityApi.getStyleProfile(currentProfile.id);
-            if (profile.tone_sliders) {
-                setFormalCasual(profile.tone_sliders.formal_casual ?? 50);
-                setTechnicalSimple(profile.tone_sliders.technical_simple ?? 50);
-                setSeriousPlayful(profile.tone_sliders.serious_playful ?? 50);
-                setHumbleConfident(profile.tone_sliders.humble_confident ?? 50);
-            }
-            if (profile.preferred_hooks?.length > 0) {
-                setCustomInstructions(profile.preferred_hooks.join(', '));
-            }
-        } catch {
-            // Style profile may not exist yet - that's okay
-        } finally {
-            setStyleLoading(false);
-        }
-    }, [currentProfile]);
-
-    useEffect(() => {
-        if (activeTab === 'agent') {
-            loadStyleProfile();
-        }
-    }, [activeTab, loadStyleProfile]);
-
-    const handleSaveStyle = async () => {
-        if (!currentProfile) return;
-        setStyleSaving(true);
-        try {
-            await identityApi.updateStyleProfile(currentProfile.id, {
-                tone_sliders: {
-                    formal_casual: formalCasual,
-                    technical_simple: technicalSimple,
-                    serious_playful: seriousPlayful,
-                    humble_confident: humbleConfident,
-                },
-                preferred_hooks: customInstructions.split(',').map(s => s.trim()).filter(Boolean),
-            });
-            toast({ title: 'Style profile saved' });
-        } catch (error) {
-            toast({ title: 'Failed to save style', description: getErrorMessage(error), variant: 'destructive' });
-        } finally {
-            setStyleSaving(false);
-        }
-    };
 
     const handleRetrain = async () => {
         if (!currentProfile) return;
@@ -105,7 +43,6 @@ export default function SettingsPage() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList className="bg-white border border-slate-200 p-1 rounded-xl shadow-sm">
                     <TabsTrigger value="profile" className="data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700 rounded-lg">Profile & Sources</TabsTrigger>
-                    <TabsTrigger value="agent" className="data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700 rounded-lg">Agent Persona</TabsTrigger>
                     <TabsTrigger value="account" className="data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700 rounded-lg">Account</TabsTrigger>
                 </TabsList>
 
@@ -175,128 +112,6 @@ export default function SettingsPage() {
                                 {retraining ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                                 Re-sync Profile Sources
                             </Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="agent" className="space-y-6">
-                    <Card className="border-slate-200">
-                        <CardHeader>
-                            <CardTitle>Voice & Tone</CardTitle>
-                            <CardDescription>Configure how your agents sound.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-8">
-                            {styleLoading ? (
-                                <div className="flex justify-center py-8">
-                                    <Loader2 className="w-6 h-6 animate-spin text-cyan-600" />
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="space-y-6">
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center">
-                                                <Label>Formal vs Casual</Label>
-                                                <span className="text-xs text-slate-400">{formalCasual}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xs text-slate-500 w-16">Formal</span>
-                                                <Slider
-                                                    value={[formalCasual]}
-                                                    onValueChange={(v) => setFormalCasual(v[0])}
-                                                    max={100}
-                                                    step={1}
-                                                    className="flex-1"
-                                                />
-                                                <span className="text-xs text-slate-500 w-16 text-right">Casual</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center">
-                                                <Label>Technical vs Simple</Label>
-                                                <span className="text-xs text-slate-400">{technicalSimple}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xs text-slate-500 w-16">Technical</span>
-                                                <Slider
-                                                    value={[technicalSimple]}
-                                                    onValueChange={(v) => setTechnicalSimple(v[0])}
-                                                    max={100}
-                                                    step={1}
-                                                    className="flex-1"
-                                                />
-                                                <span className="text-xs text-slate-500 w-16 text-right">Simple</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center">
-                                                <Label>Serious vs Playful</Label>
-                                                <span className="text-xs text-slate-400">{seriousPlayful}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xs text-slate-500 w-16">Serious</span>
-                                                <Slider
-                                                    value={[seriousPlayful]}
-                                                    onValueChange={(v) => setSeriousPlayful(v[0])}
-                                                    max={100}
-                                                    step={1}
-                                                    className="flex-1"
-                                                />
-                                                <span className="text-xs text-slate-500 w-16 text-right">Playful</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center">
-                                                <Label>Humble vs Confident</Label>
-                                                <span className="text-xs text-slate-400">{humbleConfident}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xs text-slate-500 w-16">Humble</span>
-                                                <Slider
-                                                    value={[humbleConfident]}
-                                                    onValueChange={(v) => setHumbleConfident(v[0])}
-                                                    max={100}
-                                                    step={1}
-                                                    className="flex-1"
-                                                />
-                                                <span className="text-xs text-slate-500 w-16 text-right">Confident</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <Label>Custom Instructions / Preferred Hooks</Label>
-                                        <Textarea
-                                            value={customInstructions}
-                                            onChange={(e) => setCustomInstructions(e.target.value)}
-                                            placeholder="e.g. Always use bullet points, avoid corporate jargon, focus on actionable advice."
-                                            className="min-h-[100px]"
-                                        />
-                                        <p className="text-xs text-slate-500">Comma-separated list of preferred hooks or instructions for your agent.</p>
-                                    </div>
-
-                                    <div className="flex gap-3">
-                                        <Button
-                                            onClick={handleSaveStyle}
-                                            disabled={styleSaving}
-                                            className="bg-cyan-600 hover:bg-cyan-500 flex-1"
-                                        >
-                                            {styleSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                                            Save Changes
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleRetrain}
-                                            disabled={retraining}
-                                        >
-                                            {retraining ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                                            Retrain Agent
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>

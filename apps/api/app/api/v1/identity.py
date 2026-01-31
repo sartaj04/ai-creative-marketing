@@ -83,6 +83,26 @@ async def update_identity_graph(
     for field, value in data.items():
         setattr(identity_graph, field, value)
 
+    # Recalculate completeness score using the new calculator
+    from app.services.completeness import (
+        calculate_completeness,
+        identity_graph_to_dict,
+        style_profile_to_dict,
+    )
+    from sqlalchemy import select as sql_select
+    
+    # Load style profile for completeness calculation
+    style_stmt = sql_select(StyleProfile).where(StyleProfile.profile_id == profile_id)
+    style_result = await db.execute(style_stmt)
+    style_profile = style_result.scalar_one_or_none()
+    
+    identity_data = identity_graph_to_dict(identity_graph)
+    style_data = style_profile_to_dict(style_profile)
+    completeness = calculate_completeness(identity_data, style_data)
+    
+    # Update stored completeness_score to keep DB in sync
+    identity_graph.completeness_score = completeness.percentage
+
     # Increment version
     identity_graph.version += 1
 
@@ -161,6 +181,27 @@ async def update_style_profile(
     for field, value in data.items():
         if value is not None:
             setattr(style_profile, field, value)
+
+    # Recalculate completeness score (style changes affect completeness)
+    from app.services.completeness import (
+        calculate_completeness,
+        identity_graph_to_dict,
+        style_profile_to_dict,
+    )
+    
+    # Load identity graph for completeness calculation
+    identity_stmt = select(IdentityGraph).where(IdentityGraph.profile_id == profile_id)
+    identity_result = await db.execute(identity_stmt)
+    identity_graph = identity_result.scalar_one_or_none()
+    
+    if identity_graph:
+        identity_data = identity_graph_to_dict(identity_graph)
+        style_data = style_profile_to_dict(style_profile)
+        completeness = calculate_completeness(identity_data, style_data)
+        
+        # Update stored completeness_score to keep DB in sync
+        identity_graph.completeness_score = completeness.percentage
+        await db.flush()  # Flush identity_graph update
 
     # Increment version
     style_profile.version += 1

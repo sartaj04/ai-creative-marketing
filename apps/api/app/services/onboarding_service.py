@@ -53,7 +53,18 @@ class OnboardingService:
 
     async def get_onboarding_status(self, profile_id: UUID) -> Dict[str, Any]:
         """Get onboarding status without modifying state (read-only)."""
-        stmt = select(IdentityGraph).where(IdentityGraph.profile_id == profile_id)
+        from app.services.completeness import (
+            calculate_completeness,
+            identity_graph_to_dict,
+            style_profile_to_dict,
+        )
+        from sqlalchemy.orm import selectinload
+        
+        # Load identity graph and style profile together
+        stmt = (
+            select(IdentityGraph)
+            .where(IdentityGraph.profile_id == profile_id)
+        )
         result = await self.db.execute(stmt)
         graph = result.scalar_one_or_none()
 
@@ -66,6 +77,11 @@ class OnboardingService:
                 "extracted_sources": [],
             }
 
+        # Load style profile
+        style_stmt = select(StyleProfile).where(StyleProfile.profile_id == profile_id)
+        style_result = await self.db.execute(style_stmt)
+        style_profile = style_result.scalar_one_or_none()
+
         context = graph.onboarding_context or {}
 
         # Determine extracted sources
@@ -75,10 +91,15 @@ class OnboardingService:
         if context.get("resume_extracted"):
             extracted_sources.append("resume")
 
+        # Calculate completeness using the new calculator (same as identity universe endpoint)
+        identity_data = identity_graph_to_dict(graph)
+        style_data = style_profile_to_dict(style_profile)
+        completeness = calculate_completeness(identity_data, style_data)
+
         return {
             "is_complete": context.get("step") == "COMPLETE",
             "step": context.get("step"),
-            "completeness_score": graph.completeness_score,
+            "completeness_score": completeness.percentage,  # Use calculated value, not stored
             "has_extraction": context.get("has_extraction", False),
             "extracted_sources": extracted_sources,
         }
