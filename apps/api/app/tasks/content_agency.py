@@ -99,8 +99,11 @@ async def _run_content_agency(profile_id: Optional[str] = None) -> dict:
                 "drafts_created": len(drafts),
             }
         else:
-            # Run for all active profiles
-            results = await service.run_for_all_active_profiles(max_drafts_per_profile=3)
+            # Run for all active profiles with inbox limit
+            results = await service.run_for_all_active_profiles(
+                max_drafts_per_profile=3,
+                max_inbox_threshold=10,  # Skip if already have 10+ drafts
+            )
             return {
                 "status": "success",
                 **results,

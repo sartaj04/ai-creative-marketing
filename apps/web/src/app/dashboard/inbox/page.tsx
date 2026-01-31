@@ -51,8 +51,16 @@ export default function InboxPage() {
                 generated_by: 'content_agency'
             });
             setCards(response.drafts);
-        } catch (error) {
-            toast({ title: 'Failed to load inbox', description: getErrorMessage(error), variant: 'destructive' });
+        } catch (error: any) {
+            // Handle 403 and other errors gracefully
+            const errorMessage = error?.response?.status === 403 
+                ? 'Access denied. Please try refreshing the page.' 
+                : getErrorMessage(error);
+            toast({ 
+                title: 'Failed to load inbox', 
+                description: errorMessage, 
+                variant: 'destructive' 
+            });
         } finally {
             setIsLoading(false);
         }
@@ -126,19 +134,33 @@ export default function InboxPage() {
 
     const handleGenerateTrending = async () => {
         if (!currentProfile) return;
+        
+        // Check if already have 10+ drafts in inbox
+        if (cards.length >= 10) {
+            toast({
+                title: 'Inbox Full',
+                description: 'You already have 10+ drafts. Please review existing drafts first.',
+                variant: 'destructive'
+            });
+            return;
+        }
+        
         setIsGenerating(true);
         try {
             await generatorsApi.triggerContentAgency(currentProfile.id);
             toast({
-                title: 'Content Agency Activated!',
-                description: 'Pixo is researching trending topics and creating drafts for you.'
+                title: '✨ Content is Being Generated!',
+                description: 'Pixo is researching trending topics and creating drafts. This may take a minute.',
             });
             // Reload inbox after a delay to show new drafts
-            setTimeout(loadInbox, 3000);
-        } catch (error) {
+            setTimeout(loadInbox, 5000);
+        } catch (error: any) {
+            const errorMessage = error?.response?.status === 403 
+                ? 'Access denied. Please try again later.' 
+                : getErrorMessage(error);
             toast({
-                title: 'Failed to trigger agency',
-                description: getErrorMessage(error),
+                title: '⚠️ Generation Failed',
+                description: `${errorMessage}. Please try again later.`,
                 variant: 'destructive'
             });
         } finally {
@@ -187,21 +209,22 @@ export default function InboxPage() {
                             {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
                         </div>
                         <p className="text-xs text-slate-500 hidden sm:block">
-                            Swipe cards left or right, or use buttons below
+                            💡 Swipe cards left or right, or use buttons below
                         </p>
+                        {cards.length >= 10 && (
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-700">
+                                📦 Inbox Full (10/10)
+                            </div>
+                        )}
                     </div>
                     <Button
                         onClick={handleGenerateTrending}
-                        disabled={isGenerating}
-                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 transition-all w-full sm:w-auto text-sm"
+                        disabled={isGenerating || cards.length >= 10}
+                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 transition-all w-full sm:w-auto text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isGenerating ? (
                             <>
-                                <div className="w-5 h-5 mr-2 relative overflow-hidden flex items-center justify-center">
-                                    <div className="absolute inset-0 flex items-center justify-center [transform:scale(0.15)] animate-bounce">
-                                        <PixoCharacter />
-                                    </div>
-                                </div>
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
                                 Generating...
                             </>
                         ) : (

@@ -44,16 +44,36 @@ class ContentAgencyService:
         self,
         profile_id: UUID,
         max_drafts: int = 3,
+        skip_if_has_content: bool = False,
+        max_inbox_threshold: int = 10,
     ) -> list[Draft]:
         """Run the Content Agency for a profile and create drafts.
         
         Args:
             profile_id: Profile UUID
             max_drafts: Maximum number of drafts to generate (default 3)
+            skip_if_has_content: If True, skip generation if inbox already has drafts (default False)
+            max_inbox_threshold: Skip generation if inbox has >= this many drafts (default 10)
             
         Returns:
             List of created Draft objects
         """
+        # Check current inbox count first
+        from sqlalchemy import func
+        inbox_count_result = await self.db.execute(
+            select(func.count(Draft.id))
+            .where(
+                Draft.profile_id == profile_id,
+                Draft.status == DraftStatus.INBOX,
+            )
+        )
+        inbox_count = inbox_count_result.scalar() or 0
+        
+        # Skip if inbox already has enough content
+        if inbox_count >= max_inbox_threshold:
+            logger.info(f"Profile {profile_id} has {inbox_count} drafts in inbox (>= {max_inbox_threshold}), skipping generation")
+            return []
+        
         # Load profile with all related data
         result = await self.db.execute(
             select(Profile)
@@ -160,11 +180,16 @@ class ContentAgencyService:
         logger.info(f"Content Agency completed: {len(created_drafts)} drafts saved for profile {profile_id}")
         return created_drafts
     
-    async def run_for_all_active_profiles(self, max_drafts_per_profile: int = 3) -> dict:
+    async def run_for_all_active_profiles(
+        self, 
+        max_drafts_per_profile: int = 3,
+        max_inbox_threshold: int = 10,
+    ) -> dict:
         """Run the Content Agency for all active profiles.
         
         Args:
             max_drafts_per_profile: Max drafts to generate per profile
+            max_inbox_threshold: Skip profiles with >= this many drafts in inbox (default 10)
             
         Returns:
             Dict with summary of results
@@ -184,6 +209,7 @@ class ContentAgencyService:
         results = {
             "total_profiles": len(profiles),
             "successful": 0,
+            "skipped": 0,
             "failed": 0,
             "total_drafts": 0,
         }
@@ -193,12 +219,14 @@ class ContentAgencyService:
                 drafts = await self.run_for_profile(
                     profile_id=profile.id,
                     max_drafts=max_drafts_per_profile,
+                    max_inbox_threshold=max_inbox_threshold,
                 )
                 if drafts:
                     results["successful"] += 1
                     results["total_drafts"] += len(drafts)
                 else:
-                    results["failed"] += 1
+                    # Could be skipped or failed, but no error thrown
+                    results["skipped"] += 1
             except Exception as e:
                 logger.error(f"Failed to run agency for profile {profile.id}: {e}")
                 results["failed"] += 1
