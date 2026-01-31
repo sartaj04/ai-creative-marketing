@@ -36,6 +36,14 @@ from app.schemas.analytics import (
     TopicAnalytics,
     FormatAnalytics,
 )
+from app.schemas.identity_universe import (
+    IdentityUniverseResponse,
+    PersonaData,
+    RegenerationPreview,
+    RegenerationRequest,
+    RegenerationAccept,
+    RegenerationField,
+)
 
 __all__ = [
     # Auth
@@ -55,6 +63,13 @@ __all__ = [
     "IdentityGraphUpdate",
     "StyleProfileResponse",
     "StyleProfileUpdate",
+    # Identity Universe
+    "IdentityUniverseResponse",
+    "PersonaData",
+    "RegenerationPreview",
+    "RegenerationRequest",
+    "RegenerationAccept",
+    "RegenerationField",
     # Draft
     "DraftActionRequest",
     "DraftResponse",

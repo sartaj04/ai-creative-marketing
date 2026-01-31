@@ -8,7 +8,10 @@ import {
     FileText,
     CheckCircle2,
     MessageSquare,
-    Target
+    Target,
+    Sparkles,
+    X,
+    ChevronRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { onboardingApi } from '@/lib/api/onboarding';
@@ -86,7 +89,7 @@ export default function DashboardPage() {
     };
 
     return (
-        <motion.div 
+        <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -102,6 +105,39 @@ export default function DashboardPage() {
                 </p>
             </motion.div>
 
+            {/* Identity Universe Banner */}
+            <motion.div variants={itemVariants}>
+                <Link href="/identity">
+                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-teal-500 via-cyan-500 to-teal-400 p-4 cursor-pointer group hover:shadow-lg hover:shadow-cyan-500/20 transition-all">
+                        {/* Background pattern */}
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+                        </div>
+
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                                    <Sparkles className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-white font-medium">
+                                        Your Content DNA is ready — discover your unique style
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-white/90 text-sm font-medium group-hover:text-white transition-colors flex items-center gap-1">
+                                    View
+                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+            </motion.div>
+
             {/* Profile Completeness */}
             {dashboardData && (
                 <motion.div variants={itemVariants}>
@@ -115,7 +151,7 @@ export default function DashboardPage() {
                                     <div>
                                         <h3 className="font-semibold text-slate-900">Profile Completeness</h3>
                                         <p className="text-sm text-slate-500">
-                                            {dashboardData.is_complete 
+                                            {dashboardData.is_complete
                                                 ? 'Your profile is ready for content generation!'
                                                 : 'Complete your profile to unlock all features'}
                                         </p>
@@ -128,7 +164,7 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div 
+                                <div
                                     className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                                     style={{ width: `${dashboardData.completeness_score}%` }}
                                 />

@@ -7,16 +7,47 @@ from pydantic import BaseModel, Field
 
 
 class IdentityGraphResponse(BaseModel):
-    """Schema for identity graph response."""
+    """Schema for identity graph response - includes all fields from model."""
 
     id: UUID
     profile_id: UUID
+    
+    # Core identity
+    current_role: Optional[str] = None
+    industry: Optional[str] = None
+    
+    # Professional details
+    expertise_areas: list[str] = Field(default_factory=list)
+    career_highlights: list[str] = Field(default_factory=list)
+    career_stage: Optional[str] = None
+    education: list[Any] = Field(default_factory=list)
+    bio_summary: Optional[str] = None
+    
+    # Brand Strategy
+    target_audience: Optional[str] = None
+    desired_positioning: Optional[str] = None
+    unique_angles: list[str] = Field(default_factory=list)
+    aspirations: Optional[str] = None
+    goals: Optional[str] = None
+    
+    # Personality & Content
+    interests: list[str] = Field(default_factory=list)
+    beliefs: list[str] = Field(default_factory=list)
+    contrarian_views: list[str] = Field(default_factory=list)
+    
+    # Content Strategy
+    content_pillars: list[str] = Field(default_factory=list)
+    narrative_themes: list[str] = Field(default_factory=list)
+    
+    # Legacy fields
     themes: list[str] = Field(default_factory=list)
     expertise_keywords: list[str] = Field(default_factory=list)
     tone_markers: dict[str, float] = Field(default_factory=dict)
     audience_notes: dict[str, Any] = Field(default_factory=dict)
     authority_angles: list[str] = Field(default_factory=list)
-    narrative_themes: list[str] = Field(default_factory=list)
+    
+    # Metadata
+    completeness_score: int = 0
     version: int
     last_updated_at: datetime
     created_at: datetime
@@ -26,14 +57,42 @@ class IdentityGraphResponse(BaseModel):
 
 
 class IdentityGraphUpdate(BaseModel):
-    """Schema for updating identity graph."""
+    """Schema for updating identity graph - all editable fields."""
 
+    # Core identity
+    current_role: Optional[str] = None
+    industry: Optional[str] = None
+    
+    # Professional details
+    expertise_areas: Optional[list[str]] = None
+    career_highlights: Optional[list[str]] = None
+    career_stage: Optional[str] = None
+    education: Optional[list[Any]] = None
+    bio_summary: Optional[str] = None
+    
+    # Brand Strategy
+    target_audience: Optional[str] = None
+    desired_positioning: Optional[str] = None
+    unique_angles: Optional[list[str]] = None
+    aspirations: Optional[str] = None
+    goals: Optional[str] = None
+    
+    # Personality & Content
+    interests: Optional[list[str]] = None
+    beliefs: Optional[list[str]] = None
+    contrarian_views: Optional[list[str]] = None
+    
+    # Content Strategy
+    content_pillars: Optional[list[str]] = None
+    narrative_themes: Optional[list[str]] = None
+    
+    # Legacy fields
     themes: Optional[list[str]] = None
     expertise_keywords: Optional[list[str]] = None
     tone_markers: Optional[dict[str, float]] = None
     audience_notes: Optional[dict[str, Any]] = None
     authority_angles: Optional[list[str]] = None
-    narrative_themes: Optional[list[str]] = None
+
 
 
 class ToneSliders(BaseModel):
