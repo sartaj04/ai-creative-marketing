@@ -181,9 +181,14 @@ export default function InboxPage() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Agent Inbox</h1>
                 </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600">
-                        <Sparkles className="w-3 h-3 text-cyan-600" />
-                        {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600">
+                            <Sparkles className="w-3 h-3 text-cyan-600" />
+                            {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
+                        </div>
+                        <p className="text-xs text-slate-500 hidden sm:block">
+                            Swipe cards left or right, or use buttons below
+                        </p>
                     </div>
                     <Button
                         onClick={handleGenerateTrending}
@@ -210,7 +215,7 @@ export default function InboxPage() {
             </div>
 
             {/* Card Stack */}
-            <div className="relative w-full max-w-5xl h-[500px] sm:h-[700px] flex items-center justify-center z-10 px-6 sm:px-4">
+            <div className="relative w-full max-w-5xl h-[500px] sm:h-[600px] flex items-center justify-center z-10 px-6 sm:px-4">
                 <AnimatePresence>
                     {cards.map((draft, index) => {
                         const isFront = index === 0;
@@ -234,7 +239,7 @@ export default function InboxPage() {
                                 exit={{ x: x.get() < 0 ? -500 : 500, opacity: 0, transition: { duration: 0.2 } }}
                                 className="absolute w-full"
                             >
-                                <Card className="h-[480px] sm:h-[620px] w-full shadow-2xl shadow-slate-200/50 border-0 sm:border sm:border-slate-100 flex flex-col overflow-hidden bg-white select-none cursor-grab active:cursor-grabbing rounded-3xl ring-1 ring-slate-900/5">
+                                <Card className="h-[480px] sm:h-[550px] w-full shadow-2xl shadow-slate-200/50 border-0 sm:border sm:border-slate-100 flex flex-col overflow-hidden bg-white select-none cursor-grab active:cursor-grabbing rounded-3xl ring-1 ring-slate-900/5">
                                     {/* Card Header */}
                                     <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
                                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -379,23 +384,6 @@ export default function InboxPage() {
                             <Button onClick={loadInbox} variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 Refresh Inbox
-                            </Button>
-                            <Button
-                                onClick={handleGenerateTrending}
-                                disabled={isGenerating}
-                                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 w-full"
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                        Generating...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="w-4 h-4 mr-2" />
-                                        Generate Trending Posts
-                                    </>
-                                )}
                             </Button>
                         </div>
                     </div>
