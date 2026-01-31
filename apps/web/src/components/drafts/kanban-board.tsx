@@ -218,7 +218,7 @@ export function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-4 gap-6 h-full p-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 h-full p-1 overflow-x-auto">
         {COLUMN_CONFIG.map((col) => (
           <DroppableColumn
             key={col.id}

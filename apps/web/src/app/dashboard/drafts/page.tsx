@@ -112,7 +112,7 @@ export default function DraftsPage() {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between items-center mb-8 px-1">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8 px-1">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 overflow-hidden flex-shrink-0 relative">
                         <div className="absolute inset-0 flex items-center justify-center [transform:scale(0.25)]">
@@ -120,14 +120,14 @@ export default function DraftsPage() {
                         </div>
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Content Pipeline</h1>
-                        <p className="text-slate-500">Manage your content generation workflow</p>
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Content Pipeline</h1>
+                        <p className="text-sm sm:text-base text-slate-500">Manage your content generation workflow</p>
                     </div>
                 </div>
-                <div className="flex gap-3">
-                    <Button variant="outline" className="gap-2" onClick={() => loadDrafts(true)}>
+                <div className="flex gap-3 w-full sm:w-auto">
+                    <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => loadDrafts(true)}>
                         <Calendar className="w-4 h-4" />
-                        Refresh
+                        <span className="sm:inline">Refresh</span>
                     </Button>
                 </div>
             </div>

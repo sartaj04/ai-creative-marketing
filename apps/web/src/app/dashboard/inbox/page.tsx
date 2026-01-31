@@ -167,20 +167,20 @@ export default function InboxPage() {
     }
 
     return (
-        <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden -mt-6 -ml-6 md:-mt-8 md:-ml-8 pt-8">
+        <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-start sm:justify-center bg-slate-50 relative overflow-hidden -mt-4 sm:-mt-6 ml-0 sm:-ml-6 md:-mt-8 md:-ml-8 pt-4 sm:pt-8 pb-8">
             <motion.div style={{ backgroundColor: bg }} className="absolute inset-0 z-0 transition-colors" />
 
             {/* Header */}
-            <div className="w-full max-w-5xl mb-8 z-10 space-y-2 mt-2">
+            <div className="w-full max-w-5xl mb-6 sm:mb-8 z-10 space-y-2 px-4">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 overflow-hidden flex-shrink-0 relative">
                         <div className="absolute inset-0 flex items-center justify-center [transform:scale(0.25)]">
                             <PixoCharacter />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Agent Inbox</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Agent Inbox</h1>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600">
                         <Sparkles className="w-3 h-3 text-cyan-600" />
                         {cards.length} {cards.length === 1 ? 'Draft' : 'Drafts'} Ready
@@ -188,7 +188,7 @@ export default function InboxPage() {
                     <Button
                         onClick={handleGenerateTrending}
                         disabled={isGenerating}
-                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 transition-all"
+                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 transition-all w-full sm:w-auto text-sm"
                     >
                         {isGenerating ? (
                             <>
@@ -210,7 +210,7 @@ export default function InboxPage() {
             </div>
 
             {/* Card Stack */}
-            <div className="relative w-full max-w-5xl h-[700px] flex items-center justify-center z-10 px-4">
+            <div className="relative w-full max-w-5xl h-[500px] sm:h-[700px] flex items-center justify-center z-10 px-6 sm:px-4">
                 <AnimatePresence>
                     {cards.map((draft, index) => {
                         const isFront = index === 0;
@@ -234,25 +234,25 @@ export default function InboxPage() {
                                 exit={{ x: x.get() < 0 ? -500 : 500, opacity: 0, transition: { duration: 0.2 } }}
                                 className="absolute w-full"
                             >
-                                <Card className="h-[620px] w-full shadow-2xl shadow-slate-200/50 border-slate-100 flex flex-col overflow-hidden bg-white select-none cursor-grab active:cursor-grabbing rounded-3xl ring-1 ring-slate-900/5">
+                                <Card className="h-[480px] sm:h-[620px] w-full shadow-2xl shadow-slate-200/50 border-0 sm:border sm:border-slate-100 flex flex-col overflow-hidden bg-white select-none cursor-grab active:cursor-grabbing rounded-3xl ring-1 ring-slate-900/5">
                                     {/* Card Header */}
-                                    <div className="p-6 pb-4 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                                    <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
+                                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm flex-shrink-0">
                                                 {getPlatformIcon(draft.platform)}
                                             </div>
-                                            <div>
-                                                <h3 className="font-semibold text-slate-900 text-sm">{draft.topic || 'Untitled Draft'}</h3>
-                                                <p className="text-xs text-slate-500">{getPlatformLabel(draft.platform)} &bull; {new Date(draft.created_at).toLocaleDateString()}</p>
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="font-semibold text-slate-900 text-xs sm:text-sm truncate">{draft.topic || 'Untitled Draft'}</h3>
+                                                <p className="text-[10px] sm:text-xs text-slate-500 truncate">{getPlatformLabel(draft.platform)} &bull; {new Date(draft.created_at).toLocaleDateString()}</p>
                                             </div>
                                         </div>
-                                        <div className={`px-2 py-1 rounded-md text-xs font-bold border ${confidencePercent > 90 ? 'bg-green-50 text-green-700 border-green-200' : confidencePercent > 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                                            {confidencePercent}% Match
+                                        <div className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-bold border flex-shrink-0 ${confidencePercent > 90 ? 'bg-green-50 text-green-700 border-green-200' : confidencePercent > 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                            {confidencePercent}%
                                         </div>
                                     </div>
 
-                                    {/* Card Content */}
-                                    <div className="p-10 flex-1 flex flex-col bg-white overflow-y-auto">
+                                    {/* Card Content - Scrollable */}
+                                    <div className="px-8 py-4 sm:p-10 flex-1 flex flex-col bg-white overflow-y-auto overscroll-contain">
                                         {(() => {
                                             // Check if body already starts with the hook to avoid duplication
                                             const hookTrimmed = draft.hook.trim();
@@ -271,19 +271,19 @@ export default function InboxPage() {
                                             }
 
                                             return (
-                                                <div className="space-y-6 flex-1 flex flex-col">
-                                                    {hookTrimmed && (
-                                                        <div className="pb-6 border-b border-slate-100">
-                                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Hook</p>
-                                                            <p className="text-slate-900 leading-relaxed text-2xl font-bold">
-                                                                {hookTrimmed}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                    {displayBody && (
-                                                        <div className="flex-1">
-                                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Content</p>
-                                                            <div className="text-slate-600 leading-relaxed text-lg prose prose-slate max-w-none">
+                                                        <div className="space-y-4 sm:space-y-6 flex-1 flex flex-col">
+                                                            {hookTrimmed && (
+                                                                <div className="pb-4 sm:pb-6 border-b border-slate-100">
+                                                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 sm:mb-3">Hook</p>
+                                                                    <p className="text-slate-900 leading-relaxed text-lg sm:text-2xl font-bold">
+                                                                        {hookTrimmed}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                            {displayBody && (
+                                                                <div className="flex-1">
+                                                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 sm:mb-3">Content</p>
+                                                                    <div className="text-slate-600 leading-relaxed text-sm sm:text-lg prose prose-slate max-w-none">
                                                                 <ReactMarkdown
                                                                     components={{
                                                                         p: ({ children }) => (
@@ -337,12 +337,12 @@ export default function InboxPage() {
                                             );
                                         })()}
 
-                                        <div className="mt-auto pt-6 flex flex-wrap gap-2">
+                                        <div className="mt-auto pt-4 sm:pt-6 flex flex-wrap gap-2">
                                             <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
                                                 {draft.format}
                                             </span>
                                             {draft.topic && (
-                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium truncate max-w-[200px]">
                                                     #{draft.topic}
                                                 </span>
                                             )}
@@ -351,12 +351,12 @@ export default function InboxPage() {
 
                                     {/* Action Hints Overlay */}
                                     <motion.div style={{ opacity: approveOverlayOpacity }} className="absolute inset-0 bg-cyan-500/90 flex flex-col items-center justify-center text-white z-20 pointer-events-none">
-                                        <Check className="w-20 h-20 mb-4" />
-                                        <span className="text-2xl font-bold tracking-wide uppercase">Approve</span>
+                                        <Check className="w-16 h-16 sm:w-20 sm:h-20 mb-2 sm:mb-4" />
+                                        <span className="text-xl sm:text-2xl font-bold tracking-wide uppercase">Approve</span>
                                     </motion.div>
                                     <motion.div style={{ opacity: rejectOverlayOpacity }} className="absolute inset-0 bg-red-500/90 flex flex-col items-center justify-center text-white z-20 pointer-events-none">
-                                        <X className="w-20 h-20 mb-4" />
-                                        <span className="text-2xl font-bold tracking-wide uppercase">Reject</span>
+                                        <X className="w-16 h-16 sm:w-20 sm:h-20 mb-2 sm:mb-4" />
+                                        <span className="text-xl sm:text-2xl font-bold tracking-wide uppercase">Reject</span>
                                     </motion.div>
                                 </Card>
                             </motion.div>
@@ -365,17 +365,17 @@ export default function InboxPage() {
                 </AnimatePresence>
 
                 {cards.length === 0 && !isLoading && (
-                    <div className="text-center space-y-6 animate-fade-in-up">
-                        <div className="w-24 h-24 bg-slate-50 border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center mx-auto">
-                            <RefreshCw className="w-10 h-10 text-slate-300" />
+                    <div className="text-center space-y-4 sm:space-y-6 animate-fade-in-up px-4">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-slate-50 border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center mx-auto">
+                            <RefreshCw className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300" />
                         </div>
                         <div className="space-y-2">
-                            <h3 className="text-xl font-semibold text-slate-900">All caught up!</h3>
-                            <p className="text-slate-500 max-w-xs mx-auto">
+                            <h3 className="text-lg sm:text-xl font-semibold text-slate-900">All caught up!</h3>
+                            <p className="text-sm sm:text-base text-slate-500 max-w-xs mx-auto">
                                 Great job reviewing. Your agents are researching new opportunities for tomorrow.
                             </p>
                         </div>
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
                             <Button onClick={loadInbox} variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 Refresh Inbox
@@ -383,7 +383,7 @@ export default function InboxPage() {
                             <Button
                                 onClick={handleGenerateTrending}
                                 disabled={isGenerating}
-                                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-50 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 w-full"
+                                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 w-full"
                             >
                                 {isGenerating ? (
                                     <>
@@ -404,42 +404,42 @@ export default function InboxPage() {
 
             {/* Action Buttons */}
             {cards.length > 0 && (
-                <div className="flex gap-8 mt-8 z-10">
+                <div className="flex gap-4 sm:gap-8 mt-6 sm:mt-8 z-10">
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-16 w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-red-50 hover:border-red-200 hover:text-red-500 hover:scale-110 transition-all duration-300"
+                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-red-50 hover:border-red-200 hover:text-red-500 hover:scale-110 transition-all duration-300"
                         onClick={() => handleReject(cards[0])}
                         disabled={isActioning}
                     >
-                        <X className="w-8 h-8 text-slate-400" />
+                        <X className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
                     </Button>
 
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-14 w-14 rounded-full bg-white border border-slate-200 shadow-lg shadow-slate-200/50 text-slate-400 hover:text-cyan-600 hover:border-cyan-200 transition-all"
+                        className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-white border border-slate-200 shadow-lg shadow-slate-200/50 text-slate-400 hover:text-cyan-600 hover:border-cyan-200 transition-all"
                         onClick={() => handleEdit(cards[0])}
                         disabled={isActioning}
                     >
-                        <Edit2 className="w-6 h-6" />
+                        <Edit2 className="w-5 h-5 sm:w-6 sm:h-6" />
                     </Button>
 
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-16 w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-600 hover:scale-110 transition-all duration-300"
+                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-600 hover:scale-110 transition-all duration-300"
                         onClick={() => handleApprove(cards[0])}
                         disabled={isActioning}
                     >
-                        <Check className="w-8 h-8 text-slate-400" />
+                        <Check className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
                     </Button>
                 </div>
             )}
 
             {/* Edit Dialog */}
             <Dialog open={!!editDraft} onOpenChange={(open) => { if (!open) setEditDraft(null); }}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Draft</DialogTitle>
                     </DialogHeader>
@@ -458,15 +458,15 @@ export default function InboxPage() {
                                 value={editBody}
                                 onChange={(e) => setEditBody(e.target.value)}
                                 placeholder="The main content"
-                                className="min-h-[200px]"
+                                className="min-h-[150px] sm:min-h-[200px]"
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditDraft(null)}>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button variant="outline" onClick={() => setEditDraft(null)} className="w-full sm:w-auto">
                             Cancel
                         </Button>
-                        <Button onClick={handleEditSubmit} disabled={isActioning} className="bg-cyan-600 hover:bg-cyan-500">
+                        <Button onClick={handleEditSubmit} disabled={isActioning} className="bg-cyan-600 hover:bg-cyan-500 w-full sm:w-auto">
                             {isActioning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                             Save &amp; Approve
                         </Button>
