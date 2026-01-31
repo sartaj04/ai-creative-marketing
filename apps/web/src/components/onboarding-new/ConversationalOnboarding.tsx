@@ -196,26 +196,23 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
         if (!extractedData) return { professional: 0, interests: 0, voice: 0 };
 
         // Check for actual meaningful data (not just empty strings or arrays)
-        const professionalFields = [
-            extractedData.current_role && extractedData.current_role.trim().length > 0,
-            extractedData.industry && extractedData.industry.trim().length > 0,
-            extractedData.expertise_areas && extractedData.expertise_areas.length > 0
-        ];
-        const professional = (professionalFields.filter(Boolean).length / 3) * 100;
+        let professionalCount = 0;
+        if (extractedData.current_role?.trim()) professionalCount++;
+        if (extractedData.industry?.trim()) professionalCount++;
+        if (extractedData.expertise_areas?.length > 0) professionalCount++;
+        const professional = Math.round((professionalCount / 3) * 100);
 
-        const interestFields = [
-            extractedData.interests && extractedData.interests.length > 0,
-            extractedData.topics_of_interest && extractedData.topics_of_interest.length > 0
-        ];
-        const interests = (interestFields.filter(Boolean).length / 2) * 100;
+        let interestCount = 0;
+        if (extractedData.interests?.length > 0) interestCount++;
+        if (extractedData.topics_of_interest?.length > 0) interestCount++;
+        const interests = Math.round((interestCount / 2) * 100);
 
-        const toneFields = [
-            extractedData.tone_formal_casual !== null && extractedData.tone_formal_casual !== undefined,
-            extractedData.tone_technical_simple !== null && extractedData.tone_technical_simple !== undefined,
-            extractedData.tone_serious_playful !== null && extractedData.tone_serious_playful !== undefined,
-            extractedData.tone_humble_confident !== null && extractedData.tone_humble_confident !== undefined
-        ];
-        const voice = (toneFields.filter(Boolean).length / 4) * 100;
+        let voiceCount = 0;
+        if (typeof extractedData.tone_formal_casual === 'number') voiceCount++;
+        if (typeof extractedData.tone_technical_simple === 'number') voiceCount++;
+        if (typeof extractedData.tone_serious_playful === 'number') voiceCount++;
+        if (typeof extractedData.tone_humble_confident === 'number') voiceCount++;
+        const voice = Math.round((voiceCount / 4) * 100);
 
         return { professional, interests, voice };
     };
