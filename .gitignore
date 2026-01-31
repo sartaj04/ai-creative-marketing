@@ -43,6 +43,10 @@ env/
 *.env.railway
 *.env.production
 
+# Railway
+railway.toml
+*.railway.toml
+
 
 # Node.js
 node_modules/
