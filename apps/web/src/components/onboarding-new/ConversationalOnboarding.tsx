@@ -195,24 +195,25 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
     const getProgress = () => {
         if (!extractedData) return { professional: 0, interests: 0, voice: 0 };
 
+        // Check for actual meaningful data (not just empty strings or arrays)
         const professionalFields = [
-            extractedData.current_role,
-            extractedData.industry,
-            extractedData.expertise_areas.length > 0
+            extractedData.current_role && extractedData.current_role.trim().length > 0,
+            extractedData.industry && extractedData.industry.trim().length > 0,
+            extractedData.expertise_areas && extractedData.expertise_areas.length > 0
         ];
         const professional = (professionalFields.filter(Boolean).length / 3) * 100;
 
         const interestFields = [
-            extractedData.interests.length > 0,
-            extractedData.topics_of_interest.length > 0
+            extractedData.interests && extractedData.interests.length > 0,
+            extractedData.topics_of_interest && extractedData.topics_of_interest.length > 0
         ];
         const interests = (interestFields.filter(Boolean).length / 2) * 100;
 
         const toneFields = [
-            extractedData.tone_formal_casual !== null,
-            extractedData.tone_technical_simple !== null,
-            extractedData.tone_serious_playful !== null,
-            extractedData.tone_humble_confident !== null
+            extractedData.tone_formal_casual !== null && extractedData.tone_formal_casual !== undefined,
+            extractedData.tone_technical_simple !== null && extractedData.tone_technical_simple !== undefined,
+            extractedData.tone_serious_playful !== null && extractedData.tone_serious_playful !== undefined,
+            extractedData.tone_humble_confident !== null && extractedData.tone_humble_confident !== undefined
         ];
         const voice = (toneFields.filter(Boolean).length / 4) * 100;
 
