@@ -57,14 +57,14 @@ export default function DashboardLayout({
                 </div>
 
                 <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-                    <NavLink href="/dashboard" icon={LayoutDashboard} label="Overview" active={pathname === '/dashboard'} />
-                    <NavLink href="/dashboard/generate" icon={Sparkles} label="Generate" active={pathname === '/dashboard/generate'} />
-                    <NavLink href="/dashboard/inbox" icon={Layers} label="Inbox" active={pathname === '/dashboard/inbox'} badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} />
-                    <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Drafts" active={pathname === '/dashboard/drafts'} />
-                    <NavLink href="/dashboard/analytics" icon={BarChart2} label="Analytics" active={pathname === '/dashboard/analytics'} />
+                    <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname === '/dashboard'} />
+                    <NavLink href="/dashboard/generate" icon={Sparkles} label="Generate Content" active={pathname === '/dashboard/generate'} />
+                    <NavLink href="/dashboard/inbox" icon={Layers} label="Review Inbox" active={pathname === '/dashboard/inbox'} badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} />
+                    <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Content Pipeline" active={pathname === '/dashboard/drafts'} />
+                    <NavLink href="/dashboard/analytics" icon={BarChart2} label="Content Analytics" active={pathname === '/dashboard/analytics'} />
                     <NavLink href="/dashboard/settings" icon={Settings} label="Settings" active={pathname === '/dashboard/settings'} />
                     {user && user.is_admin === true && (
-                        <NavLink href="/dashboard/templates" icon={FileText} label="Templates" active={pathname === '/dashboard/templates'} />
+                        <NavLink href="/dashboard/templates" icon={FileText} label="Content Templates" active={pathname === '/dashboard/templates'} />
                     )}
                 </div>
 

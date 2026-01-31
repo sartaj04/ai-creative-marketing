@@ -94,26 +94,28 @@ export default function AnalyticsPage() {
     const topFormat = formatsList.length > 0 ? formatsList[0] : null;
 
     return (
-        <div className="p-8 h-full bg-slate-50 min-h-screen space-y-8">
-            <div className="flex justify-between items-end">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Content Analytics</h1>
-                    <p className="text-slate-500">Track your content performance and agent accuracy.</p>
+        <div className="relative p-8 h-full bg-slate-50 min-h-screen">
+            {/* Blurred Content */}
+            <div className="blur-sm pointer-events-none space-y-8">
+                <div className="flex justify-between items-end">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Content Analytics</h1>
+                        <p className="text-slate-500">Track your content performance and agent accuracy.</p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+                        {(['7d', '30d', '90d'] as Period[]).map(p => (
+                            <Button
+                                key={p}
+                                variant={period === p ? 'default' : 'ghost'}
+                                size="sm"
+                                className={`h-8 px-3 text-xs ${period === p ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'text-slate-600'}`}
+                                onClick={() => setPeriod(p)}
+                            >
+                                {p}
+                            </Button>
+                        ))}
+                    </div>
                 </div>
-                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
-                    {(['7d', '30d', '90d'] as Period[]).map(p => (
-                        <Button
-                            key={p}
-                            variant={period === p ? 'default' : 'ghost'}
-                            size="sm"
-                            className={`h-8 px-3 text-xs ${period === p ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'text-slate-600'}`}
-                            onClick={() => setPeriod(p)}
-                        >
-                            {p}
-                        </Button>
-                    ))}
-                </div>
-            </div>
 
             {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -258,6 +260,20 @@ export default function AnalyticsPage() {
                         )}
                     </CardContent>
                 </Card>
+            </div>
+            </div>
+
+            {/* Coming Soon Overlay */}
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/80 backdrop-blur-sm">
+                <div className="text-center space-y-4 max-w-md px-8">
+                    <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                        <Activity className="w-10 h-10 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-900">Coming Soon</h2>
+                    <p className="text-slate-600">
+                        Content analytics are being built. You'll be able to track your content performance, approval rates, and insights soon.
+                    </p>
+                </div>
             </div>
         </div>
     );
