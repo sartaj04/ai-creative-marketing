@@ -113,8 +113,16 @@ export function StepManager() {
 
     const handleSwitchToManual = () => {
         setIsManualPath(true);
+        setIsConversationPath(false);
         setStep('professional');
         setAgentState({ status: 'waiting', message: 'Tell us about yourself' });
+    };
+
+    const handleSwitchToConversation = () => {
+        setIsManualPath(false);
+        setIsConversationPath(true);
+        setStep('conversation');
+        setAgentState({ status: 'waiting', message: 'Chatting with Pixo...' });
     };
 
     const handleFileSelect = async (file: File) => {
@@ -290,7 +298,7 @@ export function StepManager() {
                             case 'welcome':
                                 return <WelcomeStep onSelectOption={handleStartOption} />;
                             case 'linkedin_import':
-                                return <LinkedInImportStep onFileSelect={handleFileSelect} isProcessing={agentState.status === 'analyzing'} onBack={handleBackToWelcome} onSwitchToManual={handleSwitchToManual} />;
+                                return <LinkedInImportStep onFileSelect={handleFileSelect} isProcessing={agentState.status === 'analyzing'} onBack={handleBackToWelcome} onSwitchToManual={handleSwitchToManual} onSwitchToConversation={handleSwitchToConversation} />;
                             case 'analysis':
                                 return <AnalysisLoadingStep onComplete={handleAnalysisComplete} isAnalysisComplete={isAnalysisComplete} />;
                             case 'professional':

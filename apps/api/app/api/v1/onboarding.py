@@ -248,7 +248,7 @@ async def onboarding_chat(
     
     # Use system prompt + conversation prompt
     full_prompt = f"{PIXO_ONBOARDING_SYSTEM_PROMPT}\n\n{conversation_prompt}"
-    pixo_response = await llm.generate(full_prompt)
+    pixo_response = await llm.generate(full_prompt, max_tokens=2000)  # Increased from default 1000 to 2000 for full responses
     
     # Extract structured data from conversation
     extraction_prompt = PIXO_EXTRACTION_PROMPT.format(

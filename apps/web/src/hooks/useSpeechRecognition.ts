@@ -40,6 +40,7 @@ declare global {
 interface UseSpeechRecognitionReturn {
     isListening: boolean;
     transcript: string;
+    interimTranscript: string;
     isSupported: boolean;
     start: () => void;
     stop: () => void;
@@ -50,10 +51,12 @@ interface UseSpeechRecognitionReturn {
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
+    const [interimTranscript, setInterimTranscript] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isSupported, setIsSupported] = useState(false);
     
     const recognitionRef = useRef<SpeechRecognition | null>(null);
+    const fullTranscriptRef = useRef(''); // Keep track of accumulated final transcripts
 
     // Initialize speech recognition
     useEffect(() => {
@@ -69,25 +72,36 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         setIsSupported(true);
         const recognition = new SpeechRecognitionAPI();
         
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = '';
-            let interimTranscript = '';
+            let interim = '';
 
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const result = event.results[i];
                 if (result.isFinal) {
                     finalTranscript += result[0].transcript;
                 } else {
-                    interimTranscript += result[0].transcript;
+                    interim += result[0].transcript;
                 }
             }
 
-            // Use final transcript if available, otherwise use interim
-            setTranscript(finalTranscript || interimTranscript);
+            // Accumulate final transcripts
+            if (finalTranscript) {
+                fullTranscriptRef.current += finalTranscript + ' ';
+                setTranscript(fullTranscriptRef.current.trim());
+            }
+
+            // Update interim separately
+            setInterimTranscript(interim);
+            
+            // If we have interim but no final yet, show combined
+            if (interim && !finalTranscript) {
+                setTranscript((fullTranscriptRef.current + interim).trim());
+            }
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -138,12 +152,15 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
     const reset = useCallback(() => {
         setTranscript('');
+        setInterimTranscript('');
         setError(null);
+        fullTranscriptRef.current = '';
     }, []);
 
     return {
         isListening,
         transcript,
+        interimTranscript,
         isSupported,
         start,
         stop,

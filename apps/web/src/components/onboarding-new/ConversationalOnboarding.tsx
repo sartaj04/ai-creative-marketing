@@ -37,6 +37,7 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
     const { 
         isListening, 
         transcript, 
+        interimTranscript,
         isSupported: isVoiceSupported,
         start: startListening,
         stop: stopListening,
@@ -77,7 +78,7 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
             setAutoListenPending(false);
             setTimeout(() => {
                 startListening();
-            }, 300);
+            }, 800); // Increased from 300ms to 800ms for better reliability
         }
     }, [isSpeaking, autoListenPending, voiceEnabled, isVoiceSupported, isLoading, isComplete, startListening]);
 
@@ -88,12 +89,18 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
         }
     }, [transcript]);
 
-    // Auto-send after voice input stops
+    // Auto-send after voice input stops - only trigger on final transcript
+    const lastTranscriptRef = useRef('');
     useEffect(() => {
-        if (!isListening && transcript && transcript.trim().length > 0) {
+        // Only trigger auto-send when:
+        // 1. Not currently listening (user stopped speaking)
+        // 2. There's a transcript with content
+        // 3. The transcript has changed (to avoid re-triggering)
+        if (!isListening && transcript && transcript.trim().length > 0 && transcript !== lastTranscriptRef.current) {
+            lastTranscriptRef.current = transcript;
             const timer = setTimeout(() => {
                 handleSendMessage();
-            }, 1000);
+            }, 2000); // Increased to 2 seconds to give more time
             return () => clearTimeout(timer);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -365,16 +372,30 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
                                         transition={{ duration: 1, repeat: Infinity }}
                                         className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"
                                     />
-                                    Listening...
+                                    {interimTranscript ? 'Listening...' : 'Start speaking...'}
                                 </div>
-                                <button
-                                    onClick={handleCancelListening}
-                                    className="text-xs sm:text-sm text-red-500 hover:text-red-700 flex items-center gap-1 sm:gap-2 font-medium"
-                                >
-                                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                                    <span className="hidden sm:inline">Cancel & type</span>
-                                    <span className="sm:hidden">Cancel</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {/* Done speaking button - only show if there's transcript */}
+                                    {transcript && transcript.trim().length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                stopListening();
+                                                // Let the auto-send effect handle sending after a delay
+                                            }}
+                                            className="text-xs sm:text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 sm:gap-2 font-medium transition-colors"
+                                        >
+                                            <Check className="w-4 h-4" />
+                                            <span className="hidden sm:inline">Done</span>
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={handleCancelListening}
+                                        className="text-xs sm:text-sm text-red-500 hover:text-red-700 flex items-center gap-1 sm:gap-2 font-medium"
+                                    >
+                                        <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        <span className="hidden sm:inline">Cancel</span>
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     )}
