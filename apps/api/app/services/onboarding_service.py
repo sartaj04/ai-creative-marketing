@@ -322,9 +322,15 @@ class OnboardingService:
         await self.db.commit()
 
         # Trigger async persona synthesis now that identity is complete
-        from app.tasks.persona_synthesizer import synthesize_persona_task
-        synthesize_persona_task.delay(str(profile_id))
-        logger.info(f"Queued persona synthesis task for profile {profile_id}")
+        # This is non-blocking - if Celery/Redis isn't available, onboarding still completes
+        try:
+            from app.tasks.persona_synthesizer import synthesize_persona_task
+            synthesize_persona_task.delay(str(profile_id))
+            logger.info(f"Queued persona synthesis task for profile {profile_id}")
+        except Exception as e:
+            # Don't fail onboarding if Celery/Redis is unavailable
+            # Persona synthesis can happen later when background services are available
+            logger.warning(f"Could not queue persona synthesis task for profile {profile_id}: {e}. Onboarding completed successfully, persona synthesis will be triggered later.")
 
         return True
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { LinkedInImportStep } from './steps/LinkedInImportStep';
 import { AnalysisLoadingStep } from './steps/AnalysisLoadingStep';
@@ -8,19 +9,24 @@ import { ProfessionalStep } from './steps/ProfessionalStep';
 import { InterestsStep } from './steps/InterestsStep';
 import { VoiceStep } from './steps/VoiceStep';
 import { CompletionStep } from './steps/CompletionStep';
+import { ConversationalOnboarding } from './ConversationalOnboarding';
 import { AgentPanel, AgentState } from './AgentPanel';
 import { ContentPanel } from './ContentPanel';
 import { onboardingApi, ProfessionalStepData, InterestsStepData, VoiceStepData } from '@/lib/api/onboarding';
 import { useToast } from '@/components/ui/use-toast';
+import { useProfileStore } from '@/stores/profile-store';
 
-type Step = 'welcome' | 'linkedin_import' | 'professional' | 'analysis' | 'interests' | 'voice' | 'completion';
+type Step = 'welcome' | 'linkedin_import' | 'professional' | 'analysis' | 'interests' | 'voice' | 'completion' | 'conversation';
 
 export function StepManager() {
     const [step, setStep] = useState<Step>('welcome');
     const [agentState, setAgentState] = useState<AgentState>({ status: 'idle', message: 'Waiting for input...' });
     const [onboardingData, setOnboardingData] = useState<any>({});
     const [isManualPath, setIsManualPath] = useState(false);
+    const [isConversationPath, setIsConversationPath] = useState(false);
     const { toast } = useToast();
+    const router = useRouter();
+    const { fetchProfiles } = useProfileStore();
 
     const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
 
@@ -38,7 +44,8 @@ export function StepManager() {
             'analysis': 3,
             'interests': 4,
             'voice': 5,
-            'completion': 6
+            'completion': 6,
+            'conversation': 2 // Not used in LinkedIn path
         };
         const manualMap: Record<Step, number> = {
             'welcome': 1,
@@ -47,23 +54,56 @@ export function StepManager() {
             'analysis': 3,
             'interests': 3,
             'voice': 4,
-            'completion': 5
+            'completion': 5,
+            'conversation': 2 // Not used in manual path
         };
+        const conversationMap: Record<Step, number> = {
+            'welcome': 1,
+            'linkedin_import': 1,
+            'professional': 1,
+            'analysis': 1,
+            'interests': 1,
+            'voice': 1,
+            'completion': 2,
+            'conversation': 2
+        };
+        if (isConversationPath) return conversationMap[step];
         return isManualPath ? manualMap[step] : linkedInMap[step];
     };
 
-    const getTotalSteps = () => isManualPath ? 5 : 6;
+    const getTotalSteps = () => {
+        if (isConversationPath) return 2; // Welcome + Conversation
+        return isManualPath ? 5 : 6;
+    };
 
-    const handleStartOption = (option: 'linkedin' | 'manual') => {
+    const handleStartOption = (option: 'linkedin' | 'manual' | 'conversation') => {
         if (option === 'linkedin') {
             setIsManualPath(false);
+            setIsConversationPath(false);
             setStep('linkedin_import');
             setAgentState({ status: 'idle', message: 'Ready to analyze profile' });
+        } else if (option === 'conversation') {
+            setIsManualPath(false);
+            setIsConversationPath(true);
+            setStep('conversation');
+            setAgentState({ status: 'waiting', message: 'Chatting with Pixo...' });
         } else {
             setIsManualPath(true);
+            setIsConversationPath(false);
             setStep('professional');
             setAgentState({ status: 'waiting', message: 'Tell us about yourself' });
         }
+    };
+
+    const handleConversationComplete = async () => {
+        // Refresh profiles to ensure we have the latest data after onboarding
+        try {
+            await fetchProfiles();
+        } catch (error) {
+            console.error('Failed to refresh profiles after onboarding:', error);
+        }
+        // Redirect directly to dashboard after conversational onboarding
+        router.push('/dashboard');
     };
 
     const handleBackToWelcome = () => {
@@ -218,6 +258,15 @@ export function StepManager() {
     // Debug: log step changes
     console.log('[StepManager] Current step:', step, 'isAnalysisComplete:', isAnalysisComplete);
 
+    // Render full-screen conversation without panels
+    if (step === 'conversation') {
+        return (
+            <div className="w-full h-screen bg-white">
+                <ConversationalOnboarding onComplete={handleConversationComplete} onBack={handleBackToWelcome} />
+            </div>
+        );
+    }
+
     return (
         <div className="flex w-full h-screen bg-white overflow-hidden">
             {/* Left Panel */}
@@ -275,6 +324,7 @@ function getStepTitle(step: Step): string {
         case 'interests': return 'Your Interests & Personality';
         case 'voice': return 'Find Your Voice';
         case 'completion': return 'Setup Complete';
+        case 'conversation': return 'Chat with Pixo';
         default: return '';
     }
 }

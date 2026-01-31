@@ -1,7 +1,7 @@
 """Onboarding request and response schemas."""
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ExtractionSummary(BaseModel):
@@ -79,3 +79,56 @@ class OnboardingStepSaveResponse(BaseModel):
     success: bool
     next_step: Optional[str] = None
     message: Optional[str] = None
+
+
+# ============================================================================
+# Conversational Onboarding Schemas
+# ============================================================================
+
+
+class ChatMessage(BaseModel):
+    """A single message in the conversation."""
+
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ConversationalExtractedData(BaseModel):
+    """Structured data extracted from the conversation."""
+
+    # Professional
+    current_role: str = ""
+    industry: str = ""
+    years_experience: str = ""
+    expertise_areas: List[str] = Field(default_factory=list)
+    career_highlight: str = ""
+
+    # Interests
+    interests: List[str] = Field(default_factory=list)
+    topics_of_interest: List[str] = Field(default_factory=list)
+    aspirations: str = ""
+
+    # Tone sliders (0.0-1.0, None if not yet discussed)
+    tone_formal_casual: Optional[float] = None
+    tone_technical_simple: Optional[float] = None
+    tone_serious_playful: Optional[float] = None
+    tone_humble_confident: Optional[float] = None
+
+    # Summary
+    bio_summary: str = ""
+
+
+class OnboardingChatRequest(BaseModel):
+    """Request for conversational onboarding."""
+
+    message: str
+    conversation_history: List[ChatMessage] = Field(default_factory=list)
+
+
+class OnboardingChatResponse(BaseModel):
+    """Response from conversational onboarding."""
+
+    response: str  # Pixo's reply
+    extracted_data: ConversationalExtractedData  # Structured data from conversation
+    is_complete: bool  # Has enough info to complete onboarding
+    conversation_history: List[ChatMessage]  # Updated conversation history

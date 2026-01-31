@@ -29,13 +29,25 @@ export const useProfileStore = create<ProfileState>()(
         try {
           const response = await profilesApi.list();
           const profiles = response.profiles;
-          set({ profiles, isLoading: false });
-
-          // Set current profile if not set
           const current = get().currentProfile;
-          if (!current && profiles.length > 0) {
-            set({ currentProfile: profiles[0] });
+          
+          // Validate currentProfile still exists in fetched profiles
+          // If not, reset it to the first profile (or null if no profiles)
+          let validCurrentProfile = current;
+          if (current) {
+            const profileExists = profiles.some(p => p.id === current.id);
+            if (!profileExists) {
+              validCurrentProfile = profiles.length > 0 ? profiles[0] : null;
+            }
+          } else if (profiles.length > 0) {
+            validCurrentProfile = profiles[0];
           }
+          
+          set({ 
+            profiles, 
+            currentProfile: validCurrentProfile,
+            isLoading: false 
+          });
         } catch (error: any) {
           set({
             error: getErrorMessage(error) || 'Failed to fetch profiles',

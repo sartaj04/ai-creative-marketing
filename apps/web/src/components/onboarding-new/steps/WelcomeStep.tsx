@@ -2,9 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { Linkedin, FileText, ArrowRight } from 'lucide-react';
+import { PixoCharacter } from '@/components/auth/PixoCharacter';
 
 interface WelcomeStepProps {
-    onSelectOption: (option: 'linkedin' | 'manual') => void;
+    onSelectOption: (option: 'linkedin' | 'manual' | 'conversation') => void;
 }
 
 export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
@@ -35,6 +36,29 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
             </motion.p>
 
             <div className="grid grid-cols-1 gap-4">
+                {/* Chat with Pixo - Primary Option */}
+                <motion.button
+                    variants={itemVariants}
+                    whileHover={{ scale: 1.01, borderColor: "var(--cta)" }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => onSelectOption('conversation')}
+                    className="group relative flex items-start p-6 bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-200 rounded-xl shadow-sm hover:shadow-md transition-all text-left"
+                >
+                    <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 overflow-hidden relative mr-4">
+                        <div className="absolute inset-0 flex items-center justify-center [transform:scale(0.35)]">
+                            <PixoCharacter />
+                        </div>
+                    </div>
+                    <div className="flex-1 pr-12">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-slate-900 group-hover:text-cyan-700 transition-colors">Chat with Pixo</h3>
+                            <span className="text-[10px] font-medium bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full">Recommended</span>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-1">Have a natural conversation with Pixo. Speak or type - we'll learn about you through dialogue.</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-cyan-400 absolute right-6 top-1/2 -translate-y-1/2 group-hover:text-cyan-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                </motion.button>
+
                 {/* LinkedIn Import Option */}
                 <motion.button
                     variants={itemVariants}
@@ -46,14 +70,14 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
                     <div className="flex-shrink-0 w-12 h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center mr-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                         <Linkedin className="w-6 h-6" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 pr-12">
                         <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">Import LinkedIn Profile / Resume</h3>
                         <p className="text-sm text-slate-500 mt-1">Upload your LinkedIn profile PDF or resume, and Pixo will analyze your experience and skills.</p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-slate-300 absolute right-6 top-1/2 -translate-y-1/2 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="w-5 h-5 text-slate-300 absolute right-6 top-1/2 -translate-y-1/2 group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </motion.button>
 
-                {/* Manual Entry Option */}
+                {/* Manual Form Entry Option */}
                 <motion.button
                     variants={itemVariants}
                     whileHover={{ scale: 1.01, borderColor: "var(--cta)" }}
@@ -64,11 +88,11 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
                     <div className="flex-shrink-0 w-12 h-12 bg-slate-50 text-slate-600 rounded-lg flex items-center justify-center mr-4 group-hover:bg-slate-800 group-hover:text-white transition-colors">
                         <FileText className="w-6 h-6" />
                     </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-slate-900 group-hover:text-slate-800 transition-colors">Speak with Pixo</h3>
-                        <p className="text-sm text-slate-500 mt-1">Have a conversation with Pixo and share your story. We'll guide you through a few questions to build your profile.</p>
+                    <div className="flex-1 pr-12">
+                        <h3 className="font-semibold text-slate-900 group-hover:text-slate-800 transition-colors">Fill Out Forms</h3>
+                        <p className="text-sm text-slate-500 mt-1">Prefer a structured approach? Answer questions step-by-step through our guided forms.</p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-slate-300 absolute right-6 top-1/2 -translate-y-1/2 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="w-5 h-5 text-slate-300 absolute right-6 top-1/2 -translate-y-1/2 group-hover:text-slate-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </motion.button>
             </div>
 

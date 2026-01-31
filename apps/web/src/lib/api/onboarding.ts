@@ -54,6 +54,40 @@ export interface StepSaveResponse {
     message?: string;
 }
 
+// Conversational onboarding interfaces
+export interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+export interface ConversationalExtractedData {
+    current_role: string;
+    industry: string;
+    years_experience: string;
+    expertise_areas: string[];
+    career_highlight: string;
+    interests: string[];
+    topics_of_interest: string[];
+    aspirations: string;
+    tone_formal_casual: number | null;
+    tone_technical_simple: number | null;
+    tone_serious_playful: number | null;
+    tone_humble_confident: number | null;
+    bio_summary: string;
+}
+
+export interface ChatRequest {
+    message: string;
+    conversation_history: ChatMessage[];
+}
+
+export interface ChatResponse {
+    response: string;
+    extracted_data: ConversationalExtractedData;
+    is_complete: boolean;
+    conversation_history: ChatMessage[];
+}
+
 export const onboardingApi = {
     /**
      * Get onboarding status without modifying state (read-only)
@@ -90,6 +124,14 @@ export const onboardingApi = {
      */
     complete: async (): Promise<{ success: boolean; redirect_url: string }> => {
         const { data } = await apiClient.post<{ success: boolean; redirect_url: string }>('/onboarding/complete', {});
+        return data;
+    },
+
+    /**
+     * Conversational onboarding chat with Pixo
+     */
+    chat: async (request: ChatRequest): Promise<ChatResponse> => {
+        const { data } = await apiClient.post<ChatResponse>('/onboarding/chat', request);
         return data;
     }
 };

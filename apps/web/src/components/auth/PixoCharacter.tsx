@@ -6,7 +6,11 @@ import Image from 'next/image';
 
 type ActionState = 'idle' | 'typing' | 'happy' | 'waving' | 'throwing';
 
-export function PixoCharacter() {
+interface PixoCharacterProps {
+    showBubbles?: boolean;
+}
+
+export function PixoCharacter({ showBubbles = true }: PixoCharacterProps = {}) {
     const [action, setAction] = useState<ActionState>('typing');
     const [isHovered, setIsHovered] = useState(false);
     const [hasRocket, setHasRocket] = useState(true);
@@ -269,7 +273,7 @@ export function PixoCharacter() {
 
             {/* Speech Bubble - Closer now */}
             <AnimatePresence>
-                {(action !== 'typing' && action !== 'throwing') && (
+                {showBubbles && (action !== 'typing' && action !== 'throwing') && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0, y: 5, x: -5 }}
                         animate={{ 
@@ -296,7 +300,7 @@ export function PixoCharacter() {
 
             {/* Action Text Bubble (Typing etc) - Closer now */}
             <AnimatePresence>
-                {action === 'typing' && (
+                {showBubbles && action === 'typing' && (
                     <motion.div
                         initial={{ opacity: 0, y: 2 }}
                         animate={{ opacity: 1, y: 0 }}
