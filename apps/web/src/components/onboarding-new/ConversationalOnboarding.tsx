@@ -198,34 +198,6 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
         }
     };
 
-    // Calculate progress percentages
-    const getProgress = () => {
-        if (!extractedData) return { professional: 0, interests: 0, voice: 0 };
-
-        // Check for actual meaningful data (not just empty strings or arrays)
-        let professionalCount = 0;
-        if (extractedData.current_role?.trim()) professionalCount++;
-        if (extractedData.industry?.trim()) professionalCount++;
-        if (extractedData.expertise_areas?.length > 0) professionalCount++;
-        const professional = Math.round((professionalCount / 3) * 100);
-
-        let interestCount = 0;
-        if (extractedData.interests?.length > 0) interestCount++;
-        if (extractedData.topics_of_interest?.length > 0) interestCount++;
-        const interests = Math.round((interestCount / 2) * 100);
-
-        let voiceCount = 0;
-        if (typeof extractedData.tone_formal_casual === 'number') voiceCount++;
-        if (typeof extractedData.tone_technical_simple === 'number') voiceCount++;
-        if (typeof extractedData.tone_serious_playful === 'number') voiceCount++;
-        if (typeof extractedData.tone_humble_confident === 'number') voiceCount++;
-        const voice = Math.round((voiceCount / 4) * 100);
-
-        return { professional, interests, voice };
-    };
-
-    const progress = getProgress();
-
     return (
         <div className="relative w-full h-full overflow-hidden flex flex-col">
             {/* Top bar with back button and voice toggle - Mobile optimized */}
@@ -256,26 +228,6 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
                         {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                     </button>
                 )}
-            </div>
-
-            {/* Progress percentages - Responsive */}
-            <div className="flex-shrink-0 bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
-                <div className="flex items-center justify-center gap-4 sm:gap-8">
-                    <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide font-medium">Professional</span>
-                        <span className="text-lg sm:text-xl font-bold text-slate-900">{Math.round(progress.professional)}%</span>
-                    </div>
-                    <div className="w-px h-8 bg-slate-200" />
-                    <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide font-medium">Interests</span>
-                        <span className="text-lg sm:text-xl font-bold text-slate-900">{Math.round(progress.interests)}%</span>
-                    </div>
-                    <div className="w-px h-8 bg-slate-200" />
-                    <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide font-medium">Voice</span>
-                        <span className="text-lg sm:text-xl font-bold text-slate-900">{Math.round(progress.voice)}%</span>
-                    </div>
-                </div>
             </div>
 
             {/* Main content - Scrollable on mobile */}
