@@ -66,6 +66,17 @@ export function StepManager() {
         }
     };
 
+    const handleBackToWelcome = () => {
+        setStep('welcome');
+        setAgentState({ status: 'idle', message: 'Waiting for input...' });
+    };
+
+    const handleSwitchToManual = () => {
+        setIsManualPath(true);
+        setStep('professional');
+        setAgentState({ status: 'waiting', message: 'Tell us about yourself' });
+    };
+
     const handleFileSelect = async (file: File) => {
         console.log('[StepManager] handleFileSelect called with file:', file.name);
         setStep('analysis');
@@ -230,11 +241,11 @@ export function StepManager() {
                             case 'welcome':
                                 return <WelcomeStep onSelectOption={handleStartOption} />;
                             case 'linkedin_import':
-                                return <LinkedInImportStep onFileSelect={handleFileSelect} isProcessing={agentState.status === 'analyzing'} />;
+                                return <LinkedInImportStep onFileSelect={handleFileSelect} isProcessing={agentState.status === 'analyzing'} onBack={handleBackToWelcome} onSwitchToManual={handleSwitchToManual} />;
                             case 'analysis':
                                 return <AnalysisLoadingStep onComplete={handleAnalysisComplete} isAnalysisComplete={isAnalysisComplete} />;
                             case 'professional':
-                                return <ProfessionalStep onComplete={handleProfessionalComplete} />;
+                                return <ProfessionalStep onComplete={handleProfessionalComplete} onBack={handleBackToWelcome} />;
                             case 'interests':
                                 return <InterestsStep onComplete={handleInterestsComplete} />;
                             case 'voice':

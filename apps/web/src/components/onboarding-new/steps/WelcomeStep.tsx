@@ -31,7 +31,7 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
             className="space-y-6"
         >
             <motion.p variants={itemVariants} className="text-lg text-slate-600 leading-relaxed mb-8">
-                We need to build a base model of your professional identity. The most efficient way is to analyze your existing digital footprint.
+                Let's build your professional identity together. Share your LinkedIn profile or resume, or speak with Pixo to tell us about yourself.
             </motion.p>
 
             <div className="grid grid-cols-1 gap-4">
@@ -47,8 +47,8 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
                         <Linkedin className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">Import LinkedIn Profile</h3>
-                        <p className="text-sm text-slate-500 mt-1">We'll analyze your experience, skills, and endorsements to build your profile.</p>
+                        <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">Import LinkedIn Profile / Resume</h3>
+                        <p className="text-sm text-slate-500 mt-1">Upload your LinkedIn profile PDF or resume, and Pixo will analyze your experience and skills.</p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-slate-300 absolute right-6 top-1/2 -translate-y-1/2 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
                 </motion.button>
@@ -65,8 +65,8 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
                         <FileText className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-semibold text-slate-900 group-hover:text-slate-800 transition-colors">Start from Scratch</h3>
-                        <p className="text-sm text-slate-500 mt-1">Manually configure your identity by answering a series of questions.</p>
+                        <h3 className="font-semibold text-slate-900 group-hover:text-slate-800 transition-colors">Speak with Pixo</h3>
+                        <p className="text-sm text-slate-500 mt-1">Have a conversation with Pixo and share your story. We'll guide you through a few questions to build your profile.</p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-slate-300 absolute right-6 top-1/2 -translate-y-1/2 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
                 </motion.button>

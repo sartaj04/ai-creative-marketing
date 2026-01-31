@@ -32,6 +32,7 @@ const EXPERTISE_OPTIONS = [
 
 interface ProfessionalStepProps {
     onComplete: (data: ProfessionalStepData) => void;
+    onBack?: () => void;
 }
 
 type Question = {
@@ -74,7 +75,7 @@ const QUESTIONS: Question[] = [
     }
 ];
 
-export function ProfessionalStep({ onComplete }: ProfessionalStepProps) {
+export function ProfessionalStep({ onComplete, onBack }: ProfessionalStepProps) {
     const [currentQIndex, setCurrentQIndex] = useState(0);
     const [direction, setDirection] = useState(0);
     const [formData, setFormData] = useState({
@@ -107,6 +108,9 @@ export function ProfessionalStep({ onComplete }: ProfessionalStepProps) {
         if (currentQIndex > 0) {
             setDirection(-1);
             setCurrentQIndex(prev => prev - 1);
+        } else if (onBack) {
+            // If on first question, go back to welcome screen
+            onBack();
         }
     };
 
@@ -276,11 +280,10 @@ export function ProfessionalStep({ onComplete }: ProfessionalStepProps) {
             <div className="flex items-center justify-between pt-8 mt-4 border-t border-slate-100">
                 <button
                     onClick={handleBack}
-                    disabled={currentQIndex === 0}
-                    className="flex items-center text-slate-500 hover:text-slate-800 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
+                    className="flex items-center text-slate-500 hover:text-slate-800 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back
+                    {currentQIndex === 0 && onBack ? 'Back to options' : 'Back'}
                 </button>
 
                 <button

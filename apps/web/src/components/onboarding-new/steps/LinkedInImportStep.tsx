@@ -2,14 +2,16 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileText, Check, Download, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileText, Check, Download, AlertCircle, ArrowLeft } from 'lucide-react';
 
 interface LinkedInImportStepProps {
     onFileSelect: (file: File) => void;
     isProcessing: boolean;
+    onBack?: () => void;
+    onSwitchToManual?: () => void;
 }
 
-export function LinkedInImportStep({ onFileSelect, isProcessing }: LinkedInImportStepProps) {
+export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitchToManual }: LinkedInImportStepProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,30 +60,60 @@ export function LinkedInImportStep({ onFileSelect, isProcessing }: LinkedInImpor
         { id: 3, text: "Select 'Save to PDF'", icon: <Download className="w-4 h-4" /> },
     ];
 
+    // Note: Resources option is not available on mobile LinkedIn app
+
     return (
         <div className="space-y-8">
+            {/* Back Button */}
+            {onBack && (
+                <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    onClick={onBack}
+                    className="flex items-center text-slate-600 hover:text-slate-900 transition-colors mb-4"
+                >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    <span className="text-sm font-medium">Back to options</span>
+                </motion.button>
+            )}
+
             <div className="space-y-2">
                 <p className="text-slate-600">
-                    We'll extract your work history, skills, and summary to build your baseline identity.
+                    Upload your LinkedIn profile PDF or resume, and Pixo will extract your work history, skills, and summary to build your baseline identity.
                 </p>
             </div>
 
             {/* Instruction Cards Carousel - Simplified for this step, can be elaborate */}
-            <div className="grid grid-cols-3 gap-4">
-                {instructions.map((step, idx) => (
-                    <motion.div
-                        key={step.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="bg-slate-50 border border-slate-100 rounded-lg p-3 flex flex-col items-center text-center text-xs text-slate-500"
-                    >
-                        <div className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-2 shadow-sm text-cyan-600">
-                            {step.icon}
-                        </div>
-                        {step.text}
-                    </motion.div>
-                ))}
+            <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                    {instructions.map((step, idx) => (
+                        <motion.div
+                            key={step.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className="bg-slate-50 border border-slate-100 rounded-lg p-3 flex flex-col items-center text-center text-xs text-slate-500"
+                        >
+                            <div className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-2 shadow-sm text-cyan-600">
+                                {step.icon}
+                            </div>
+                            {step.text}
+                        </motion.div>
+                    ))}
+                </div>
+                
+                {/* Desktop Browser Note */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start text-xs text-amber-800"
+                >
+                    <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>
+                        <strong>Note:</strong> The "Resources" option is only available on desktop browsers. It is not available on mobile browsers or the LinkedIn mobile app. Please use a desktop browser to access this feature.
+                    </span>
+                </motion.div>
             </div>
 
             {/* Comparison/Drop Zone */}
@@ -140,7 +172,7 @@ export function LinkedInImportStep({ onFileSelect, isProcessing }: LinkedInImpor
                                     <FileText className="w-8 h-8" />
                                 </div>
                                 <h4 className="text-lg font-semibold text-slate-800">
-                                    Drop your LinkedIn PDF here
+                                    Drop your LinkedIn PDF or Resume here
                                 </h4>
                                 <p className="text-sm text-slate-400 mt-2 max-w-[200px]">
                                     or click to browse your files
@@ -163,6 +195,28 @@ export function LinkedInImportStep({ onFileSelect, isProcessing }: LinkedInImpor
                     )}
                 </motion.div>
             </div>
+
+            {/* Manual Entry Option */}
+            {onSwitchToManual && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="pt-6 border-t border-slate-200"
+                >
+                    <p className="text-sm text-slate-600 mb-3 text-center">
+                        Don't have a profile or resume ready?
+                    </p>
+                    <motion.button
+                        onClick={onSwitchToManual}
+                        className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 transition-colors"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                    >
+                        Speak with Pixo instead
+                    </motion.button>
+                </motion.div>
+            )}
         </div>
     );
 }
