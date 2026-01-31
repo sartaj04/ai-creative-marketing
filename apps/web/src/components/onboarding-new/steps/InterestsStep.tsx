@@ -141,13 +141,13 @@ export function InterestsStep({ onComplete }: InterestsStepProps) {
 
     return (
         <div className="w-full">
-            <div className="mb-8">
+            <div className="mb-4 sm:mb-8">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Part {getPhaseNumber()} of 3
                 </span>
             </div>
 
-            <div className="relative min-h-[450px]">
+            <div className="relative min-h-[350px] sm:min-h-[450px]">
                 <AnimatePresence custom={direction} mode="wait">
                     {phase === 'interests' && (
                         <motion.div
@@ -160,32 +160,32 @@ export function InterestsStep({ onComplete }: InterestsStepProps) {
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             className="w-full"
                         >
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 bg-pink-50 rounded-lg flex items-center justify-center text-pink-500">
-                                    <Heart className="w-5 h-5" />
+                            <div className="flex items-start sm:items-center gap-3 mb-2">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-pink-50 rounded-lg flex items-center justify-center text-pink-500 flex-shrink-0">
+                                    <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
-                                <h3 className="text-2xl font-light text-slate-900">What are your hobbies & interests?</h3>
+                                <h3 className="text-lg sm:text-2xl font-light text-slate-900">What are your hobbies & interests?</h3>
                             </div>
-                            <p className="text-slate-500 mb-6 text-lg">Select 3-5 interests that energize you outside of work</p>
+                            <p className="text-sm sm:text-lg text-slate-500 mb-4 sm:mb-6">Select 3-5 interests that energize you outside of work</p>
 
-                            <p className="text-sm text-slate-500 mb-4">
+                            <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
                                 Selected: {formData.interests.length}/5 (minimum 3)
                             </p>
 
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                                 {INTEREST_CATEGORIES.map(category => {
                                     const selected = formData.interests.includes(category.id);
                                     return (
                                         <button
                                             key={category.id}
                                             onClick={() => toggleInterest(category.id)}
-                                            className={`p-4 rounded-xl text-left font-medium transition-all duration-200 flex items-center gap-3
+                                            className={`p-3 sm:p-4 rounded-xl text-left font-medium transition-all duration-200 flex items-center gap-2 sm:gap-3
                                                 ${selected
                                                     ? 'bg-slate-900 text-white shadow-md scale-[1.02]'
                                                     : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:shadow-sm'}`}
                                         >
-                                            <span className="text-2xl">{category.emoji}</span>
-                                            <span className="text-sm">{category.label}</span>
+                                            <span className="text-xl sm:text-2xl">{category.emoji}</span>
+                                            <span className="text-xs sm:text-sm">{category.label}</span>
                                         </button>
                                     );
                                 })}
@@ -204,26 +204,26 @@ export function InterestsStep({ onComplete }: InterestsStepProps) {
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             className="w-full"
                         >
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-500">
-                                    <Sparkles className="w-5 h-5" />
+                            <div className="flex items-start sm:items-center gap-3 mb-2">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-500 flex-shrink-0">
+                                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
-                                <h3 className="text-2xl font-light text-slate-900">What topics fascinate you?</h3>
+                                <h3 className="text-lg sm:text-2xl font-light text-slate-900">What topics fascinate you?</h3>
                             </div>
-                            <p className="text-slate-500 mb-6 text-lg">Select topics you love thinking and talking about</p>
+                            <p className="text-sm sm:text-lg text-slate-500 mb-4 sm:mb-6">Select topics you love thinking and talking about</p>
 
-                            <p className="text-sm text-slate-500 mb-4">
+                            <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
                                 Selected: {formData.topics_of_interest.length}/5 (minimum 2)
                             </p>
 
-                            <div className="flex flex-wrap gap-3">
+                            <div className="flex flex-wrap gap-2 sm:gap-3">
                                 {CONTENT_TOPICS.map(topic => {
                                     const selected = formData.topics_of_interest.includes(topic);
                                     return (
                                         <button
                                             key={topic}
                                             onClick={() => toggleTopic(topic)}
-                                            className={`px-5 py-3 rounded-full text-sm font-medium transition-all duration-200
+                                            className={`px-3 sm:px-5 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-medium transition-all duration-200
                                                 ${selected
                                                     ? 'bg-purple-600 text-white shadow-md scale-105'
                                                     : 'bg-white border border-slate-200 text-slate-600 hover:border-purple-300'}`}
@@ -247,47 +247,50 @@ export function InterestsStep({ onComplete }: InterestsStepProps) {
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             className="w-full"
                         >
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-500">
-                                    <span className="text-xl">🚀</span>
+                            <div className="flex items-start sm:items-center gap-3 mb-2">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-500 flex-shrink-0">
+                                    <span className="text-lg sm:text-xl">🚀</span>
                                 </div>
-                                <h3 className="text-2xl font-light text-slate-900">What are your aspirations?</h3>
+                                <h3 className="text-lg sm:text-2xl font-light text-slate-900">What are your aspirations?</h3>
                             </div>
-                            <p className="text-slate-500 mb-8 text-lg">What are you most excited about achieving in the next few years?</p>
+                            <p className="text-sm sm:text-lg text-slate-500 mb-4 sm:mb-8">What are you most excited about achieving in the next few years?</p>
 
                             <textarea
                                 value={formData.aspirations}
                                 onChange={(e) => setFormData(prev => ({ ...prev, aspirations: e.target.value }))}
                                 placeholder="e.g., Build a successful startup, become a thought leader in my industry, write a book, achieve work-life balance..."
-                                rows={5}
-                                className="w-full p-4 text-lg text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-all"
+                                rows={4}
+                                className="w-full p-3 sm:p-4 text-base sm:text-lg text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none transition-all"
                             />
-                            <p className="text-sm text-slate-400 mt-2">This is optional but helps us personalize your content.</p>
+                            <p className="text-xs sm:text-sm text-slate-400 mt-2">This is optional but helps us personalize your content.</p>
                         </motion.div>
                     )}
                 </AnimatePresence>
             </div>
 
             {/* Navigation Footer */}
-            <div className="flex items-center justify-between pt-8 mt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-6 sm:pt-8 mt-4 border-t border-slate-100">
                 <button
                     onClick={handleBack}
                     disabled={phase === 'interests'}
-                    className="flex items-center text-slate-500 hover:text-slate-800 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
+                    className="flex items-center text-slate-500 hover:text-slate-800 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors text-sm sm:text-base"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
                     Back
                 </button>
 
                 <button
                     onClick={handleNext}
                     disabled={!canProceed()}
-                    className="bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-xl font-medium flex items-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    className="bg-slate-900 hover:bg-black text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl font-medium flex items-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 text-sm sm:text-base"
                 >
                     {phase === 'aspirations' ? 'Continue' : 'Next'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
                 </button>
             </div>
+            
+            {/* Bottom safe area spacer for mobile */}
+            <div className="h-4 sm:h-0" aria-hidden="true" />
         </div>
     );
 }

@@ -222,227 +222,231 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
     const progress = getProgress();
 
     return (
-        <div className="relative w-full h-full overflow-hidden">
-            {/* Progress percentages - Absolute top right corner */}
-            <div className="absolute top-6 right-6 z-50 bg-white border border-slate-200 rounded-xl shadow-lg px-6 py-4 flex items-center gap-6">
-                <div className="flex flex-col items-center gap-1">
-                    <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Professional</span>
-                    <span className="text-2xl font-bold text-slate-900">{Math.round(progress.professional)}%</span>
-                </div>
-                <div className="w-px h-10 bg-slate-200" />
-                <div className="flex flex-col items-center gap-1">
-                    <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Interests</span>
-                    <span className="text-2xl font-bold text-slate-900">{Math.round(progress.interests)}%</span>
-                </div>
-                <div className="w-px h-10 bg-slate-200" />
-                <div className="flex flex-col items-center gap-1">
-                    <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Voice</span>
-                    <span className="text-2xl font-bold text-slate-900">{Math.round(progress.voice)}%</span>
-                </div>
+        <div className="relative w-full h-full overflow-hidden flex flex-col">
+            {/* Top bar with back button and voice toggle - Mobile optimized */}
+            <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white border-b border-slate-100 z-50">
+                {/* Back button */}
+                {onBack && (
+                    <button
+                        onClick={onBack}
+                        className="flex items-center text-slate-500 hover:text-slate-700 transition-colors text-sm"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">Back</span>
+                    </button>
+                )}
+                {!onBack && <div />}
+                
+                {/* Voice toggle */}
                 {(isSpeechSupported || isVoiceSupported) && (
-                    <>
-                        <div className="w-px h-10 bg-slate-200" />
-                        <button
-                            onClick={toggleVoice}
-                            className={`p-2 rounded-lg transition-colors ${
-                                voiceEnabled 
-                                    ? 'bg-cyan-100 text-cyan-600' 
-                                    : 'bg-slate-100 text-slate-400'
-                            }`}
-                            title={voiceEnabled ? 'Disable voice' : 'Enable voice'}
-                        >
-                            {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                        </button>
-                    </>
+                    <button
+                        onClick={toggleVoice}
+                        className={`p-2 rounded-lg transition-colors ${
+                            voiceEnabled 
+                                ? 'bg-cyan-100 text-cyan-600' 
+                                : 'bg-slate-100 text-slate-400'
+                        }`}
+                        title={voiceEnabled ? 'Disable voice' : 'Enable voice'}
+                    >
+                        {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                    </button>
                 )}
             </div>
 
-            {/* Back button - Top left */}
-            {onBack && (
-                <button
-                    onClick={onBack}
-                    className="absolute top-6 left-6 z-50 flex items-center text-slate-500 hover:text-slate-700 transition-colors text-sm bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back
-                </button>
-            )}
-
-            {/* Main content - Centered Character */}
-            <div className="w-full h-full flex flex-col">
-                {/* Character and Question Area - Takes most of the space */}
-                <div className="flex-1 flex items-center justify-center relative min-h-0 px-12">
-                    <div className="flex items-center justify-center gap-12 max-w-6xl w-full">
-                        {/* Large Pixo Character */}
-                        <div className="relative flex-shrink-0">
-                            {/* Glow effect when speaking */}
-                            {isSpeaking && (
-                                <motion.div
-                                    animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.1, 1] }}
-                                    transition={{ duration: 1.5, repeat: Infinity }}
-                                    className="absolute inset-0 bg-cyan-400 rounded-full blur-3xl -z-10"
-                                    style={{ width: '300%', height: '300%', left: '-100%', top: '-100%' }}
-                                />
-                            )}
-
-                            {/* Pixo Character - Large scale */}
-                            <motion.div
-                                className="scale-[2]"
-                                animate={
-                                    isSpeaking 
-                                        ? { y: [0, -8, 0], scale: [2, 2.06, 2] }
-                                        : isListening
-                                            ? { rotate: [0, -5, 5, 0] }
-                                            : {}
-                                }
-                                transition={{
-                                    duration: isSpeaking ? 0.5 : isListening ? 0.8 : 2,
-                                    repeat: isSpeaking || isListening ? Infinity : 0,
-                                    ease: "easeInOut"
-                                }}
-                            >
-                                <PixoCharacter showBubbles={false} />
-                            </motion.div>
-
-                            {/* Listening indicator */}
-                            {isListening && (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="absolute -bottom-16 left-1/2 -translate-x-1/2"
-                                >
-                                    <div className="bg-red-500 text-white px-5 py-2.5 rounded-full text-base font-medium flex items-center gap-3 shadow-xl">
-                                        <motion.div
-                                            animate={{ scale: [1, 1.3, 1] }}
-                                            transition={{ duration: 1, repeat: Infinity }}
-                                            className="w-3 h-3 bg-white rounded-full"
-                                        />
-                                        Listening...
-                                    </div>
-                                </motion.div>
-                            )}
-                        </div>
-
-                        {/* Question text - Beside character */}
-                        <motion.div
-                            key={currentQuestion}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="flex-1 max-w-2xl"
-                        >
-                            {isLoading ? (
-                                <div className="flex items-start gap-3 text-slate-600">
-                                    <Loader2 className="w-6 h-6 animate-spin mt-1" />
-                                    <span className="text-2xl font-light">Thinking...</span>
-                                </div>
-                            ) : (
-                                <p className="text-2xl text-slate-700 leading-relaxed font-light">
-                                    {currentQuestion}
-                                </p>
-                            )}
-                        </motion.div>
+            {/* Progress percentages - Responsive */}
+            <div className="flex-shrink-0 bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
+                <div className="flex items-center justify-center gap-4 sm:gap-8">
+                    <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide font-medium">Professional</span>
+                        <span className="text-lg sm:text-xl font-bold text-slate-900">{Math.round(progress.professional)}%</span>
+                    </div>
+                    <div className="w-px h-8 bg-slate-200" />
+                    <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide font-medium">Interests</span>
+                        <span className="text-lg sm:text-xl font-bold text-slate-900">{Math.round(progress.interests)}%</span>
+                    </div>
+                    <div className="w-px h-8 bg-slate-200" />
+                    <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide font-medium">Voice</span>
+                        <span className="text-lg sm:text-xl font-bold text-slate-900">{Math.round(progress.voice)}%</span>
                     </div>
                 </div>
+            </div>
 
-                {/* Input area - Bottom */}
-                <div className="border-t border-slate-200 bg-white p-6">
-                    <div className="max-w-4xl mx-auto">
-                        {/* Listening banner */}
+            {/* Main content - Scrollable on mobile */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+                {/* Character and Question Area */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12 px-4 sm:px-12 py-8 sm:py-12 min-h-full">
+                    {/* Large Pixo Character */}
+                    <div className="relative flex-shrink-0">
+                        {/* Glow effect when speaking */}
+                        {isSpeaking && (
+                            <motion.div
+                                animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.1, 1] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                                className="absolute inset-0 bg-cyan-400 rounded-full blur-3xl -z-10"
+                                style={{ width: '300%', height: '300%', left: '-100%', top: '-100%' }}
+                            />
+                        )}
+
+                        {/* Pixo Character - Responsive scale */}
+                        <motion.div
+                            className="scale-[1.5] sm:scale-[2]"
+                            animate={
+                                isSpeaking 
+                                    ? { y: [0, -8, 0], scale: [1.5, 1.56, 1.5] }
+                                    : isListening
+                                        ? { rotate: [0, -5, 5, 0] }
+                                        : {}
+                            }
+                            transition={{
+                                duration: isSpeaking ? 0.5 : isListening ? 0.8 : 2,
+                                repeat: isSpeaking || isListening ? Infinity : 0,
+                                ease: "easeInOut"
+                            }}
+                        >
+                            <PixoCharacter showBubbles={false} />
+                        </motion.div>
+
+                        {/* Listening indicator */}
                         {isListening && (
                             <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="mb-4"
+                                initial={{ opacity: 0, scale: 0 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="absolute -bottom-12 sm:-bottom-16 left-1/2 -translate-x-1/2"
                             >
-                                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-3 text-red-600 text-base font-medium">
-                                        <motion.div
-                                            animate={{ scale: [1, 1.3, 1] }}
-                                            transition={{ duration: 1, repeat: Infinity }}
-                                            className="w-3 h-3 bg-red-500 rounded-full"
-                                        />
-                                        Listening...
-                                    </div>
-                                    <button
-                                        onClick={handleCancelListening}
-                                        className="text-sm text-red-500 hover:text-red-700 flex items-center gap-2 font-medium"
-                                    >
-                                        <X className="w-5 h-5" />
-                                        Cancel & type
-                                    </button>
+                                <div className="bg-red-500 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-sm sm:text-base font-medium flex items-center gap-2 sm:gap-3 shadow-xl whitespace-nowrap">
+                                    <motion.div
+                                        animate={{ scale: [1, 1.3, 1] }}
+                                        transition={{ duration: 1, repeat: Infinity }}
+                                        className="w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full"
+                                    />
+                                    Listening...
                                 </div>
                             </motion.div>
                         )}
+                    </div>
 
-                        <div className="flex items-end gap-4">
-                            {/* Voice input button */}
-                            {isVoiceSupported && voiceEnabled && (
-                                <button
-                                    onClick={handleMicClick}
-                                    disabled={isLoading || isComplete || isSpeaking}
-                                    className={`p-4 rounded-xl transition-all ${
-                                        isListening
-                                            ? 'bg-red-500 text-white animate-pulse shadow-lg'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    } disabled:opacity-50`}
-                                >
-                                    {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                                </button>
-                            )}
-
-                            {/* Text input */}
-                            <div className="flex-1 relative">
-                                <textarea
-                                    ref={inputRef}
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={
-                                        isSpeaking 
-                                            ? "Pixo is speaking..." 
-                                            : isListening 
-                                                ? "Listening... (or type here)" 
-                                                : "Type your answer..."
-                                    }
-                                    disabled={isLoading || isComplete}
-                                    rows={1}
-                                    className="w-full px-5 py-4 pr-14 bg-slate-50 border-2 border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:opacity-50 text-base"
-                                    style={{ minHeight: '56px', maxHeight: '140px' }}
-                                />
-                                {isListening && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                        <div className="flex space-x-1.5">
-                                            <div className="w-1.5 h-4 bg-red-500 rounded-full animate-pulse" />
-                                            <div className="w-1.5 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '75ms' }} />
-                                            <div className="w-1.5 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-                                        </div>
-                                    </div>
-                                )}
+                    {/* Question text - Below character on mobile, beside on desktop */}
+                    <motion.div
+                        key={currentQuestion}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex-1 max-w-2xl text-center sm:text-left mt-8 sm:mt-0"
+                    >
+                        {isLoading ? (
+                            <div className="flex items-center justify-center sm:justify-start gap-3 text-slate-600">
+                                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+                                <span className="text-lg sm:text-2xl font-light">Thinking...</span>
                             </div>
-
-                            {/* Send button */}
-                            <button
-                                onClick={handleSendMessage}
-                                disabled={!inputValue.trim() || isLoading || isComplete}
-                                className="p-4 bg-slate-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:hover:bg-slate-900 shadow-lg"
-                            >
-                                {isLoading ? (
-                                    <Loader2 className="w-6 h-6 animate-spin" />
-                                ) : (
-                                    <Send className="w-6 h-6" />
-                                )}
-                            </button>
-                        </div>
-
-                        {/* Voice hint */}
-                        {isVoiceSupported && voiceEnabled && !isListening && !isSpeaking && (
-                            <p className="text-sm text-slate-400 mt-3 text-center">
-                                Pixo will ask questions and auto-listen for your response
+                        ) : (
+                            <p className="text-lg sm:text-2xl text-slate-700 leading-relaxed font-light px-2 sm:px-0">
+                                {currentQuestion}
                             </p>
                         )}
+                    </motion.div>
+                </div>
+            </div>
+
+            {/* Input area - Bottom with safe area padding */}
+            <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 sm:p-6 pb-6 sm:pb-6">
+                <div className="max-w-4xl mx-auto">
+                    {/* Listening banner */}
+                    {isListening && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mb-3 sm:mb-4"
+                        >
+                            <div className="bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2 sm:gap-3 text-red-600 text-sm sm:text-base font-medium">
+                                    <motion.div
+                                        animate={{ scale: [1, 1.3, 1] }}
+                                        transition={{ duration: 1, repeat: Infinity }}
+                                        className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"
+                                    />
+                                    Listening...
+                                </div>
+                                <button
+                                    onClick={handleCancelListening}
+                                    className="text-xs sm:text-sm text-red-500 hover:text-red-700 flex items-center gap-1 sm:gap-2 font-medium"
+                                >
+                                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    <span className="hidden sm:inline">Cancel & type</span>
+                                    <span className="sm:hidden">Cancel</span>
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    <div className="flex items-end gap-2 sm:gap-4">
+                        {/* Voice input button */}
+                        {isVoiceSupported && voiceEnabled && (
+                            <button
+                                onClick={handleMicClick}
+                                disabled={isLoading || isComplete || isSpeaking}
+                                className={`p-3 sm:p-4 rounded-xl transition-all flex-shrink-0 ${
+                                    isListening
+                                        ? 'bg-red-500 text-white animate-pulse shadow-lg'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                } disabled:opacity-50`}
+                            >
+                                {isListening ? <MicOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Mic className="w-5 h-5 sm:w-6 sm:h-6" />}
+                            </button>
+                        )}
+
+                        {/* Text input */}
+                        <div className="flex-1 relative min-w-0">
+                            <textarea
+                                ref={inputRef}
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder={
+                                    isSpeaking 
+                                        ? "Pixo is speaking..." 
+                                        : isListening 
+                                            ? "Listening..." 
+                                            : "Type your answer..."
+                                }
+                                disabled={isLoading || isComplete}
+                                rows={1}
+                                className="w-full px-3 sm:px-5 py-3 sm:py-4 pr-10 sm:pr-14 bg-slate-50 border-2 border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:opacity-50 text-sm sm:text-base"
+                                style={{ minHeight: '48px', maxHeight: '120px' }}
+                            />
+                            {isListening && (
+                                <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2">
+                                    <div className="flex space-x-1">
+                                        <div className="w-1 sm:w-1.5 h-3 sm:h-4 bg-red-500 rounded-full animate-pulse" />
+                                        <div className="w-1 sm:w-1.5 h-4 sm:h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '75ms' }} />
+                                        <div className="w-1 sm:w-1.5 h-2 sm:h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Send button */}
+                        <button
+                            onClick={handleSendMessage}
+                            disabled={!inputValue.trim() || isLoading || isComplete}
+                            className="p-3 sm:p-4 bg-slate-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:hover:bg-slate-900 shadow-lg flex-shrink-0"
+                        >
+                            {isLoading ? (
+                                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+                            ) : (
+                                <Send className="w-5 h-5 sm:w-6 sm:h-6" />
+                            )}
+                        </button>
                     </div>
+
+                    {/* Voice hint - Hidden on mobile to save space */}
+                    {isVoiceSupported && voiceEnabled && !isListening && !isSpeaking && (
+                        <p className="hidden sm:block text-sm text-slate-400 mt-3 text-center">
+                            Pixo will ask questions and auto-listen for your response
+                        </p>
+                    )}
                 </div>
             </div>
 

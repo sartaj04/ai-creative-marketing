@@ -63,8 +63,8 @@ export function AnalysisLoadingStep({ onComplete, isAnalysisComplete }: Analysis
     }, [currentStageIndex, isAnalysisComplete, onComplete]);
 
     return (
-        <div className="space-y-8">
-            <div className="space-y-6">
+        <div className="space-y-6 sm:space-y-8">
+            <div className="space-y-3 sm:space-y-6">
                 {STAGES.map((stage, index) => {
                     const isActive = index === currentStageIndex;
                     const isCompleted = index < currentStageIndex;
@@ -78,22 +78,22 @@ export function AnalysisLoadingStep({ onComplete, isAnalysisComplete }: Analysis
                                 opacity: isPending ? 0.4 : 1,
                                 scale: isActive ? 1.02 : 1
                             }}
-                            className={`relative flex items-center p-4 rounded-xl border transition-colors duration-500
+                            className={`relative flex items-center p-3 sm:p-4 rounded-xl border transition-colors duration-500
                 ${isActive ? 'bg-slate-50 border-cyan-200 shadow-sm' : 'bg-transparent border-transparent'}
               `}
                         >
                             {/* Icon / Status */}
-                            <div className="flex-shrink-0 mr-4">
+                            <div className="flex-shrink-0 mr-3 sm:mr-4">
                                 {isCompleted ? (
                                     <motion.div
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
-                                        className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center"
+                                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center"
                                     >
-                                        <CheckCircle2 className="w-5 h-5" />
+                                        <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </motion.div>
                                 ) : isActive ? (
-                                    <div className="w-8 h-8 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center relative">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center relative">
                                         <motion.div
                                             animate={{ rotate: 360 }}
                                             transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
@@ -102,21 +102,21 @@ export function AnalysisLoadingStep({ onComplete, isAnalysisComplete }: Analysis
                                         {stage.icon}
                                     </div>
                                 ) : (
-                                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center">
-                                        <Circle className="w-5 h-5" />
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center">
+                                        <Circle className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </div>
                                 )}
                             </div>
 
                             {/* Text Content */}
-                            <div className="flex-1">
-                                <p className={`text-sm font-medium transition-colors ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                            <div className="flex-1 min-w-0">
+                                <p className={`text-xs sm:text-sm font-medium transition-colors truncate ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
                                     {stage.label}
                                 </p>
                                 {isActive && (
                                     <motion.div
                                         layoutId="active-bar"
-                                        className="h-1 mt-2 bg-slate-100 rounded-full overflow-hidden w-32"
+                                        className="h-1 mt-2 bg-slate-100 rounded-full overflow-hidden w-24 sm:w-32"
                                     >
                                         <motion.div
                                             className="h-full bg-cyan-500"
@@ -146,6 +146,9 @@ export function AnalysisLoadingStep({ onComplete, isAnalysisComplete }: Analysis
                     );
                 })}
             </div>
+            
+            {/* Bottom safe area spacer for mobile */}
+            <div className="h-4 sm:h-0" aria-hidden="true" />
         </div>
     );
 }

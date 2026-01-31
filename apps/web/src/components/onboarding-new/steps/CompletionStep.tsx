@@ -8,22 +8,22 @@ export function CompletionStep() {
     const router = useRouter();
 
     return (
-        <div className="flex flex-col items-center justify-center text-center space-y-8 py-8">
+        <div className="flex flex-col items-center justify-center text-center space-y-6 sm:space-y-8 py-4 sm:py-8">
             <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30"
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30"
             >
-                <Check className="w-12 h-12 text-white" />
+                <Check className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
             </motion.div>
 
-            <div className="space-y-4 max-w-md">
+            <div className="space-y-3 sm:space-y-4 max-w-md px-4">
                 <motion.h2
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="text-3xl font-semibold text-slate-900"
+                    className="text-2xl sm:text-3xl font-semibold text-slate-900"
                 >
                     Identity Model Ready
                 </motion.h2>
@@ -31,7 +31,7 @@ export function CompletionStep() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="text-slate-600"
+                    className="text-sm sm:text-base text-slate-600"
                 >
                     We've calibrated your personal brand engine. You can now start generating content that sounds exactly like you.
                 </motion.p>
@@ -42,7 +42,7 @@ export function CompletionStep() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
                 onClick={() => router.push('/dashboard')}
-                className="group relative inline-flex items-center justify-center px-8 py-4 bg-slate-900 text-white rounded-xl font-medium overflow-hidden transition-all hover:scale-105"
+                className="group relative inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-slate-900 text-white rounded-xl font-medium overflow-hidden transition-all hover:scale-105 text-sm sm:text-base"
             >
                 <span className="relative z-10 flex items-center">
                     Go to Dashboard
@@ -50,6 +50,9 @@ export function CompletionStep() {
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.button>
+            
+            {/* Bottom safe area spacer for mobile */}
+            <div className="h-4 sm:h-0" aria-hidden="true" />
         </div>
     );
 }

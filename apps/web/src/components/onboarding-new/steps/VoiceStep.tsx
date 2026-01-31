@@ -184,13 +184,13 @@ export function VoiceStep({ onComplete }: VoiceStepProps) {
 
     return (
         <div className="w-full">
-            <div className="mb-8">
+            <div className="mb-4 sm:mb-8">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Page {currentPage + 1} of {TOTAL_PAGES}
                 </span>
             </div>
 
-            <div className="relative min-h-[480px]">
+            <div className="relative min-h-[400px] sm:min-h-[480px]">
                 <AnimatePresence custom={direction} mode="wait">
                     <motion.div
                         key={currentPage}
@@ -202,44 +202,44 @@ export function VoiceStep({ onComplete }: VoiceStepProps) {
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className="w-full"
                     >
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500">
-                                <MessageSquare className="w-5 h-5" />
+                        <div className="flex items-start sm:items-center gap-3 mb-2">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500 flex-shrink-0">
+                                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
-                            <h3 className="text-2xl font-light text-slate-900">Which posts resonate with your voice?</h3>
+                            <h3 className="text-lg sm:text-2xl font-light text-slate-900">Which posts resonate with your voice?</h3>
                         </div>
-                        <p className="text-slate-500 mb-6 text-lg">Select 3-5 posts that match how you'd like to sound</p>
+                        <p className="text-sm sm:text-lg text-slate-500 mb-4 sm:mb-6">Select 3-5 posts that match how you'd like to sound</p>
 
-                        <p className="text-sm text-slate-500 mb-4">
+                        <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
                             Selected: {selectedPosts.length}/5 (minimum 3)
                         </p>
 
-                        {/* Posts Grid - 2x2 */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Posts Grid - Responsive */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             {currentPosts.map((post) => {
                                 const selected = selectedPosts.includes(post.id);
                                 return (
                                     <button
                                         key={post.id}
                                         onClick={() => togglePost(post.id)}
-                                        className={`p-5 rounded-xl text-left transition-all duration-200 min-h-[160px] flex flex-col
+                                        className={`p-3 sm:p-5 rounded-xl text-left transition-all duration-200 min-h-[120px] sm:min-h-[160px] flex flex-col
                                             ${selected
                                                 ? 'bg-slate-900 text-white shadow-lg ring-2 ring-slate-900 ring-offset-2 scale-[1.02]'
                                                 : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 hover:shadow-md'}`}
                                     >
-                                        <div className="flex items-start justify-between gap-3 mb-3">
-                                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${selected ? 'bg-white/20 text-white' : post.styleColor}`}>
+                                        <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
+                                            <span className={`inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${selected ? 'bg-white/20 text-white' : post.styleColor}`}>
                                                 {post.style}
                                             </span>
-                                            <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                                            <div className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all
                                                 ${selected
                                                     ? 'bg-white border-white'
                                                     : 'border-slate-300'}`}
                                             >
-                                                {selected && <Check className="w-4 h-4 text-slate-900" />}
+                                                {selected && <Check className="w-3 h-3 sm:w-4 sm:h-4 text-slate-900" />}
                                             </div>
                                         </div>
-                                        <p className={`text-sm leading-relaxed flex-1 ${selected ? 'text-white/90' : 'text-slate-600'}`}>
+                                        <p className={`text-xs sm:text-sm leading-relaxed flex-1 ${selected ? 'text-white/90' : 'text-slate-600'}`}>
                                             {post.content}
                                         </p>
                                     </button>
@@ -251,25 +251,28 @@ export function VoiceStep({ onComplete }: VoiceStepProps) {
             </div>
 
             {/* Navigation Footer */}
-            <div className="flex items-center justify-between pt-8 mt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-6 sm:pt-8 mt-4 border-t border-slate-100">
                 <button
                     onClick={handleBack}
                     disabled={currentPage === 0}
-                    className="flex items-center text-slate-500 hover:text-slate-800 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
+                    className="flex items-center text-slate-500 hover:text-slate-800 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors text-sm sm:text-base"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
                     Back
                 </button>
 
                 <button
                     onClick={handleNext}
                     disabled={!canProceed}
-                    className="bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-xl font-medium flex items-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    className="bg-slate-900 hover:bg-black text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl font-medium flex items-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 text-sm sm:text-base"
                 >
                     {currentPage === TOTAL_PAGES - 1 ? 'Complete Setup' : 'Next'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
                 </button>
             </div>
+            
+            {/* Bottom safe area spacer for mobile */}
+            <div className="h-4 sm:h-0" aria-hidden="true" />
         </div>
     );
 }

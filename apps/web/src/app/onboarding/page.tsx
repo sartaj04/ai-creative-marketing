@@ -4,7 +4,7 @@ import { StepManager } from '@/components/onboarding-new/StepManager';
 
 export default function OnboardingPage() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-[100dvh] bg-slate-50 overflow-hidden">
       <StepManager />
     </div>
   );

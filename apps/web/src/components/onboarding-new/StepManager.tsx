@@ -261,15 +261,15 @@ export function StepManager() {
     // Render full-screen conversation without panels
     if (step === 'conversation') {
         return (
-            <div className="w-full h-screen bg-white">
+            <div className="w-full h-[100dvh] bg-white">
                 <ConversationalOnboarding onComplete={handleConversationComplete} onBack={handleBackToWelcome} />
             </div>
         );
     }
 
     return (
-        <div className="flex w-full h-screen bg-white overflow-hidden">
-            {/* Left Panel */}
+        <div className="flex w-full h-[100dvh] bg-white overflow-hidden">
+            {/* Left Panel - Hidden on mobile */}
             <div className="w-[400px] flex-shrink-0 hidden lg:block border-r border-slate-100">
                 <AgentPanel
                     step={getStepProgress()}
@@ -279,7 +279,7 @@ export function StepManager() {
             </div>
 
             {/* Right Panel / Main Area */}
-            <div className="flex-1 h-full">
+            <div className="flex-1 h-full min-w-0">
                 <ContentPanel
                     title={getStepTitle(step)}
                     stepIndicator={`Step ${getStepProgress()}/${getTotalSteps()}`}

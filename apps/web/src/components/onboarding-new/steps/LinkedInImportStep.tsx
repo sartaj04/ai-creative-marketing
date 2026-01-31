@@ -63,14 +63,14 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
     // Note: Resources option is not available on mobile LinkedIn app
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
             {/* Back Button */}
             {onBack && (
                 <motion.button
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     onClick={onBack}
-                    className="flex items-center text-slate-600 hover:text-slate-900 transition-colors mb-4"
+                    className="flex items-center text-slate-600 hover:text-slate-900 transition-colors mb-2 sm:mb-4"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     <span className="text-sm font-medium">Back to options</span>
@@ -78,26 +78,26 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
             )}
 
             <div className="space-y-2">
-                <p className="text-slate-600">
+                <p className="text-sm sm:text-base text-slate-600">
                     Upload your LinkedIn profile PDF or resume, and Pixo will extract your work history, skills, and summary to build your baseline identity.
                 </p>
             </div>
 
-            {/* Instruction Cards Carousel - Simplified for this step, can be elaborate */}
-            <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+            {/* Instruction Cards - Responsive grid */}
+            <div className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                     {instructions.map((step, idx) => (
                         <motion.div
                             key={step.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1 }}
-                            className="bg-slate-50 border border-slate-100 rounded-lg p-3 flex flex-col items-center text-center text-xs text-slate-500"
+                            className="bg-slate-50 border border-slate-100 rounded-lg p-3 flex sm:flex-col items-center sm:text-center text-xs text-slate-500 gap-3 sm:gap-0"
                         >
-                            <div className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-2 shadow-sm text-cyan-600">
+                            <div className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center sm:mb-2 shadow-sm text-cyan-600 flex-shrink-0">
                                 {step.icon}
                             </div>
-                            {step.text}
+                            <span>{step.text}</span>
                         </motion.div>
                     ))}
                 </div>
@@ -136,10 +136,7 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
                         backgroundColor: isDragging ? 'hsla(var(--cta), 0.05)' : 'white',
                         scale: isDragging ? 1.02 : 1,
                     }}
-                    className={`
-                border-2 border-dashed rounded-xl h-64 flex flex-col items-center justify-center cursor-pointer
-                transition-colors duration-200 group relative overflow-hidden
-            `}
+                    className="border-2 border-dashed rounded-xl h-48 sm:h-64 flex flex-col items-center justify-center cursor-pointer transition-colors duration-200 group relative overflow-hidden"
                 >
                     {/* Animated Background Grid or Texture could go here */}
 
@@ -157,25 +154,25 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
                                         animate={{ rotate: 360 }}
                                         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                                     >
-                                        <UploadCloud className="w-10 h-10 text-cyan-500" />
+                                        <UploadCloud className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-500" />
                                     </motion.div>
-                                    <p className="mt-4 text-sm font-medium text-slate-600">Uploading...</p>
+                                    <p className="mt-3 sm:mt-4 text-sm font-medium text-slate-600">Uploading...</p>
                                 </div>
                             </motion.div>
                         ) : (
                             <motion.div
-                                className="flex flex-col items-center z-10 p-6 text-center"
+                                className="flex flex-col items-center z-10 p-4 sm:p-6 text-center"
                                 initial={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                             >
-                                <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                                    <FileText className="w-8 h-8" />
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-50 text-blue-500 rounded-xl sm:rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                    <FileText className="w-6 h-6 sm:w-8 sm:h-8" />
                                 </div>
-                                <h4 className="text-lg font-semibold text-slate-800">
+                                <h4 className="text-base sm:text-lg font-semibold text-slate-800">
                                     Drop your LinkedIn PDF or Resume here
                                 </h4>
-                                <p className="text-sm text-slate-400 mt-2 max-w-[200px]">
-                                    or click to browse your files
+                                <p className="text-xs sm:text-sm text-slate-400 mt-1 sm:mt-2 max-w-[200px]">
+                                    or tap to browse your files
                                 </p>
                             </motion.div>
                         )}
@@ -185,11 +182,11 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="absolute bottom-4 left-0 right-0 flex justify-center"
+                            className="absolute bottom-3 sm:bottom-4 left-0 right-0 flex justify-center px-4"
                         >
-                            <div className="bg-red-50 text-red-600 px-4 py-2 rounded-full text-xs font-medium flex items-center">
-                                <AlertCircle className="w-3 h-3 mr-2" />
-                                {error}
+                            <div className="bg-red-50 text-red-600 px-3 sm:px-4 py-2 rounded-full text-xs font-medium flex items-center">
+                                <AlertCircle className="w-3 h-3 mr-2 flex-shrink-0" />
+                                <span className="truncate">{error}</span>
                             </div>
                         </motion.div>
                     )}
@@ -202,7 +199,7 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className="pt-6 border-t border-slate-200"
+                    className="pt-4 sm:pt-6 border-t border-slate-200"
                 >
                     <p className="text-sm text-slate-600 mb-3 text-center">
                         Don't have a profile or resume ready?
@@ -217,6 +214,9 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
                     </motion.button>
                 </motion.div>
             )}
+            
+            {/* Bottom safe area spacer for mobile */}
+            <div className="h-4 sm:h-0" aria-hidden="true" />
         </div>
     );
 }

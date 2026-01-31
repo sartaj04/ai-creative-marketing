@@ -159,13 +159,13 @@ export function ProfessionalStep({ onComplete, onBack }: ProfessionalStepProps) 
 
     return (
         <div className="w-full">
-            <div className="mb-8">
+            <div className="mb-4 sm:mb-8">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Question {currentQIndex + 1} of {QUESTIONS.length}
                 </span>
             </div>
 
-            <div className="relative min-h-[400px]">
+            <div className="relative min-h-[350px] sm:min-h-[400px]">
                 <AnimatePresence custom={direction} mode="wait">
                     <motion.div
                         key={currentQuestion.id}
@@ -177,35 +177,35 @@ export function ProfessionalStep({ onComplete, onBack }: ProfessionalStepProps) 
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className="w-full"
                     >
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
+                        <div className="flex items-start sm:items-center gap-3 mb-2">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 flex-shrink-0">
                                 {currentQuestion.icon}
                             </div>
-                            <h3 className="text-2xl font-light text-slate-900">{currentQuestion.title}</h3>
+                            <h3 className="text-lg sm:text-2xl font-light text-slate-900">{currentQuestion.title}</h3>
                         </div>
-                        <p className="text-slate-500 mb-8 text-lg ml-13">{currentQuestion.subtitle}</p>
+                        <p className="text-sm sm:text-lg text-slate-500 mb-4 sm:mb-8">{currentQuestion.subtitle}</p>
 
                         {/* Question Inputs */}
-                        <div className="min-h-[200px]">
+                        <div className="min-h-[180px] sm:min-h-[200px]">
                             {currentQuestion.id === 'role' && (
                                 <input
                                     type="text"
                                     value={formData.current_role}
                                     onChange={(e) => setFormData(prev => ({ ...prev, current_role: e.target.value }))}
-                                    placeholder="e.g., Product Manager, Software Engineer, Marketing Director"
-                                    className="w-full p-4 text-lg text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                                    placeholder="e.g., Product Manager, Software Engineer"
+                                    className="w-full p-3 sm:p-4 text-base sm:text-lg text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                                 />
                             )}
 
                             {currentQuestion.id === 'industry' && (
-                                <div className="flex flex-wrap gap-3">
+                                <div className="flex flex-wrap gap-2 sm:gap-3">
                                     {INDUSTRIES.map(industry => {
                                         const selected = formData.industry === industry;
                                         return (
                                             <button
                                                 key={industry}
                                                 onClick={() => setFormData(prev => ({ ...prev, industry }))}
-                                                className={`px-5 py-3 rounded-full text-sm font-medium transition-all duration-200
+                                                className={`px-3 sm:px-5 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-medium transition-all duration-200
                                                     ${selected
                                                         ? 'bg-slate-900 text-white shadow-md scale-105'
                                                         : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}
@@ -218,14 +218,14 @@ export function ProfessionalStep({ onComplete, onBack }: ProfessionalStepProps) 
                             )}
 
                             {currentQuestion.id === 'experience' && (
-                                <div className="space-y-3">
+                                <div className="space-y-2 sm:space-y-3">
                                     {EXPERIENCE_LEVELS.map(level => {
                                         const selected = formData.years_experience === level.value;
                                         return (
                                             <button
                                                 key={level.value}
                                                 onClick={() => setFormData(prev => ({ ...prev, years_experience: level.value }))}
-                                                className={`w-full p-4 rounded-xl text-left font-medium transition-all duration-200
+                                                className={`w-full p-3 sm:p-4 rounded-xl text-left text-sm sm:text-base font-medium transition-all duration-200
                                                     ${selected
                                                         ? 'bg-slate-900 text-white shadow-md'
                                                         : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}
@@ -239,17 +239,17 @@ export function ProfessionalStep({ onComplete, onBack }: ProfessionalStepProps) 
 
                             {currentQuestion.id === 'expertise' && (
                                 <div>
-                                    <p className="text-sm text-slate-500 mb-4">
+                                    <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
                                         Selected: {formData.expertise_areas.length}/5 (minimum 3)
                                     </p>
-                                    <div className="flex flex-wrap gap-3">
+                                    <div className="flex flex-wrap gap-2 sm:gap-3">
                                         {EXPERTISE_OPTIONS.map(skill => {
                                             const selected = formData.expertise_areas.includes(skill);
                                             return (
                                                 <button
                                                     key={skill}
                                                     onClick={() => toggleExpertise(skill)}
-                                                    className={`px-5 py-3 rounded-full text-sm font-medium transition-all duration-200
+                                                    className={`px-3 sm:px-5 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-medium transition-all duration-200
                                                         ${selected
                                                             ? 'bg-slate-900 text-white shadow-md scale-105'
                                                             : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}
@@ -268,7 +268,7 @@ export function ProfessionalStep({ onComplete, onBack }: ProfessionalStepProps) 
                                     onChange={(e) => setFormData(prev => ({ ...prev, career_highlight: e.target.value }))}
                                     placeholder="e.g., Led a team that increased revenue by 200%, Built a product used by 1M+ users..."
                                     rows={4}
-                                    className="w-full p-4 text-lg text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none transition-all"
+                                    className="w-full p-3 sm:p-4 text-base sm:text-lg text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none transition-all"
                                 />
                             )}
                         </div>
@@ -277,24 +277,27 @@ export function ProfessionalStep({ onComplete, onBack }: ProfessionalStepProps) 
             </div>
 
             {/* Navigation Footer */}
-            <div className="flex items-center justify-between pt-8 mt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-6 sm:pt-8 mt-4 border-t border-slate-100">
                 <button
                     onClick={handleBack}
-                    className="flex items-center text-slate-500 hover:text-slate-800 transition-colors"
+                    className="flex items-center text-slate-500 hover:text-slate-800 transition-colors text-sm sm:text-base"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    {currentQIndex === 0 && onBack ? 'Back to options' : 'Back'}
+                    <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+                    {currentQIndex === 0 && onBack ? 'Back' : 'Back'}
                 </button>
 
                 <button
                     onClick={handleNext}
                     disabled={!canProceed()}
-                    className="bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-xl font-medium flex items-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    className="bg-slate-900 hover:bg-black text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl font-medium flex items-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 text-sm sm:text-base"
                 >
                     {currentQIndex === QUESTIONS.length - 1 ? 'Continue' : 'Next'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
                 </button>
             </div>
+            
+            {/* Bottom safe area spacer for mobile */}
+            <div className="h-4 sm:h-0" aria-hidden="true" />
         </div>
     );
 }
