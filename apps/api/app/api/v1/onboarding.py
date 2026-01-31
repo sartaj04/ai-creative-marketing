@@ -358,6 +358,13 @@ async def complete_onboarding(
     profile = await get_or_create_user_profile(current_user.id, db, current_user.name)
     service = OnboardingService(db)
     success = await service.complete_onboarding(profile.id)
+    
+    # Trigger content generation for new user
+    if success:
+        from app.tasks.content_agency import run_content_agency_task
+        # Run async task to generate initial content
+        run_content_agency_task.delay(str(profile.id))
+    
     return {
         "success": success,
         "redirect_url": "/dashboard",

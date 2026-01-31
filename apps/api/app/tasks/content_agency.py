@@ -11,8 +11,70 @@ from typing import Optional
 from app.core.celery_app import celery_app
 from app.core.database import async_session_maker
 from app.services.content_agency_service import ContentAgencyService
+from sqlalchemy import select, func
+from app.models.profile import Profile
+from app.models.draft import Draft, DraftStatus
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_and_fill_empty_inboxes() -> dict:
+    """Check all active profiles and generate content for empty inboxes.
+    
+    Returns:
+        Dict with summary of profiles checked and content generated
+    """
+    async with async_session_maker() as db:
+        service = ContentAgencyService(db)
+        
+        # Get all active profiles
+        result = await db.execute(
+            select(Profile).where(Profile.is_active == True)
+        )
+        profiles = result.scalars().all()
+        
+        results = {
+            "total_profiles": len(profiles),
+            "empty_inboxes": 0,
+            "content_generated": 0,
+            "failed": 0,
+        }
+        
+        for profile in profiles:
+            try:
+                # Check if inbox is empty
+                inbox_count_result = await db.execute(
+                    select(func.count(Draft.id))
+                    .where(
+                        Draft.profile_id == profile.id,
+                        Draft.status == DraftStatus.INBOX,
+                    )
+                )
+                inbox_count = inbox_count_result.scalar() or 0
+                
+                # If inbox is empty, generate content
+                if inbox_count == 0:
+                    results["empty_inboxes"] += 1
+                    logger.info(f"Profile {profile.id} has empty inbox, generating content")
+                    
+                    drafts = await service.run_for_profile(
+                        profile_id=profile.id,
+                        max_drafts=3,
+                    )
+                    
+                    if drafts:
+                        results["content_generated"] += len(drafts)
+                        logger.info(f"Generated {len(drafts)} drafts for profile {profile.id}")
+                    else:
+                        results["failed"] += 1
+                        logger.warning(f"Failed to generate content for profile {profile.id}")
+                        
+            except Exception as e:
+                logger.error(f"Error checking/filling inbox for profile {profile.id}: {e}", exc_info=True)
+                results["failed"] += 1
+        
+        logger.info(f"Empty inbox check completed: {results}")
+        return results
 
 
 async def _run_content_agency(profile_id: Optional[str] = None) -> dict:
@@ -81,4 +143,34 @@ def run_content_agency_task(self, profile_id: Optional[str] = None) -> dict:
         logger.error(f"Content Agency task failed: {e}", exc_info=True)
         
         # Retry on failure
+        raise self.retry(exc=e)
+
+
+@celery_app.task(
+    name="app.tasks.content_agency.check_and_fill_empty_inboxes_task",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=300,  # 5 minutes
+)
+def check_and_fill_empty_inboxes_task(self) -> dict:
+    """Background task to check for empty inboxes and generate content.
+    
+    This task runs periodically to ensure users always have content in their inbox.
+    For each active profile with an empty inbox, it triggers the Content Agency
+    to generate 3 new draft posts.
+    
+    Returns:
+        Dict with summary: {
+            "total_profiles": int,
+            "empty_inboxes": int,
+            "content_generated": int,
+            "failed": int
+        }
+    """
+    try:
+        logger.info("Starting empty inbox check and fill task")
+        return asyncio.run(_check_and_fill_empty_inboxes())
+        
+    except Exception as e:
+        logger.error(f"Empty inbox check task failed: {e}", exc_info=True)
         raise self.retry(exc=e)

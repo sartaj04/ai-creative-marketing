@@ -70,9 +70,26 @@ class ContentAgencyService:
             logger.error(f"Profile not found: {profile_id}")
             return []
         
+        # If no persona_prompt, trigger synthesis first
         if not profile.persona_prompt:
-            logger.warning(f"Profile {profile_id} has no persona_prompt, skipping")
-            return []
+            logger.info(f"Profile {profile_id} has no persona_prompt, triggering synthesis")
+            from app.services.persona_synthesizer import PersonaSynthesizerService
+            
+            try:
+                synthesizer = PersonaSynthesizerService()
+                persona_prompt = await synthesizer.synthesize_persona_prompt(self.db, profile_id)
+                
+                if not persona_prompt:
+                    logger.error(f"Failed to synthesize persona for profile {profile_id}")
+                    return []
+                
+                # Refresh profile to get the updated persona_prompt
+                await self.db.refresh(profile)
+                logger.info(f"Successfully synthesized persona for profile {profile_id}")
+                
+            except Exception as e:
+                logger.error(f"Persona synthesis failed for profile {profile_id}: {e}", exc_info=True)
+                return []
         
         # Gather context
         persona_prompt = profile.persona_prompt

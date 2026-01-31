@@ -43,6 +43,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.content_agency.run_content_agency_task",
         "schedule": crontab(hour=6, minute=0),
     },
+    # Check and fill empty inboxes every 6 hours
+    "check-empty-inboxes": {
+        "task": "app.tasks.content_agency.check_and_fill_empty_inboxes_task",
+        "schedule": crontab(hour="*/6", minute=0),
+    },
 }
 
 
