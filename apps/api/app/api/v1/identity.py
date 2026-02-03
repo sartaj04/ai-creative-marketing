@@ -410,43 +410,48 @@ async def preview_regeneration(
         
         style = profile.style_profile
         
-        # Build identity data for synthesis
-        identity_data = {
-            "current_role": identity.current_role or "Professional",
-            "industry": identity.industry or "Not specified",
-            "expertise_areas": ", ".join(identity.expertise_areas or []) or "Not specified",
-            "career_highlights": ", ".join(identity.career_highlights or []) or "Not specified",
-            "target_audience": identity.target_audience or "Professionals",
-            "unique_angles": ", ".join(identity.unique_angles or []) or "Not specified",
-            "content_pillars": ", ".join(identity.content_pillars or []) or "Not specified",
-            "themes": ", ".join(identity.themes or []) or "Not specified",
-            "authority_angles": ", ".join(identity.authority_angles or []) or "Not specified",
-            "bio_summary": identity.bio_summary or "Not provided",
-            "interests": ", ".join(identity.interests or []) or "Not specified",
-            "beliefs": ", ".join(identity.beliefs or []) or "Not specified",
-        }
+        # Prepare JSON data for preview
+        import json
+        from uuid import UUID
+        from datetime import datetime
+
+        def to_dict(obj):
+            if not obj: return {}
+            data = {}
+            for col in obj.__table__.columns:
+                val = getattr(obj, col.name)
+                if isinstance(val, UUID):
+                    val = str(val)
+                elif isinstance(val, datetime):
+                    val = val.isoformat()
+                data[col.name] = val
+            return data
+
+        identity_json = json.dumps(to_dict(identity), indent=2, default=str)
+        style_json = json.dumps(to_dict(style), indent=2, default=str)
+        profile_json = json.dumps({
+            "name": profile.name,
+            "description": profile.description,
+            "location": profile.location,
+            "learned_preferences": profile.learned_preferences
+        }, indent=2, default=str)
         
-        tone_sliders = style.tone_sliders if style else {}
-        style_data = {
-            "formal_casual": tone_sliders.get("formal_casual", 0.5),
-            "technical_simple": tone_sliders.get("technical_simple", 0.5),
-            "serious_playful": tone_sliders.get("serious_playful", 0.5),
-            "humble_confident": tone_sliders.get("humble_confident", 0.5),
-            "preferred_hooks": ", ".join(style.preferred_hooks if style else []) or "Not specified",
-            "taboo_list": ", ".join(style.taboo_list if style else []) or "None specified",
-        }
-        
-        learned_preferences = profile.learned_preferences or "No preferences learned yet from feedback."
-        
+        # Include writing sample insights if available
+        writing_sample_insights = "No writing samples analyzed yet."
+        if style and style.writing_sample_insights:
+            # Simple text fallback for preview if complex analyzer isn't needed or available easily here
+            writing_sample_insights = style.writing_sample_insights
+
         # Generate new persona
         from app.services.persona_synthesizer import PERSONA_SYNTHESIS_PROMPT
         from app.llm.gemini import GeminiProvider
         
         llm = GeminiProvider()
         prompt = PERSONA_SYNTHESIS_PROMPT.format(
-            **identity_data,
-            **style_data,
-            learned_preferences=learned_preferences,
+            identity_json=identity_json,
+            style_json=style_json,
+            profile_json=profile_json,
+            writing_sample_insights=writing_sample_insights,
         )
         
         try:
@@ -454,7 +459,7 @@ async def preview_regeneration(
                 prompt=prompt,
                 system_prompt="You are an expert at understanding personal brands and communication styles. Create a clear, actionable persona prompt.",
                 temperature=0.7,
-                max_tokens=1500,
+                max_tokens=4000,
             )
             new_persona = new_persona.strip()
             

@@ -226,7 +226,7 @@ export default function IdentityUniversePage() {
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-2xl w-full max-h-[85vh] flex flex-col"
+                            className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-[90vw] w-full max-h-[90vh] flex flex-col"
                         >
                             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                                 <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
@@ -243,23 +243,23 @@ export default function IdentityUniversePage() {
                                     <div key={idx} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                                         <div className="text-sm font-medium text-slate-500 mb-3 uppercase tracking-wider">{change.field_name}</div>
                                         <div className="grid md:grid-cols-2 gap-4">
-                                            <div className="p-4 bg-white rounded-lg border border-red-100 shadow-sm relative overflow-hidden">
+                                            <div className="p-4 bg-white rounded-lg border border-red-100 shadow-sm relative h-[60vh] overflow-y-auto">
                                                 <div className="absolute top-0 left-0 w-1 h-full bg-red-400" />
-                                                <div className="text-xs font-semibold text-red-500 mb-1">CURRENT</div>
-                                                <p className="text-sm text-slate-600 line-clamp-4">
+                                                <div className="text-xs font-semibold text-red-500 mb-1 sticky top-0 bg-white pb-2 z-10 border-b border-red-50">CURRENT</div>
+                                                <p className="text-sm text-slate-600 whitespace-pre-wrap font-mono leading-relaxed">
                                                     {typeof change.current_value === 'string'
                                                         ? change.current_value
-                                                        : JSON.stringify(change.current_value)
+                                                        : JSON.stringify(change.current_value, null, 2)
                                                     }
                                                 </p>
                                             </div>
-                                            <div className="p-4 bg-white rounded-lg border border-green-100 shadow-sm relative overflow-hidden">
+                                            <div className="p-4 bg-white rounded-lg border border-green-100 shadow-sm relative h-[60vh] overflow-y-auto">
                                                 <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
-                                                <div className="text-xs font-semibold text-green-600 mb-1">PROPOSED</div>
-                                                <p className="text-sm text-slate-800 line-clamp-4">
+                                                <div className="text-xs font-semibold text-green-600 mb-1 sticky top-0 bg-white pb-2 z-10 border-b border-green-50">PROPOSED</div>
+                                                <p className="text-sm text-slate-800 whitespace-pre-wrap font-mono leading-relaxed">
                                                     {typeof change.proposed_value === 'string'
                                                         ? change.proposed_value
-                                                        : JSON.stringify(change.proposed_value)
+                                                        : JSON.stringify(change.proposed_value, null, 2)
                                                     }
                                                 </p>
                                             </div>

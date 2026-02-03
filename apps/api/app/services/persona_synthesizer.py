@@ -16,51 +16,50 @@ logger = logging.getLogger(__name__)
 
 
 # Prompt template for persona synthesis
-PERSONA_SYNTHESIS_PROMPT = """You are a persona synthesizer. Your task is to create a natural language "persona prompt" that captures who a person is and how they communicate, based on their identity and style data.
+PERSONA_SYNTHESIS_PROMPT = """You are a persona synthesizer. Your task is to create a natural language "persona prompt" that captures who a person is and how they communicate, based on their full identity and style profile.
 
 This persona prompt will be used by AI agents to generate content in the person's authentic voice.
 
-=== IDENTITY DATA ===
-Current Role: {current_role}
-Industry: {industry}
-Expertise Areas: {expertise_areas}
-Career Highlights: {career_highlights}
-Target Audience: {target_audience}
-Unique Angles: {unique_angles}
-Content Pillars: {content_pillars}
-Themes: {themes}
-Authority Angles: {authority_angles}
-Bio Summary: {bio_summary}
-Interests: {interests}
-Beliefs: {beliefs}
+=== IDENTITY UNIVERSE (Full Graph) ===
+{identity_json}
 
-=== STYLE DATA ===
-Tone Preferences:
-- Formal/Casual (0=formal, 1=casual): {formal_casual}
-- Technical/Simple (0=simple, 1=technical): {technical_simple}
-- Serious/Playful (0=serious, 1=playful): {serious_playful}
-- Humble/Confident (0=humble, 1=confident): {humble_confident}
+=== PREFERENCES & STYLE ===
+{style_json}
 
-Preferred Hook Styles: {preferred_hooks}
-Topics to Avoid: {taboo_list}
-
-=== LEARNED PREFERENCES ===
-{learned_preferences}
+=== PROFILE METADATA ===
+{profile_json}
 
 === WRITING STYLE ANALYSIS (from actual posts) ===
 {writing_sample_insights}
 
 === INSTRUCTIONS ===
-Create a persona prompt (300-500 words) that:
-1. Describes who this person is professionally (role, expertise, positioning)
-2. Captures their communication style and tone preferences in natural language
-3. Notes topics, approaches, or language to avoid
-4. Provides clear guidance for writing in their authentic voice
-5. Mentions their target audience and how to speak to them
-6. Incorporates any learned preferences from their feedback history
-7. **IMPORTANT**: If writing style analysis is provided, PROMINENTLY incorporate their actual writing patterns, vocabulary, and structural preferences
+Analyze the FULL data provided above (Identity, Style, Profile) to understand every nuance.
 
-Write it as instructions to an AI, starting with "You are writing as [name/role]..."
+Create a **structured system prompt** that acts as the "Ghostwriter's Bible" for this person.
+It MUST be organized into these specific sections:
+
+## 1. WHO YOU ARE (The Professional)
+- Synthesize specific role, expertise, and authority markers.
+- Contextualize their location/region.
+
+## 2. YOUR VOICE & STYLE (The Writer)
+- Define the exact tone (e.g., "Casual but confident", "Academic but accessible").
+- vocabulary quirks, sentence structure preferences.
+- **IMPORTANT**: Analyze `writing_sample_insights` to mimic their actual cadence.
+
+## 3. PERSONALITY & WORLDVIEW (The Human)
+- **CRITICAL**: You MUST incorporate their `interests` (hobbies) and `beliefs`.
+- Explain how to use these as sources for metaphors or storytelling (e.g., "Use hiking analogies," "Reference sci-fi concepts").
+- Don't just list them; explain how they flavor the content.
+
+## 4. AUDIENCE & STRATEGY
+- Who are they talking to?
+- Topics to avoid (taboos) and preferred hook styles.
+
+### Guidelines:
+- Keep it DENSE and ACTIONABLE. Avoid generic fluff.
+- Total length should be efficient (300-400 words) but comprehensive.
+- Start with: "You are writing as [name]..."
 
 Output ONLY the persona prompt text, no JSON or additional formatting."""
 
@@ -241,36 +240,32 @@ class PersonaSynthesizerService:
             logger.warning(f"Profile {profile_id} has no identity graph, skipping persona synthesis")
             return None
 
-        # Prepare identity data with safe defaults
-        identity_data = {
-            "current_role": identity.current_role or "Professional",
-            "industry": identity.industry or "Not specified",
-            "expertise_areas": ", ".join(identity.expertise_areas or []) or "Not specified",
-            "career_highlights": ", ".join(identity.career_highlights or []) or "Not specified",
-            "target_audience": identity.target_audience or "Professionals",
-            "unique_angles": ", ".join(identity.unique_angles or []) or "Not specified",
-            "content_pillars": ", ".join(identity.content_pillars or []) or "Not specified",
-            "themes": ", ".join(identity.themes or []) or "Not specified",
-            "authority_angles": ", ".join(identity.authority_angles or []) or "Not specified",
-            "bio_summary": identity.bio_summary or "Not provided",
-            "interests": ", ".join(identity.interests or []) or "Not specified",
-            "beliefs": ", ".join(identity.beliefs or []) or "Not specified",
-        }
+        # Serialize full objects to JSON
+        import json
+        
+        def to_dict(obj):
+            """Helper to convert allowlisted SQLAlchemy model attrs to dict."""
+            if not obj: return {}
+            data = {}
+            for col in obj.__table__.columns:
+                val = getattr(obj, col.name)
+                # Handle basic serialization (UUID, datetime)
+                if isinstance(val, UUID):
+                    val = str(val)
+                elif isinstance(val, datetime):
+                    val = val.isoformat()
+                data[col.name] = val
+            return data
 
-        # Prepare style data with safe defaults
-        tone_sliders = style.tone_sliders if style else {}
-        style_data = {
-            "formal_casual": tone_sliders.get("formal_casual", 0.5),
-            "technical_simple": tone_sliders.get("technical_simple", 0.5),
-            "serious_playful": tone_sliders.get("serious_playful", 0.5),
-            "humble_confident": tone_sliders.get("humble_confident", 0.5),
-            "preferred_hooks": ", ".join(style.preferred_hooks if style else []) or "Not specified",
-            "taboo_list": ", ".join(style.taboo_list if style else []) or "None specified",
-        }
-        
-        # Include learned preferences
-        learned_preferences = profile.learned_preferences or "No preferences learned yet from feedback."
-        
+        identity_json = json.dumps(to_dict(identity), indent=2, default=str)
+        style_json = json.dumps(to_dict(style), indent=2, default=str)
+        profile_json = json.dumps({
+            "name": profile.name,
+            "description": profile.description,
+            "location": profile.location,
+            "learned_preferences": profile.learned_preferences
+        }, indent=2, default=str)
+
         # Include writing sample insights if available
         writing_sample_insights = "No writing samples analyzed yet."
         if style and style.writing_sample_insights:
@@ -286,9 +281,9 @@ class PersonaSynthesizerService:
 
         # Format the prompt
         prompt = PERSONA_SYNTHESIS_PROMPT.format(
-            **identity_data, 
-            **style_data,
-            learned_preferences=learned_preferences,
+            identity_json=identity_json,
+            style_json=style_json,
+            profile_json=profile_json,
             writing_sample_insights=writing_sample_insights,
         )
 
@@ -300,7 +295,7 @@ class PersonaSynthesizerService:
                 prompt=prompt,
                 system_prompt="You are an expert at understanding personal brands and communication styles. Create a clear, actionable persona prompt.",
                 temperature=0.7,
-                max_tokens=1500,
+                max_tokens=4000,
             )
 
             persona_prompt = response.strip()

@@ -17,7 +17,7 @@ from app.services.writing_sample_analyzer import WritingSampleAnalyzer
 logger = logging.getLogger(__name__)
 
 
-async def _analyze_writing_samples(profile_id: str) -> dict:
+async def _analyze_writing_samples(profile_id: str, regenerate_persona: bool = False) -> dict:
     """Async implementation of writing sample analysis."""
     # Use NullPool session for Celery to avoid event loop issues
     async with celery_session_maker() as db:
@@ -82,12 +82,20 @@ async def _analyze_writing_samples(profile_id: str) -> dict:
             
             await db.commit()
             
+            # Regenerate Persona Prompt if requested
+            if regenerate_persona:
+                from app.services.persona_synthesizer import PersonaSynthesizerService
+                synthesizer = PersonaSynthesizerService()
+                logger.info(f"Regenerating persona prompt for profile {profile_id} after writing analysis")
+                await synthesizer.synthesize_persona_prompt(db, profile_uuid)
+            
             logger.info(f"Successfully analyzed writing samples for profile {profile_id}")
             return {
                 "status": "success",
                 "profile_id": profile_id,
                 "analysis_id": str(style_profile.id),
-                "samples_count": len(sample_texts)
+                "samples_count": len(sample_texts),
+                "persona_regenerated": regenerate_persona
             }
                 
         except Exception as e:
@@ -96,14 +104,15 @@ async def _analyze_writing_samples(profile_id: str) -> dict:
 
 
 @celery_app.task(name="app.tasks.writing_sample_analyzer.analyze_writing_samples_task")
-def analyze_writing_samples_task(profile_id: str) -> dict:
+def analyze_writing_samples_task(profile_id: str, regenerate_persona: bool = False) -> dict:
     """Analyze uploaded writing samples to extract style.
     
     Args:
         profile_id: The UUID string of the profile
+        regenerate_persona: Whether to auto-regenerate the persona prompt after analysis
         
     Returns:
         Dict with status and result details
     """
-    logger.info(f"Starting writing sample analysis for profile {profile_id}")
-    return asyncio.run(_analyze_writing_samples(profile_id))
+    logger.info(f"Starting writing sample analysis for profile {profile_id} (regenerate_persona={regenerate_persona})")
+    return asyncio.run(_analyze_writing_samples(profile_id, regenerate_persona))
