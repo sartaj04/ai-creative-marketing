@@ -20,6 +20,7 @@ export interface Profile {
   type: ProfileType;
   name: string;
   description: string | null;
+  location: string[] | null;
   avatar_url: string | null;
   is_active: boolean;
   created_at: string;
@@ -31,6 +32,7 @@ export interface CreateProfileRequest {
   name: string;
   type: ProfileType;
   description?: string;
+  location?: string[];
   sources?: {
     linkedin_url?: string;
     website_url?: string;
@@ -42,6 +44,7 @@ export interface CreateProfileRequest {
 export interface UpdateProfileRequest {
   name?: string;
   description?: string;
+  location?: string[];
   is_active?: boolean;
 }
 

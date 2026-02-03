@@ -354,6 +354,7 @@ async def get_identity_universe(
         persona=persona,
         profile_id=profile.id,
         profile_name=profile.name,
+        location=profile.location or [],
         completeness_score=completeness.percentage,
     )
 

@@ -140,6 +140,7 @@ export interface IdentityUniverse {
   persona: PersonaData;
   profile_id: string;
   profile_name: string;
+  location: string[] | null;
   completeness_score: number;
 }
 

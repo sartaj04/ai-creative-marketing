@@ -40,6 +40,11 @@ class Profile(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    location: Mapped[list] = mapped_column(
+        JSONB,
+        default=list,
+        comment="Target markets or physical locations (e.g. ['New York', 'London'])",
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

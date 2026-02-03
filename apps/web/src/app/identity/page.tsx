@@ -11,6 +11,8 @@ import { identityApi, IdentityUniverse, RegenerationPreview } from '@/lib/api/id
 import IdentityComposition from '@/components/identity-universe/IdentityComposition';
 import PersonalizeAgentCard from '@/components/dashboard/PersonalizeAgentCard';
 import { IdentityLoader } from '@/components/identity-universe/IdentityLoader';
+import { profilesApi } from '@/lib/api/profiles';
+import { getFieldByKey } from '@/lib/schemas/identity-schema';
 
 export default function IdentityUniversePage() {
     const router = useRouter();
@@ -70,19 +72,27 @@ export default function IdentityUniversePage() {
     const handleFieldUpdate = async (field: string, value: any) => {
         if (!currentProfile?.id || !universe) return;
 
-        // Determine if this is a style profile field or identity graph field
-        const styleProfileFields = ['tone_sliders', 'format_preferences', 'taboo_list', 'preferred_hooks'];
-        const isStyleField = styleProfileFields.includes(field);
+        const schema = getFieldByKey(field);
+        if (!schema) {
+            console.error('Unknown field:', field);
+            return;
+        }
 
         // Optimistically update local state immediately (no reload)
         setUniverse(prev => {
             if (!prev) return prev;
-            if (isStyleField) {
+
+            if (schema.source === 'style_profile') {
                 return {
                     ...prev,
-                    style_profile: prev.style_profile 
+                    style_profile: prev.style_profile
                         ? { ...prev.style_profile, [field]: value }
                         : null,
+                };
+            } else if (schema.source === 'profile') {
+                return {
+                    ...prev,
+                    [field]: value,
                 };
             } else {
                 return {
@@ -94,8 +104,10 @@ export default function IdentityUniversePage() {
 
         // Persist to backend in background
         try {
-            if (isStyleField) {
+            if (schema.source === 'style_profile') {
                 await identityApi.updateStyleProfile(currentProfile.id, { [field]: value });
+            } else if (schema.source === 'profile') {
+                await profilesApi.update(currentProfile.id, { [field]: value });
             } else {
                 await identityApi.updateIdentityGraph(currentProfile.id, { [field]: value });
             }

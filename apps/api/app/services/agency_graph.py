@@ -58,6 +58,8 @@ class AgencyState(TypedDict):
     taboo_list: list[str]
     tone_sliders: dict
     preferred_hooks: list[str]
+    preferred_hooks: list[str]
+    location: Optional[list[str]]  # Target markets/locations
     writing_sample_insights: Optional[str]  # Derived from previous posts
     template: Optional[str]
     template_meta: Optional[dict]  # Template metadata (flexibility, min/max length)
@@ -262,10 +264,19 @@ class ContentAgencyGraph:
         
         try:
             chain = prompt | self.gemini_llm | JsonOutputParser()
-            
+            # Format location list for prompt
+            raw_location = state.get("location") or []
+            if isinstance(raw_location, str):
+                location_str = raw_location
+            elif isinstance(raw_location, list):
+                location_str = ", ".join(raw_location)
+            else:
+                location_str = "Global/Unspecified"
+
             opportunities = chain.invoke({
                 "persona_prompt": state["persona_prompt"],
                 "platform_intent": state.get("platform_intent", "generic"),
+                "location": location_str or "Global/Unspecified",
                 "learned_preferences": state.get("learned_preferences", "No preferences learned yet."),
                 "existing_topics": ", ".join(state.get("existing_topics", [])) or "None",
             })
@@ -450,6 +461,7 @@ class ContentAgencyGraph:
                 "structure_suggestion": length_decision.get("structure_suggestion", ""),
                 "persona_prompt": state["persona_prompt"],
                 "template": state.get("template", "No template provided."),
+                "location": ", ".join(state.get("location") or []) or "Global/Unspecified",
             })
             
             logger.info(f"Writer created draft with hook: {draft.get('hook', '')[:50]}...")
@@ -626,6 +638,7 @@ class ContentAgencyGraph:
         platform_intent: str = "generic",
         historical_uniqueness: Optional[dict] = None,
         writing_sample_insights: Optional[str] = None,
+        location: Optional[list[str]] = None,
     ) -> list[dict]:
         """Run the content agency workflow for a profile.
         
@@ -642,6 +655,8 @@ class ContentAgencyGraph:
             platform_intent: Target platform (linkedin, x, ig, newsletter, generic)
             historical_uniqueness: Style history from past drafts (for cross-session diversity)
             writing_sample_insights: Insights extracted from user writing samples
+            writing_sample_insights: Insights extracted from user writing samples
+            location: Target markets or physical locations
             
         Returns:
             List of completed draft dicts (up to 3)
@@ -669,6 +684,7 @@ class ContentAgencyGraph:
             "template_meta": template_meta or {},
             "platform_intent": platform_intent,
             "writing_sample_insights": writing_sample_insights,
+            "location": location,
             "opportunities": None,
             "content_brief": None,
             "length_decision": None,

@@ -255,6 +255,8 @@ export default function IdentityComposition({ universe, onFieldUpdate, regenerat
                                             let value: any;
                                             if (schema.source === 'style_profile') {
                                                 value = universe.style_profile ? (universe.style_profile as any)[fieldKey] : null;
+                                            } else if (schema.source === 'profile') {
+                                                value = (universe as any)[fieldKey];
                                             } else {
                                                 value = (universe.identity_graph as any)[fieldKey];
                                             }
@@ -381,6 +383,8 @@ export default function IdentityComposition({ universe, onFieldUpdate, regenerat
                     let value: any;
                     if (schema?.source === 'style_profile') {
                         value = universe.style_profile ? (universe.style_profile as any)[editingField] : null;
+                    } else if (schema?.source === 'profile') {
+                        value = (universe as any)[editingField];
                     } else {
                         value = (universe.identity_graph as any)[editingField];
                     }

@@ -38,7 +38,8 @@ export function useIdentityComposition({ universe, width, height }: UseIdentityC
         if (!universe) return null;
         return calculateCompleteness(
             universe.identity_graph as unknown as Record<string, any>,
-            universe.style_profile as unknown as Record<string, any>
+            universe.style_profile as unknown as Record<string, any>,
+            universe as unknown as Record<string, any>
         );
     }, [universe]);
 
@@ -91,6 +92,8 @@ export function useIdentityComposition({ universe, width, height }: UseIdentityC
             for (const field of schemaFields) {
                 if (field.source === 'style_profile') {
                     regionData[field.key] = style?.[field.key as keyof typeof style] ?? null;
+                } else if (field.source === 'profile') {
+                    regionData[field.key] = (universe as any)[field.key] ?? null;
                 } else {
                     regionData[field.key] = identity[field.key as keyof typeof identity] ?? null;
                 }

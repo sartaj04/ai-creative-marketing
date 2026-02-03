@@ -15,7 +15,7 @@
 // Field Type Definitions
 // ============================================
 
-export type FieldType = 
+export type FieldType =
   | 'string'       // Simple text field
   | 'text'         // Long text / textarea
   | 'array'        // Array of strings
@@ -38,7 +38,7 @@ export interface FieldSchema {
   description: string;
   type: FieldType;
   required: boolean;
-  source: 'identity_graph' | 'style_profile' | 'persona';
+  source: 'identity_graph' | 'style_profile' | 'persona' | 'profile';
   region: 'core' | 'content' | 'expertise' | 'strategy' | 'character' | 'voice';
   options?: FieldOption[];    // For enum/array_enum types
   allowCustom?: boolean;      // Allow custom values beyond options
@@ -57,6 +57,36 @@ export interface FieldSchema {
 // ============================================
 // Predefined Options for Constrained Fields
 // ============================================
+
+export const COUNTRY_OPTIONS: FieldOption[] = [
+  { value: 'United States', label: 'United States' },
+  { value: 'United Kingdom', label: 'United Kingdom' },
+  { value: 'Canada', label: 'Canada' },
+  { value: 'Australia', label: 'Australia' },
+  { value: 'India', label: 'India' },
+  { value: 'Germany', label: 'Germany' },
+  { value: 'France', label: 'France' },
+  { value: 'Brazil', label: 'Brazil' },
+  { value: 'Japan', label: 'Japan' },
+  { value: 'Singapore', label: 'Singapore' },
+  { value: 'United Arab Emirates', label: 'United Arab Emirates' },
+  { value: 'Saudi Arabia', label: 'Saudi Arabia' },
+  { value: 'Qatar', label: 'Qatar' },
+  { value: 'Oman', label: 'Oman' },
+  { value: 'Kuwait', label: 'Kuwait' },
+  { value: 'Bahrain', label: 'Bahrain' },
+  { value: 'Malaysia', label: 'Malaysia' },
+  { value: 'Indonesia', label: 'Indonesia' },
+  { value: 'China', label: 'China' },
+  { value: 'Netherlands', label: 'Netherlands' },
+  { value: 'Sweden', label: 'Sweden' },
+  { value: 'Switzerland', label: 'Switzerland' },
+  { value: 'Spain', label: 'Spain' },
+  { value: 'Italy', label: 'Italy' },
+  { value: 'South Africa', label: 'South Africa' },
+  { value: 'Mexico', label: 'Mexico' },
+  { value: 'Other', label: 'Other (Type to add)' }
+];
 
 export const INDUSTRY_OPTIONS: FieldOption[] = [
   { value: 'technology', label: 'Technology', description: 'Software, hardware, IT' },
@@ -414,6 +444,21 @@ export const IDENTITY_SCHEMA: FieldSchema[] = [
     validation: { maxLength: 500 },
   },
 
+  {
+    key: 'location',
+    label: 'Target Countries',
+    description: 'Target countries for your content',
+    type: 'array_enum',
+    required: false,
+    source: 'profile',
+    region: 'core',
+    options: COUNTRY_OPTIONS,
+    allowCustom: true,
+    placeholder: 'Select target countries...',
+    maxItems: 5,
+    validation: { maxLength: 100 },
+  },
+
   // ===== EXPERTISE REGION =====
   {
     key: 'expertise_areas',
@@ -688,7 +733,7 @@ export function getRequiredFields(): FieldSchema[] {
   return IDENTITY_SCHEMA.filter(f => f.required);
 }
 
-export function getFieldsBySource(source: 'identity_graph' | 'style_profile' | 'persona'): FieldSchema[] {
+export function getFieldsBySource(source: 'identity_graph' | 'style_profile' | 'persona' | 'profile'): FieldSchema[] {
   return IDENTITY_SCHEMA.filter(f => f.source === source);
 }
 
@@ -717,7 +762,8 @@ export interface CompletenessResult {
 
 export function calculateCompleteness(
   identityGraph: Record<string, any>,
-  styleProfile: Record<string, any> | null
+  styleProfile: Record<string, any> | null,
+  profile: Record<string, any> | null
 ): CompletenessResult {
   const result: CompletenessResult = {
     total: 0,
@@ -730,7 +776,10 @@ export function calculateCompleteness(
 
   for (const schema of IDENTITY_SCHEMA) {
 
-    const source = schema.source === 'style_profile' ? styleProfile : identityGraph;
+    let source: Record<string, any> | null = identityGraph;
+    if (schema.source === 'style_profile') source = styleProfile;
+    if (schema.source === 'profile') source = profile;
+
     const value = source?.[schema.key];
     const isEmpty = isFieldEmpty(value, schema);
 

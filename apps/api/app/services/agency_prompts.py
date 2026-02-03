@@ -58,6 +58,10 @@ SCOUT_AGENT_PROMPT = """Find 3-5 relevant content opportunities for this person.
 {platform_intent}
 (If "generic" or unspecified, keep ideas platform-agnostic. Otherwise, tailor to the platform's culture and format.)
 
+=== TARGET LOCATION / MARKET ===
+{location}
+(Prioritize content relevant to this region/culture if specified. If Global, aim for universal appeal.)
+
 === LEARNED PREFERENCES ===
 What topics and formats they've previously liked/disliked:
 {learned_preferences}
@@ -182,6 +186,10 @@ Tone: {tone_guidance}
 === PLATFORM INTENT ===
 {platform_intent}
 (Adapt structure and length to the platform. Generic = professional tone, moderate length.)
+
+=== TARGET LOCATION ===
+{location}
+(Use appropriate spelling - US/UK - and cultural references for this location.)
 
 === LENGTH GUIDANCE ===
 Target: {target_length}

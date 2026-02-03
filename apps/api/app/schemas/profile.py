@@ -40,6 +40,7 @@ class ProfileCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     type: ProfileType = ProfileType.INDIVIDUAL
     description: Optional[str] = None
+    location: Optional[str] = None
     sources: Optional[ProfileSourceCreate] = None
 
 
@@ -48,6 +49,7 @@ class ProfileUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    location: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -60,6 +62,7 @@ class ProfileResponse(BaseModel):
     name: str
     description: Optional[str] = None
     avatar_url: Optional[str] = None
+    location: Optional[str] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

@@ -147,7 +147,10 @@ class ContentAgencyService:
         taboo_list = style.taboo_list if style else []
         writing_sample_insights = style.writing_sample_insights if style else None
         
-        logger.info(f"Running Content Agency for profile {profile_id} (platform: {platform_intent}, history: {len(historical_uniqueness['used_hook_styles'])} hooks)")
+        # Get location
+        location = profile.location
+        
+        logger.info(f"Running Content Agency for profile {profile_id} (platform: {platform_intent}, location: {location})")
         
         # Run the agency workflow
         try:
@@ -162,6 +165,7 @@ class ContentAgencyService:
                 platform_intent=platform_intent,
                 historical_uniqueness=historical_uniqueness,
                 writing_sample_insights=writing_sample_insights,
+                location=location,
             )
         except Exception as e:
             logger.error(f"Agency workflow failed: {e}", exc_info=True)

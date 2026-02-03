@@ -30,6 +30,7 @@ class IdentityUniverseResponse(BaseModel):
     # Profile metadata
     profile_id: UUID
     profile_name: str
+    location: list[str] = []
     completeness_score: int = 0
 
 
