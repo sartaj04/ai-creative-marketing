@@ -4,6 +4,8 @@ This module implements the agency workflow as a state machine:
 Scout → Strategist → Writer → Editor → QA → (Approve/Regenerate)
 
 Each node is an agent with a specialized role in content creation.
+Diversity is enforced through content_mode, authority_posture, emotional_tone,
+identity facet sampling, and topic_domain tracking.
 """
 
 import json
@@ -34,6 +36,10 @@ from app.services.agency_prompts import (
     FORMAT_ARCHETYPES,
     HOOK_STYLES,
     CTA_STYLES,
+    CONTENT_MODES,
+    AUTHORITY_POSTURES,
+    EMOTIONAL_TONES,
+    sample_identity_facets,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,7 +55,7 @@ MAX_REGENERATIONS = 2
 
 class AgencyState(TypedDict):
     """State passed between agents in the Content Agency workflow."""
-    
+
     # Input context
     profile_id: str
     persona_prompt: str
@@ -58,13 +64,16 @@ class AgencyState(TypedDict):
     taboo_list: list[str]
     tone_sliders: dict
     preferred_hooks: list[str]
-    preferred_hooks: list[str]
     location: Optional[list[str]]  # Target markets/locations
     writing_sample_insights: Optional[str]  # Derived from previous posts
     template: Optional[str]
     template_meta: Optional[dict]  # Template metadata (flexibility, min/max length)
     platform_intent: str  # Platform target: linkedin, x, ig, newsletter, generic
-    
+
+    # Identity sampling
+    identity_facets: Optional[dict]  # Raw identity graph dict for sampling
+    sampled_facets: Optional[dict]   # Result of sample_identity_facets()
+
     # Agent outputs
     opportunities: Optional[list[dict]]  # Scout output
     content_brief: Optional[dict]  # Strategist output
@@ -72,10 +81,10 @@ class AgencyState(TypedDict):
     draft: Optional[dict]  # Writer output
     refined_draft: Optional[dict]  # Editor output
     qa_result: Optional[dict]  # QA output
-    
+
     # Uniqueness tracking (for diversity enforcement)
-    uniqueness_context: dict  # Tracks used hooks, formats, CTAs across drafts
-    
+    uniqueness_context: dict  # Tracks used hooks, formats, CTAs, modes, postures, tones, domains
+
     # Control flow
     regeneration_count: int
     current_draft_index: int  # Which draft we're on (0, 1, 2)
@@ -91,7 +100,7 @@ def _get_gcp_credentials():
     """Build GCP credentials from settings."""
     if not settings.GCP_CLIENT_EMAIL or not settings.GCP_PRIVATE_KEY:
         return None
-    
+
     credentials_info = {
         "type": "service_account",
         "project_id": settings.GCP_PROJECT_ID,
@@ -111,17 +120,17 @@ def _get_gcp_credentials():
 
 class ContentAgencyGraph:
     """LangGraph-based multi-agent content creation system."""
-    
+
     def __init__(self):
         """Initialize LLMs and build the graph."""
         self.gemini_llm = self._init_gemini_llm()
         self.claude_llm = self._init_claude_llm()
         self.graph = self._build_graph()
-    
+
     def _init_gemini_llm(self) -> ChatGoogleGenerativeAI:
         """Initialize Gemini for internal analysis agents."""
         credentials = _get_gcp_credentials()
-        
+
         return ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             project=settings.GCP_PROJECT_ID,
@@ -130,7 +139,7 @@ class ContentAgencyGraph:
             temperature=0.7,
             max_output_tokens=4096,
         )
-    
+
     def _init_claude_llm(self) -> Optional[ChatBedrockConverse]:
         """Initialize Claude via Bedrock for content creation agents."""
         try:
@@ -141,14 +150,14 @@ class ContentAgencyGraph:
             ]):
                 logger.warning("AWS Bedrock credentials not configured, Claude unavailable")
                 return None
-            
+
             import boto3
             session = boto3.Session(
                 aws_access_key_id=settings.AWS_BEDROCK_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_BEDROCK_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_BEDROCK_REGION,
             )
-            
+
             return ChatBedrockConverse(
                 model=settings.BEDROCK_MODEL_ID,
                 region_name=settings.AWS_BEDROCK_REGION,
@@ -160,15 +169,15 @@ class ContentAgencyGraph:
         except Exception as e:
             logger.warning(f"Failed to init Claude: {e}")
             return None
-    
+
     def _get_writer_llm(self):
         """Get the LLM for writing (prefer Claude, fallback to Gemini)."""
         return self.claude_llm if self.claude_llm else self.gemini_llm
-    
+
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow."""
         workflow = StateGraph(AgencyState)
-        
+
         # Add nodes
         workflow.add_node("scout", self._scout_agent)
         workflow.add_node("strategist", self._strategist_agent)
@@ -177,7 +186,7 @@ class ContentAgencyGraph:
         workflow.add_node("editor", self._editor_agent)
         workflow.add_node("qa", self._qa_agent)
         workflow.add_node("save_draft", self._save_draft)
-        
+
         # Add edges
         workflow.add_edge(START, "scout")
         workflow.add_edge("scout", "strategist")
@@ -185,7 +194,7 @@ class ContentAgencyGraph:
         workflow.add_edge("length_strategist", "writer")
         workflow.add_edge("writer", "editor")
         workflow.add_edge("editor", "qa")
-        
+
         # Conditional edge from QA
         workflow.add_conditional_edges(
             "qa",
@@ -196,7 +205,7 @@ class ContentAgencyGraph:
                 "end": END,
             }
         )
-        
+
         # After save, check if we need more drafts
         workflow.add_conditional_edges(
             "save_draft",
@@ -206,62 +215,83 @@ class ContentAgencyGraph:
                 "end": END,
             }
         )
-        
+
         # Compile the graph
         return workflow.compile(checkpointer=None, debug=False)
-    
+
     def _route_after_qa(self, state: AgencyState) -> str:
         """Determine next step after QA review."""
         qa_result = state.get("qa_result", {})
         draft = state.get("refined_draft") or state.get("draft")
-        
+
         # Fail-safe: If no draft exists, end workflow
         if not draft:
             logger.error("No draft available in QA routing, ending workflow")
             state.setdefault("errors", []).append("Workflow ended: No draft available for QA")
             return "end"
-        
+
         if qa_result.get("approved", False):
             return "save"
-        
+
         # Check regeneration limit
         if state.get("regeneration_count", 0) >= MAX_REGENERATIONS:
             logger.warning(f"Max regenerations reached for draft {state.get('current_draft_index', 0) + 1}, saving anyway")
             state.setdefault("errors", []).append(f"Draft {state.get('current_draft_index', 0) + 1} saved after max retries (may not meet all QA criteria)")
             # Save the draft anyway - it's better to have an imperfect draft than none
             return "save"
-        
+
         return "regenerate"
-    
+
     def _route_after_save(self, state: AgencyState) -> str:
         """Determine if we need to create more drafts."""
         current_index = state.get("current_draft_index", 0)
         opportunities = state.get("opportunities", [])
-        
+
         # Fail-safe: If no opportunities, end workflow
         if not opportunities:
             logger.warning("No opportunities available, ending workflow")
             return "end"
-        
+
         # We want 3 drafts, check if we have more opportunities
         if current_index < 2 and current_index + 1 < len(opportunities):
             return "next_draft"
-        
+
         return "end"
-    
+
     # ========================================================================
     # Agent Nodes
     # ========================================================================
-    
+
     def _scout_agent(self, state: AgencyState) -> dict:
         """Scout Agent: Discover content opportunities."""
         logger.info(f"Scout Agent running for profile {state['profile_id']}")
-        
+
+        # Build identity facets summary for Scout
+        identity_facets = state.get("identity_facets") or {}
+        identity_summary = "No identity facets available."
+        if identity_facets:
+            # For scout, show a broad view of available facets
+            facet_parts = []
+            from app.services.agency_prompts import IDENTITY_FACET_CATEGORIES
+            for category, fields in IDENTITY_FACET_CATEGORIES.items():
+                values = []
+                for field in fields:
+                    val = identity_facets.get(field)
+                    if isinstance(val, list) and val:
+                        values.extend(val[:3])
+                    elif isinstance(val, str) and val:
+                        values.append(val)
+                if values:
+                    label = category.replace("_", " ").title()
+                    facet_parts.append(f"- {label}: {', '.join(values)}")
+            if facet_parts:
+                identity_summary = "\n".join(facet_parts)
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", SCOUT_AGENT_SYSTEM),
             ("human", SCOUT_AGENT_PROMPT),
         ])
-        
+
         try:
             chain = prompt | self.gemini_llm | JsonOutputParser()
             # Format location list for prompt
@@ -275,93 +305,117 @@ class ContentAgencyGraph:
 
             opportunities = chain.invoke({
                 "persona_prompt": state["persona_prompt"],
+                "identity_facets": identity_summary,
                 "platform_intent": state.get("platform_intent", "generic"),
                 "location": location_str or "Global/Unspecified",
                 "learned_preferences": state.get("learned_preferences", "No preferences learned yet."),
                 "existing_topics": ", ".join(state.get("existing_topics", [])) or "None",
             })
-            
+
             # Ensure we have a list
             if not isinstance(opportunities, list):
                 opportunities = [opportunities]
-            
+
             # Sort by relevance score
             opportunities.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
-            
+
             logger.info(f"Scout found {len(opportunities)} opportunities")
             return {"opportunities": opportunities}
-            
+
         except Exception as e:
             logger.error(f"Scout Agent error: {e}")
             return {"opportunities": [], "errors": [f"Scout error: {str(e)}"]}
-    
+
     def _strategist_agent(self, state: AgencyState) -> dict:
-        """Strategist Agent: Select opportunity and create brief."""
+        """Strategist Agent: Select opportunity and create brief with diversity enforcement."""
         current_index = state.get("current_draft_index", 0)
         opportunities = state.get("opportunities", [])
-        
+
         if not opportunities or current_index >= len(opportunities):
             logger.warning("No opportunities available for strategist")
             return {"content_brief": None}
-        
+
         logger.info(f"Strategist Agent creating brief for draft {current_index + 1}")
-        
+
         # Use the opportunity at current index
         selected_opportunity = opportunities[current_index]
-        
+
         # Get uniqueness context for diversity enforcement
         uniqueness_ctx = state.get("uniqueness_context", {
             "used_hook_styles": [],
             "used_format_archetypes": [],
             "used_cta_styles": [],
+            "used_content_modes": [],
+            "used_authority_postures": [],
+            "used_emotional_tones": [],
+            "used_topic_domains": [],
+            "used_identity_categories": [],
         })
-        
+
+        # Sample identity facets for THIS specific draft
+        identity_facets = state.get("identity_facets") or {}
+        sampled = sample_identity_facets(
+            identity_dict=identity_facets,
+            used_categories=uniqueness_ctx.get("used_identity_categories", []),
+        )
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", STRATEGIST_AGENT_SYSTEM),
             ("human", STRATEGIST_AGENT_PROMPT),
         ])
-        
+
         try:
             chain = prompt | self.gemini_llm | JsonOutputParser()
-            
+
             brief = chain.invoke({
                 "opportunities": json.dumps([selected_opportunity], indent=2),
                 "persona_prompt": state["persona_prompt"],
                 "platform_intent": state.get("platform_intent", "generic"),
                 "learned_preferences": state.get("learned_preferences", "No preferences yet."),
+                "identity_facets": sampled.get("facet_summary", "No identity facets available."),
                 "used_hook_styles": ", ".join(uniqueness_ctx.get("used_hook_styles", [])) or "None yet",
                 "used_format_archetypes": ", ".join(uniqueness_ctx.get("used_format_archetypes", [])) or "None yet",
                 "used_cta_styles": ", ".join(uniqueness_ctx.get("used_cta_styles", [])) or "None yet",
+                "used_content_modes": ", ".join(uniqueness_ctx.get("used_content_modes", [])) or "None yet",
+                "used_authority_postures": ", ".join(uniqueness_ctx.get("used_authority_postures", [])) or "None yet",
+                "used_emotional_tones": ", ".join(uniqueness_ctx.get("used_emotional_tones", [])) or "None yet",
+                "used_topic_domains": ", ".join(uniqueness_ctx.get("used_topic_domains", [])) or "None yet",
             })
-            
-            logger.info(f"Strategist created brief for: {brief.get('selected_topic', 'Unknown')} (format: {brief.get('format_archetype')}, hook: {brief.get('target_hook_style')})")
+
+            logger.info(
+                f"Strategist created brief for: {brief.get('selected_topic', 'Unknown')} "
+                f"(format: {brief.get('format_archetype')}, hook: {brief.get('target_hook_style')}, "
+                f"mode: {brief.get('content_mode')}, posture: {brief.get('authority_posture')}, "
+                f"tone: {brief.get('emotional_tone')})"
+            )
             return {
                 "content_brief": brief,
+                "sampled_facets": sampled,
                 "regeneration_count": 0,  # Reset for new draft
             }
-            
+
         except Exception as e:
             logger.error(f"Strategist Agent error: {e}")
             return {"content_brief": None, "errors": state.get("errors", []) + [f"Strategist error: {str(e)}"]}
-    
+
     def _length_strategist_node(self, state: AgencyState) -> dict:
-        """Length Strategist: Determine optimal content length based on topic and template."""
+        """Length Strategist: Determine optimal content length based on topic, template, and content mode."""
         brief = state.get("content_brief")
         if not brief:
             logger.warning("No brief available for length strategist")
             return {"length_decision": None}
-        
+
         logger.info(f"Length Strategist analyzing optimal length for: {brief.get('selected_topic', 'Unknown')}")
-        
+
         try:
             from app.services.length_strategist import LengthStrategistService
             import asyncio
-            
+
             strategist = LengthStrategistService()
-            
+
             # Get template metadata if available
             template_meta = state.get("template_meta", {})
-            
+
             # Extract writing sample insights for length patterns
             writing_patterns = state.get("writing_sample_insights")
             if not writing_patterns and state.get("persona_prompt") and "LENGTH PATTERNS:" in state.get("persona_prompt", ""):
@@ -372,7 +426,7 @@ class ContentAgencyGraph:
                     end = persona.find("\n\n", start)
                     if end > start:
                         writing_patterns = persona[start:end]
-            
+
             # Determine optimal length (run async method in sync context)
             decision = asyncio.run(strategist.determine_optimal_length(
                 topic=brief.get("selected_topic", ""),
@@ -382,15 +436,16 @@ class ContentAgencyGraph:
                 template_max=template_meta.get("max_length"),
                 brief_description=brief.get("content_angle", ""),
                 user_length_patterns=writing_patterns,
+                content_mode=brief.get("content_mode"),
             ))
-            
+
             logger.info(
                 f"Length decision: {decision['target_min_words']}-{decision['target_max_words']} words. "
                 f"Reason: {decision['reasoning'][:80]}..."
             )
-            
+
             return {"length_decision": decision}
-            
+
         except Exception as e:
             logger.error(f"Length Strategist error: {e}", exc_info=True)
             # Fallback to default range
@@ -403,14 +458,14 @@ class ContentAgencyGraph:
                 },
                 "errors": state.get("errors", []) + [f"Length Strategist error: {str(e)}"],
             }
-    
+
     def _writer_agent(self, state: AgencyState) -> dict:
-        """Writer Agent: Generate initial draft."""
+        """Writer Agent: Generate initial draft with content mode and authority posture."""
         brief = state.get("content_brief")
         if not brief:
             logger.warning("No brief available for writer")
             return {"draft": None}
-        
+
         # Get length decision
         length_decision = state.get("length_decision", {
             "target_min_words": 150,
@@ -418,24 +473,28 @@ class ContentAgencyGraph:
             "reasoning": "Default length range",
             "structure_suggestion": "Standard structure",
         })
-        
+
         target_length = f"{length_decision['target_min_words']}-{length_decision['target_max_words']} words"
-        
+
+        # Get sampled identity facets
+        sampled_facets = state.get("sampled_facets", {})
+        identity_facets_summary = sampled_facets.get("facet_summary", "No specific facets selected.")
+
         logger.info(
             f"Writer Agent creating draft for: {brief.get('selected_topic', 'Unknown')} "
-            f"(target: {target_length})"
+            f"(target: {target_length}, mode: {brief.get('content_mode')}, posture: {brief.get('authority_posture')})"
         )
-        
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", WRITER_AGENT_SYSTEM),
             ("human", WRITER_AGENT_PROMPT),
         ])
-        
+
         llm = self._get_writer_llm()
-        
+
         try:
             chain = prompt | llm | JsonOutputParser()
-            
+
             # Include QA feedback if this is a regeneration
             qa_feedback = ""
             if state.get("regeneration_count", 0) > 0:
@@ -445,13 +504,16 @@ class ContentAgencyGraph:
                 # If repetition was detected, force different format
                 if qa_result.get("repetition_detected"):
                     qa_feedback += f"\n\nREPETITION ISSUE: {qa_result.get('repetition_details', 'Use a completely different structure.')}"
-            
+
             draft = chain.invoke({
                 "topic": brief.get("selected_topic", ""),
                 "angle": brief.get("content_angle", ""),
                 "format_archetype": brief.get("format_archetype", "insight"),
                 "hook_style": brief.get("target_hook_style", "bold_claim"),
                 "cta_style": brief.get("cta_style", "question"),
+                "content_mode": brief.get("content_mode", "explainer"),
+                "authority_posture": brief.get("authority_posture", "experienced"),
+                "emotional_tone": brief.get("emotional_tone", "matter_of_fact"),
                 "key_points": json.dumps(brief.get("key_points", [])),
                 "goal": brief.get("goal", "thought_leadership"),
                 "tone_guidance": brief.get("tone_guidance", "") + qa_feedback,
@@ -459,41 +521,46 @@ class ContentAgencyGraph:
                 "target_length": target_length,
                 "length_reasoning": length_decision.get("reasoning", ""),
                 "structure_suggestion": length_decision.get("structure_suggestion", ""),
+                "identity_facets_summary": identity_facets_summary,
                 "persona_prompt": state["persona_prompt"],
                 "template": state.get("template", "No template provided."),
                 "location": ", ".join(state.get("location") or []) or "Global/Unspecified",
             })
-            
+
             logger.info(f"Writer created draft with hook: {draft.get('hook', '')[:50]}...")
             return {"draft": draft}
-            
+
         except Exception as e:
             logger.error(f"Writer Agent error: {e}")
             return {"draft": None, "errors": state.get("errors", []) + [f"Writer error: {str(e)}"]}
-    
+
     def _editor_agent(self, state: AgencyState) -> dict:
-        """Editor Agent: Refine and polish the draft."""
+        """Editor Agent: Refine and polish the draft while preserving intentional voice."""
         draft = state.get("draft")
         if not draft:
             logger.warning("No draft available for editor")
             return {"refined_draft": None}
-        
+
+        brief = state.get("content_brief", {})
         logger.info("Editor Agent refining draft")
-        
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", EDITOR_AGENT_SYSTEM),
             ("human", EDITOR_AGENT_PROMPT),
         ])
-        
+
         llm = self._get_writer_llm()
         tone_sliders = state.get("tone_sliders", {})
-        
+
         try:
             chain = prompt | llm | JsonOutputParser()
-            
+
             refined = chain.invoke({
                 "hook": draft.get("hook", ""),
                 "body": draft.get("body", ""),
+                "content_mode": brief.get("content_mode", "explainer"),
+                "authority_posture": brief.get("authority_posture", "experienced"),
+                "emotional_tone": brief.get("emotional_tone", "matter_of_fact"),
                 "platform_intent": state.get("platform_intent", "generic"),
                 "formal_casual": tone_sliders.get("formal_casual", 0.5),
                 "technical_simple": tone_sliders.get("technical_simple", 0.5),
@@ -501,28 +568,29 @@ class ContentAgencyGraph:
                 "humble_confident": tone_sliders.get("humble_confident", 0.5),
                 "preferred_hooks": ", ".join(state.get("preferred_hooks", [])) or "Any",
             })
-            
+
             # Preserve topic and hashtags from original draft
             refined["topic"] = draft.get("topic", state.get("content_brief", {}).get("selected_topic", ""))
             refined["hashtags"] = draft.get("hashtags", [])
-            
+
             logger.info(f"Editor refined draft: {refined.get('improvements', [])}")
             return {"refined_draft": refined}
-            
+
         except Exception as e:
             logger.error(f"Editor Agent error: {e}")
             # On error, pass through the original draft
             return {"refined_draft": draft}
-    
+
     def _qa_agent(self, state: AgencyState) -> dict:
-        """QA Agent: Validate brand voice, quality, and detect repetition."""
+        """QA Agent: Validate brand voice, quality, mode/posture adherence, and detect repetition."""
         draft = state.get("refined_draft") or state.get("draft")
         if not draft:
             logger.warning("No draft available for QA")
             return {"qa_result": {"approved": False, "rejection_reason": "No draft to review"}}
-        
+
+        brief = state.get("content_brief", {})
         logger.info("QA Agent reviewing draft")
-        
+
         # Build previous drafts summary for repetition detection
         completed_drafts = state.get("completed_drafts", [])
         previous_drafts_summary = "None"
@@ -530,54 +598,76 @@ class ContentAgencyGraph:
             summaries = []
             for i, d in enumerate(completed_drafts, 1):
                 hook_preview = d.get("hook", "")[:80]
-                summaries.append(f"Draft {i} hook: \"{hook_preview}...\"")
+                mode = d.get("content_mode", "unknown")
+                posture = d.get("authority_posture", "unknown")
+                summaries.append(
+                    f"Draft {i} (mode: {mode}, posture: {posture}): "
+                    f"hook: \"{hook_preview}...\""
+                )
             previous_drafts_summary = "\n".join(summaries)
-        
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", QA_AGENT_SYSTEM),
             ("human", QA_AGENT_PROMPT),
         ])
-        
+
         try:
             chain = prompt | self.gemini_llm | JsonOutputParser()
-            
+
             result = chain.invoke({
                 "hook": draft.get("hook", ""),
                 "body": draft.get("body", ""),
                 "persona_prompt": state["persona_prompt"],
+                "content_mode": brief.get("content_mode", "explainer"),
+                "authority_posture": brief.get("authority_posture", "experienced"),
+                "emotional_tone": brief.get("emotional_tone", "matter_of_fact"),
                 "platform_intent": state.get("platform_intent", "generic"),
                 "taboo_list": ", ".join(state.get("taboo_list", [])) or "None specified",
                 "previous_drafts": previous_drafts_summary,
             })
-            
+
             # Log repetition detection
             if result.get("repetition_detected"):
                 logger.warning(f"QA detected repetition: {result.get('repetition_details', 'Unspecified')}")
-            
+
             logger.info(f"QA result: approved={result.get('approved')}, score={result.get('score')}")
-            
+
             return {
                 "qa_result": result,
                 "regeneration_count": state.get("regeneration_count", 0) + (0 if result.get("approved") else 1),
             }
-            
+
         except Exception as e:
             logger.error(f"QA Agent error: {e}")
             # On error, approve to avoid blocking
             return {"qa_result": {"approved": True, "score": 0.7, "issues": ["QA error, auto-approved"]}}
-    
+
     def _save_draft(self, state: AgencyState) -> dict:
-        """Save the completed draft to the list and update uniqueness context."""
+        """Save the completed draft and update all diversity tracking dimensions."""
         draft = state.get("refined_draft") or state.get("draft")
         brief = state.get("content_brief", {})
+        sampled_facets = state.get("sampled_facets", {})
         if not draft:
             return {}
-        
-        # Extract style metadata for persistence
+
+        # Extract style and diversity metadata
         hook_style = brief.get("target_hook_style")
         format_archetype = brief.get("format_archetype")
         cta_style = brief.get("cta_style")
-        
+        content_mode = brief.get("content_mode")
+        authority_posture = brief.get("authority_posture")
+        emotional_tone = brief.get("emotional_tone")
+        topic_domain = brief.get("topic_domain")
+
+        # Build identity_facets_used from sampled facets
+        identity_facets_used = None
+        if sampled_facets:
+            identity_facets_used = {
+                "primary_facets": sampled_facets.get("primary_facets", {}),
+                "secondary_facets": sampled_facets.get("secondary_facets", {}),
+                "ignored_categories": sampled_facets.get("ignored_categories", []),
+            }
+
         completed = state.get("completed_drafts", [])
         completed.append({
             "hook": draft.get("hook", ""),
@@ -585,29 +675,55 @@ class ContentAgencyGraph:
             "topic": draft.get("topic", ""),
             "hashtags": draft.get("hashtags", []),
             "qa_score": state.get("qa_result", {}).get("score", 0.0),
-            # Style metadata for database persistence
+            # Style metadata
             "hook_style": hook_style,
             "format_archetype": format_archetype,
             "cta_style": cta_style,
+            # Diversity metadata
+            "content_mode": content_mode,
+            "authority_posture": authority_posture,
+            "emotional_tone": emotional_tone,
+            "topic_domain": topic_domain,
+            "identity_facets_used": identity_facets_used,
         })
-        
+
         # Update uniqueness context for diversity enforcement
         uniqueness_ctx = state.get("uniqueness_context", {
             "used_hook_styles": [],
             "used_format_archetypes": [],
             "used_cta_styles": [],
+            "used_content_modes": [],
+            "used_authority_postures": [],
+            "used_emotional_tones": [],
+            "used_topic_domains": [],
+            "used_identity_categories": [],
         })
-        
-        # Track what was used in this draft
-        if brief.get("target_hook_style"):
-            uniqueness_ctx["used_hook_styles"].append(brief["target_hook_style"])
-        if brief.get("format_archetype"):
-            uniqueness_ctx["used_format_archetypes"].append(brief["format_archetype"])
-        if brief.get("cta_style"):
-            uniqueness_ctx["used_cta_styles"].append(brief["cta_style"])
-        
-        logger.info(f"Saved draft {len(completed)}/3: {draft.get('topic', 'Unknown')[:50]} (uniqueness: hooks={uniqueness_ctx['used_hook_styles']})")
-        
+
+        # Track all dimensions
+        if hook_style:
+            uniqueness_ctx["used_hook_styles"].append(hook_style)
+        if format_archetype:
+            uniqueness_ctx["used_format_archetypes"].append(format_archetype)
+        if cta_style:
+            uniqueness_ctx["used_cta_styles"].append(cta_style)
+        if content_mode:
+            uniqueness_ctx["used_content_modes"].append(content_mode)
+        if authority_posture:
+            uniqueness_ctx["used_authority_postures"].append(authority_posture)
+        if emotional_tone:
+            uniqueness_ctx["used_emotional_tones"].append(emotional_tone)
+        if topic_domain:
+            uniqueness_ctx["used_topic_domains"].append(topic_domain)
+        # Track identity categories used
+        if sampled_facets:
+            for cat in sampled_facets.get("primary_facets", {}).keys():
+                uniqueness_ctx["used_identity_categories"].append(cat)
+
+        logger.info(
+            f"Saved draft {len(completed)}/3: {draft.get('topic', 'Unknown')[:50]} "
+            f"(mode={content_mode}, posture={authority_posture}, tone={emotional_tone})"
+        )
+
         return {
             "completed_drafts": completed,
             "current_draft_index": state.get("current_draft_index", 0) + 1,
@@ -618,12 +734,13 @@ class ContentAgencyGraph:
             "qa_result": None,
             "content_brief": None,
             "length_decision": None,
+            "sampled_facets": None,
         }
-    
+
     # ========================================================================
     # Public Interface
     # ========================================================================
-    
+
     async def run(
         self,
         profile_id: UUID,
@@ -639,9 +756,10 @@ class ContentAgencyGraph:
         historical_uniqueness: Optional[dict] = None,
         writing_sample_insights: Optional[str] = None,
         location: Optional[list[str]] = None,
+        identity_facets: Optional[dict] = None,
     ) -> list[dict]:
         """Run the content agency workflow for a profile.
-        
+
         Args:
             profile_id: Profile UUID
             persona_prompt: Pre-synthesized persona context
@@ -655,9 +773,9 @@ class ContentAgencyGraph:
             platform_intent: Target platform (linkedin, x, ig, newsletter, generic)
             historical_uniqueness: Style history from past drafts (for cross-session diversity)
             writing_sample_insights: Insights extracted from user writing samples
-            writing_sample_insights: Insights extracted from user writing samples
             location: Target markets or physical locations
-            
+            identity_facets: Raw identity graph dict for facet sampling
+
         Returns:
             List of completed draft dicts (up to 3)
         """
@@ -666,11 +784,16 @@ class ContentAgencyGraph:
             "used_hook_styles": [],
             "used_format_archetypes": [],
             "used_cta_styles": [],
+            "used_content_modes": [],
+            "used_authority_postures": [],
+            "used_emotional_tones": [],
+            "used_topic_domains": [],
+            "used_identity_categories": [],
         }
         if historical_uniqueness:
             for key in default_uniqueness:
                 default_uniqueness[key] = historical_uniqueness.get(key, [])[:]
-        
+
         initial_state: AgencyState = {
             "profile_id": str(profile_id),
             "persona_prompt": persona_prompt,
@@ -680,11 +803,12 @@ class ContentAgencyGraph:
             "tone_sliders": tone_sliders or {},
             "preferred_hooks": preferred_hooks or [],
             "template": template,
-            "template": template,
             "template_meta": template_meta or {},
             "platform_intent": platform_intent,
             "writing_sample_insights": writing_sample_insights,
             "location": location,
+            "identity_facets": identity_facets,
+            "sampled_facets": None,
             "opportunities": None,
             "content_brief": None,
             "length_decision": None,
@@ -697,23 +821,23 @@ class ContentAgencyGraph:
             "completed_drafts": [],
             "errors": [],
         }
-        
+
         logger.info(f"Starting Content Agency for profile {profile_id}")
-        
+
         # Run the graph (sync invoke since LangGraph handles async internally)
         import asyncio
         # Pass recursion_limit in config
         final_state = await asyncio.to_thread(
-            self.graph.invoke, 
-            initial_state, 
+            self.graph.invoke,
+            initial_state,
             {"recursion_limit": 100}
         )
-        
+
         drafts = final_state.get("completed_drafts", [])
         errors = final_state.get("errors", [])
-        
+
         if errors:
             logger.warning(f"Agency completed with errors: {errors}")
-        
+
         logger.info(f"Content Agency completed: {len(drafts)} drafts created")
         return drafts

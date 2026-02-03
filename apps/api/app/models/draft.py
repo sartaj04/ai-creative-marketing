@@ -117,6 +117,28 @@ class Draft(Base):
     format_archetype: Mapped[str | None] = mapped_column(String(50), nullable=True)
     cta_style: Mapped[str | None] = mapped_column(String(50), nullable=True)
     hashtags: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
+    # Diversity dimensions for content variety enforcement
+    content_mode: Mapped[str | None] = mapped_column(
+        String(50), nullable=True,
+        comment="Content mode: builder, learner, narrator, observer, explainer, skeptic, advisor",
+    )
+    authority_posture: Mapped[str | None] = mapped_column(
+        String(50), nullable=True,
+        comment="Authority posture: curious, uncertain, peer_level, experienced, reflective, decisive",
+    )
+    emotional_tone: Mapped[str | None] = mapped_column(
+        String(50), nullable=True,
+        comment="Emotional tone: excited, frustrated, contemplative, amused, vulnerable, matter_of_fact",
+    )
+    identity_facets_used: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+        comment="Which identity facets were sampled for this draft",
+    )
+    topic_domain: Mapped[str | None] = mapped_column(
+        String(50), nullable=True,
+        comment="Topic domain: technical, personal, industry, philosophical, creative, professional",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -127,7 +127,7 @@ Provide your analysis as JSON:
     "formatting_tips": ["tip1", "tip2"]
 }}"""
 
-CONTENT_AGENT_PROMPT = """You are the Content Agent. Your role is to analyze source material and extract the most valuable insights for creating a LinkedIn post.
+CONTENT_AGENT_PROMPT = """You are the Content Agent. Your role is to analyze source material and extract the most valuable insights for creating a social media post.
 
 SOURCE TYPE: {source_type}
 
@@ -143,14 +143,19 @@ Analyze this source material and extract:
 4. Potential angles to explore
 5. How to structure the content
 
+TEMPLATE HANDLING:
+- If a template was provided above, your suggested_structure MUST follow the template's exact format. Identify which parts of the source content map to which template placeholders.
+- If NO template was provided, suggest a natural structure that fits the content.
+
 Provide your analysis as JSON:
 {{
     "key_insights": ["insight1", "insight2", "insight3"],
     "main_message": "The core message to communicate",
     "supporting_points": ["point1", "point2"],
     "potential_angles": ["angle1", "angle2"],
-    "suggested_structure": "How to organize the post",
-    "content_hooks": ["potential hook 1", "potential hook 2"]
+    "suggested_structure": "How to organize the post (follow template if provided)",
+    "content_hooks": ["potential hook 1", "potential hook 2"],
+    "template_mapping": "Which source content maps to which template sections (only if template provided, otherwise null)"
 }}"""
 
 SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Your job is to create the final post based on persona context and content analysis.
@@ -166,29 +171,40 @@ SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Your job is to create t
 {regeneration_feedback}
 
 Create a post that:
-1. Authentically represents the person's professional identity
+1. Authentically represents the person's identity (not just their job title)
 2. Matches their communication style and tone
 3. Effectively conveys the key insights from the source material
 4. Uses an appropriate hook that grabs attention
 5. Ends with engagement-driving content
+
+TEMPLATE RULES:
+- If a template structure was provided above, follow it EXACTLY. Fill in the placeholders with relevant content but keep the structure, formatting, and flow of the template intact.
+- If NO template was provided, write freely using the guidelines below.
 
 IMPORTANT GUIDELINES:
 1. The hook should be punchy and attention-grabbing (first line people see)
 2. Keep the post focused and valuable
 3. Match the tone preferences from the persona context exactly
 4. Avoid anything mentioned in "things to avoid" in the persona context
-5. If a template structure was provided, follow it as guidance
-6. If regeneration_feedback is provided, address those specific concerns
+5. If regeneration_feedback is provided, address those specific concerns
 
-CRITICAL STYLE RULES (MUST FOLLOW):
-- NEVER use dashes (—, –, -). Use periods, colons, or commas instead.
-- AVOID overused AI phrases: "game-changer", "dive deep", "unpack this", "spoiler alert", "plot twist", "let that sink in", "read that again", "in today's fast-paced world"
-- Be specific and concrete with real examples. Avoid vague, generic advice.
-- Use natural, conversational language. Vary sentence structure naturally.
-- No hollow platitudes or formulaic structures.
-- Include at least one lived, specific example (time, place, specific mistake or observation).
-- Use uneven sentence rhythm—not all sentences the same length.
-- If appropriate, add 2-4 high-impact hashtags at the end (industry-specific or trending, NOT generic like #success #motivation).
+WRITING VOICE — SOUND HUMAN, NOT AI:
+Write like you're texting a smart friend or posting a quick thought. Not like you're writing a blog post or giving a TED talk.
+
+1. Use SIMPLE words. "use" not "utilize". "help" not "facilitate". "start" not "embark". "show" not "demonstrate". "think" not "conceptualize".
+2. Write SHORT sentences. Then a longer one when you need it. Then short again. Real people don't write in uniform 15-word sentences.
+3. Start sentences with "And", "But", "So", "Look,", "Thing is,". Real people do this.
+4. Leave thoughts UNFINISHED sometimes. Not every paragraph needs a neat conclusion.
+5. Be SPECIFIC. Not "I learned a lot from failure" but "I mass-emailed 200 investors with the wrong company name in the subject line."
+6. Use contractions. "I'm", "don't", "can't", "it's", "that's", "won't". Always. No exceptions.
+7. NEVER use these words/phrases: "landscape", "leverage", "navigate", "harness", "unlock", "delve", "foster", "utilize", "facilitate", "embark", "moreover", "furthermore", "it's worth noting", "at the end of the day", "game-changer", "deep dive", "unpack", "let that sink in", "read that again", "here's the thing", "spoiler alert", "plot twist", "in today's fast-paced world", "here's why this matters"
+8. NEVER use dashes (—, –, -) for parenthetical thoughts. Use periods or restructure.
+9. Don't wrap up with motivation. No "The future is bright." No "The possibilities are endless." No "And that's the real lesson." Just stop when you've made your point.
+10. Don't start multiple sentences with "I". Mix it up.
+11. No transition words between paragraphs. Don't write "Moreover", "Furthermore", "That said", "Having said that", "On the flip side". Just start the next thought.
+12. CURRENT YEAR IS 2026.
+13. Include at least one concrete, lived example (a specific time, place, mistake, or observation).
+14. If appropriate, add 2-4 high-impact hashtags at the end (industry-specific or trending, NOT generic like #success #motivation).
 
 Output the final post as JSON:
 {{
@@ -200,7 +216,7 @@ Output the final post as JSON:
     "reasoning": "Brief explanation of how the post reflects the persona and content"
 }}"""
 
-REVIEW_AGENT_PROMPT = """You are the Review Agent, a strict quality gatekeeper. Your role is to ensure the generated post meets EXCELLENT quality standards before it's saved. Be thorough and demanding - only approve posts that are truly great.
+REVIEW_AGENT_PROMPT = """You are the Review Agent, a strict quality gatekeeper. Your role is to ensure the generated post meets EXCELLENT quality standards and sounds like a real human wrote it. Be thorough and demanding.
 
 === GENERATED POST ===
 Hook: {hook}
@@ -215,64 +231,47 @@ Source Content Preview: {source_content_preview}
 
 Review the post with STRICT quality standards. Check:
 
-1. STYLE ADHERENCE (MUST BE PERFECT):
-   - Does the tone EXACTLY match the recommended tone? (Not just close, but precise)
-   - Does the hook style match preferences? (Check preferred hook styles)
-   - Is the formatting appropriate? (Proper spacing, line breaks, emoji usage)
+1. AI-LANGUAGE DETECTION (STRICT — reject if ANY present):
+   - Words: "landscape", "leverage", "navigate", "harness", "unlock", "delve", "foster", "utilize", "facilitate", "embark", "conceptualize"
+   - Phrases: "it's worth noting", "at the end of the day", "game-changer", "deep dive", "unpack", "let that sink in", "read that again", "here's the thing", "spoiler alert", "plot twist", "Moreover", "Furthermore", "That said", "Having said that", "in today's fast-paced world", "here's why this matters"
+   - Patterns: More than 3 dashes (—, –, -) in the post
+   - Patterns: All paragraphs roughly same length (±1 sentence). Real writing has varied paragraph lengths.
+   - Patterns: Every paragraph starts with "I". Need varied sentence openers.
+   - Patterns: Post ends with motivational platitude or "The possibilities are endless"-type closer
+   - Patterns: No contractions used. Real people always use contractions.
+   - Patterns: Formulaic opening like "I've spent X years..." / "In today's..." / "Here's why..."
+   If ANY of the above are found, mark as critical issue and reject.
+
+2. STYLE ADHERENCE:
+   - Does the tone match the persona context? (Not just close, but precise)
+   - Does the hook grab attention? (Would you stop scrolling?)
    - Does it COMPLETELY avoid all taboo topics? (Zero tolerance)
-   - Does it follow format preferences? (Structure, length, style)
+   - Does it use simple, conversational language? (Not corporate or academic)
 
-2. IDENTITY ALIGNMENT (MUST BE AUTHENTIC):
-   - Does it authentically reflect the professional positioning? (Not generic)
-   - Are relevant expertise areas naturally highlighted? (Not forced)
-   - Does it speak appropriately to the target audience? (Right level, right language)
-   - Does it maintain brand consistency? (Voice, values, themes)
+3. IDENTITY ALIGNMENT:
+   - Does it authentically reflect who this person is? (Not generic thought leadership)
+   - Does it speak appropriately to their audience?
 
-3. CONTENT QUALITY (MUST BE EXCELLENT):
-   - Is the hook TRULY compelling and attention-grabbing? (Would you stop scrolling?)
-   - Is the hook unique and not generic/cliché? (Avoid "Here's what I learned...")
+4. CONTENT QUALITY:
    - Does the body provide REAL value? (Actionable insights, not fluff)
-   - Is the body well-structured with clear flow? (Logical progression)
    - Are there specific examples, data, or concrete details? (Not vague)
-   - Does it effectively convey the key insights from source material? (All important points covered)
-   - Is the engagement call-to-action compelling and specific? (Not just "What do you think?")
-   - Is the writing crisp and engaging? (No filler, every word counts)
-   - Does it have personality and voice? (Not robotic or generic)
    - Does it include at least one lived, specific example? (time, place, specific observation)
+   - Is the writing crisp? (No filler, every word counts)
 
-4. FORMATTING & STRUCTURE (MUST BE PROFESSIONAL):
-   - Is the post properly formatted? (Short paragraphs, white space)
-   - Is it an appropriate length? ({target_length_range}, as determined by Length Strategist for this specific topic)
-   - Are paragraphs well-structured? (One idea per paragraph, 2-4 lines max)
-   - Is there proper use of line breaks? (Not a wall of text)
-   - Are emojis used appropriately? (If used, sparingly and meaningfully)
-   - Is the hook on its own line? (First impression matters)
-   - Are hashtags (if present) high-impact and industry-specific? (NOT generic like #success #motivation)
+5. TEMPLATE COMPLIANCE:
+   - If a template was provided, does the post follow its EXACT structure?
+   - Are template placeholders filled with relevant content?
+   - If no template was provided, is the structure appropriate for the content?
 
-5. APPROPRIATENESS & PROFESSIONALISM (ZERO TOLERANCE):
-   - Is the content professional and appropriate? (No casual language unless style allows)
-   - Are there any offensive, controversial, or inappropriate elements? (None allowed)
-   - Does it maintain brand consistency? (Aligned with identity)
-   - Is it free of typos, grammar errors, or awkward phrasing? (Must be polished)
-
-6. ENGAGEMENT POTENTIAL (MUST BE HIGH):
-   - Would this post generate meaningful engagement? (Comments, shares, saves)
-   - Is there a clear value proposition? (Why should someone read this?)
-   - Does it invite discussion or action? (Not just informational)
-   - Is it shareable? (Would someone want to share this?)
+6. FORMATTING & LENGTH:
+   - Is it an appropriate length? ({target_length_range})
+   - Short paragraphs, proper line breaks, not a wall of text
+   - Are hashtags (if present) industry-specific? (NOT generic like #success #motivation)
 
 QUALITY THRESHOLD:
 - Overall score must be >= 0.85 to approve
-- Any critical issues = automatic regeneration
+- Any critical issues (especially AI-language) = automatic regeneration
 - 2+ major issues = regeneration required
-- Minor issues are acceptable only if overall quality is exceptional
-
-Be STRICT. A mediocre post should be regenerated. Only approve if:
-- Style adherence is perfect
-- Content quality is excellent (not just good)
-- Writing is polished and engaging
-- Value is clear and substantial
-- Engagement potential is high
 
 Provide your review as JSON:
 {{
@@ -280,7 +279,7 @@ Provide your review as JSON:
     "overall_score": 0.0-1.0,
     "issues": [
         {{
-            "category": "style|identity|quality|formatting|appropriateness|engagement",
+            "category": "ai_language|style|identity|quality|template|formatting",
             "severity": "critical|major|minor",
             "description": "What's wrong (be specific)",
             "suggestion": "How to fix it (be actionable)"
@@ -288,7 +287,7 @@ Provide your review as JSON:
     ],
     "strengths": ["What works well"],
     "recommendation": "approve|regenerate",
-    "regeneration_guidance": "Specific, actionable instructions for regeneration if needed. Be detailed about what needs to change."
+    "regeneration_guidance": "Specific, actionable instructions for regeneration if needed."
 }}
 
 If approved is false, recommendation must be "regenerate" and regeneration_guidance must provide clear, actionable feedback."""
@@ -612,7 +611,7 @@ class MultiAgentGenerator:
         """Extract insights from source material."""
         template_section = ""
         if state.get("template_content"):
-            template_section = f"\nTEMPLATE TO FOLLOW:\n{state['template_content']}\n\nUse this template as structural guidance for the content."
+            template_section = f"\nTEMPLATE TO FOLLOW (MUST match this structure EXACTLY):\n{state['template_content']}\n\nYou MUST map the source content to this template's structure. Identify which insights fill which template placeholders."
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", "You are an expert at extracting valuable insights from content."),
@@ -637,7 +636,7 @@ class MultiAgentGenerator:
         """Synthesize all analyses into final draft."""
         template_section = ""
         if state.get("template_content"):
-            template_section = f"\nTEMPLATE STRUCTURE TO FOLLOW:\n{state['template_content']}"
+            template_section = f"\n=== TEMPLATE (follow this structure EXACTLY, fill placeholders with content) ===\n{state['template_content']}\n\nYou MUST follow this template's exact structure. Fill in the placeholders with relevant content from the analysis. Do NOT deviate from the template format."
         
         # Include regeneration feedback if this is a regeneration
         regeneration_feedback = ""
@@ -887,7 +886,7 @@ class MultiAgentGenerator:
         # Determine optimal length using Length Strategist
         from app.services.length_strategist import LengthStrategistService
         length_strategist = LengthStrategistService()
-        
+
         # Extract writing patterns from persona if available
         writing_patterns = None
         if persona_prompt and "LENGTH PATTERNS:" in persona_prompt:
@@ -895,7 +894,18 @@ class MultiAgentGenerator:
             end = persona_prompt.find("\n\n", start)
             if end > start:
                 writing_patterns = persona_prompt[start:end]
-        
+
+        # Infer content_mode from source type for length variety
+        source_to_mode = {
+            "scratch": "builder",      # User writing from scratch = building something
+            "youtube": "explainer",    # Repurposing video = explaining
+            "audio": "narrator",       # Audio content = storytelling
+            "article": "observer",     # Reacting to article = observing
+            "pdf": "explainer",        # PDF content = explaining
+            "format": None,            # Template-driven = let template decide
+        }
+        inferred_mode = source_to_mode.get(source_type)
+
         length_decision = await length_strategist.determine_optimal_length(
             topic=source_data.get("topic", "Content Generation"),
             template_category=template_meta.get("category"),
@@ -904,6 +914,7 @@ class MultiAgentGenerator:
             template_max=template_meta.get("max_length"),
             brief_description=source_content[:200],  # First 200 chars as brief
             user_length_patterns=writing_patterns,
+            content_mode=inferred_mode,
         )
 
         # Build initial state (simplified - no need for identity_data/style_data)

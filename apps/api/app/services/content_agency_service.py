@@ -2,8 +2,9 @@
 
 This service coordinates the Content Agency workflow, handling:
 - Loading profile context (persona, preferences, style)
+- Extracting raw identity graph for facet sampling
 - Running the LangGraph agency workflow
-- Saving generated drafts to database
+- Saving generated drafts to database with diversity metadata
 """
 
 import logging
@@ -33,13 +34,28 @@ def get_agency_graph() -> ContentAgencyGraph:
     return _agency_graph
 
 
+def _identity_to_dict(identity) -> dict:
+    """Convert an IdentityGraph model instance to a plain dict for facet sampling."""
+    if not identity:
+        return {}
+    data = {}
+    for col in identity.__table__.columns:
+        val = getattr(identity, col.name)
+        if isinstance(val, UUID):
+            val = str(val)
+        elif isinstance(val, datetime):
+            val = val.isoformat()
+        data[col.name] = val
+    return data
+
+
 class ContentAgencyService:
     """Service for running the Content Agency multi-agent workflow."""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.agency = get_agency_graph()
-    
+
     async def run_for_profile(
         self,
         profile_id: UUID,
@@ -49,14 +65,14 @@ class ContentAgencyService:
         platform_intent: str = "generic",
     ) -> list[Draft]:
         """Run the Content Agency for a profile and create drafts.
-        
+
         Args:
             profile_id: Profile UUID
             max_drafts: Maximum number of drafts to generate (default 3)
             skip_if_has_content: If True, skip generation if inbox already has drafts (default False)
             max_inbox_threshold: Skip generation if inbox has >= this many drafts (default 10)
             platform_intent: Target platform (linkedin, x, ig, newsletter, generic)
-            
+
         Returns:
             List of created Draft objects
         """
@@ -70,12 +86,12 @@ class ContentAgencyService:
             )
         )
         inbox_count = inbox_count_result.scalar() or 0
-        
+
         # Skip if inbox already has enough content
         if inbox_count >= max_inbox_threshold:
             logger.info(f"Profile {profile_id} has {inbox_count} drafts in inbox (>= {max_inbox_threshold}), skipping generation")
             return []
-        
+
         # Load profile with all related data
         result = await self.db.execute(
             select(Profile)
@@ -87,42 +103,50 @@ class ContentAgencyService:
             .where(Profile.id == profile_id)
         )
         profile = result.scalar_one_or_none()
-        
+
         if not profile:
             logger.error(f"Profile not found: {profile_id}")
             return []
-        
+
         # If no persona_prompt, trigger synthesis first
         if not profile.persona_prompt:
             logger.info(f"Profile {profile_id} has no persona_prompt, triggering synthesis")
             from app.services.persona_synthesizer import PersonaSynthesizerService
-            
+
             try:
                 synthesizer = PersonaSynthesizerService()
                 persona_prompt = await synthesizer.synthesize_persona_prompt(self.db, profile_id)
-                
+
                 if not persona_prompt:
                     logger.error(f"Failed to synthesize persona for profile {profile_id}")
                     return []
-                
+
                 # Refresh profile to get the updated persona_prompt
                 await self.db.refresh(profile)
                 logger.info(f"Successfully synthesized persona for profile {profile_id}")
-                
+
             except Exception as e:
                 logger.error(f"Persona synthesis failed for profile {profile_id}: {e}", exc_info=True)
                 return []
-        
+
         # Gather context
         persona_prompt = profile.persona_prompt
         learned_preferences = profile.learned_preferences or "No preferences learned yet."
-        
+
+        # Extract raw identity graph dict for facet sampling
+        identity_dict = _identity_to_dict(profile.identity_graph)
+
         # Get existing topics to avoid duplicates (last 30 days)
         existing_topics = []
         historical_uniqueness = {
             "used_hook_styles": [],
             "used_format_archetypes": [],
             "used_cta_styles": [],
+            "used_content_modes": [],
+            "used_authority_postures": [],
+            "used_emotional_tones": [],
+            "used_topic_domains": [],
+            "used_identity_categories": [],
         }
         if profile.drafts:
             for draft in profile.drafts:
@@ -135,23 +159,36 @@ class ContentAgencyService:
                     historical_uniqueness["used_format_archetypes"].append(draft.format_archetype)
                 if draft.cta_style:
                     historical_uniqueness["used_cta_styles"].append(draft.cta_style)
+                # Collect diversity metadata
+                if draft.content_mode:
+                    historical_uniqueness["used_content_modes"].append(draft.content_mode)
+                if draft.authority_posture:
+                    historical_uniqueness["used_authority_postures"].append(draft.authority_posture)
+                if draft.emotional_tone:
+                    historical_uniqueness["used_emotional_tones"].append(draft.emotional_tone)
+                if draft.topic_domain:
+                    historical_uniqueness["used_topic_domains"].append(draft.topic_domain)
+                if draft.identity_facets_used:
+                    for cat in draft.identity_facets_used.get("primary_facets", {}).keys():
+                        historical_uniqueness["used_identity_categories"].append(cat)
+
         existing_topics = existing_topics[-20:]  # Keep recent 20
         # Keep recent 15 of each style for diversity without over-constraining
         for key in historical_uniqueness:
             historical_uniqueness[key] = historical_uniqueness[key][-15:]
-        
+
         # Get style data
         style = profile.style_profile
         tone_sliders = style.tone_sliders if style else {}
         preferred_hooks = style.preferred_hooks if style else []
         taboo_list = style.taboo_list if style else []
         writing_sample_insights = style.writing_sample_insights if style else None
-        
+
         # Get location
         location = profile.location
-        
+
         logger.info(f"Running Content Agency for profile {profile_id} (platform: {platform_intent}, location: {location})")
-        
+
         # Run the agency workflow
         try:
             draft_data = await self.agency.run(
@@ -166,15 +203,16 @@ class ContentAgencyService:
                 historical_uniqueness=historical_uniqueness,
                 writing_sample_insights=writing_sample_insights,
                 location=location,
+                identity_facets=identity_dict,
             )
         except Exception as e:
             logger.error(f"Agency workflow failed: {e}", exc_info=True)
             return []
-        
+
         if not draft_data:
             logger.warning(f"No drafts generated for profile {profile_id}")
             return []
-        
+
         # Create Draft objects and save to database
         created_drafts = []
         for data in draft_data[:max_drafts]:
@@ -194,33 +232,43 @@ class ContentAgencyService:
                     format_archetype=data.get("format_archetype"),
                     cta_style=data.get("cta_style"),
                     hashtags=data.get("hashtags", []),
+                    # Diversity metadata
+                    content_mode=data.get("content_mode"),
+                    authority_posture=data.get("authority_posture"),
+                    emotional_tone=data.get("emotional_tone"),
+                    identity_facets_used=data.get("identity_facets_used"),
+                    topic_domain=data.get("topic_domain"),
                 )
                 self.db.add(draft)
                 created_drafts.append(draft)
-                logger.info(f"Created draft: {draft.topic[:50] if draft.topic else 'Untitled'} (hook: {draft.hook_style}, format: {draft.format_archetype})")
+                logger.info(
+                    f"Created draft: {draft.topic[:50] if draft.topic else 'Untitled'} "
+                    f"(mode: {draft.content_mode}, posture: {draft.authority_posture}, "
+                    f"tone: {draft.emotional_tone}, domain: {draft.topic_domain})"
+                )
             except Exception as e:
                 logger.error(f"Failed to create draft: {e}")
-        
+
         await self.db.commit()
-        
+
         # Refresh all drafts to get IDs
         for draft in created_drafts:
             await self.db.refresh(draft)
-        
+
         logger.info(f"Content Agency completed: {len(created_drafts)} drafts saved for profile {profile_id}")
         return created_drafts
-    
+
     async def run_for_all_active_profiles(
-        self, 
+        self,
         max_drafts_per_profile: int = 3,
         max_inbox_threshold: int = 10,
     ) -> dict:
         """Run the Content Agency for all active profiles.
-        
+
         Args:
             max_drafts_per_profile: Max drafts to generate per profile
             max_inbox_threshold: Skip profiles with >= this many drafts in inbox (default 10)
-            
+
         Returns:
             Dict with summary of results
         """
@@ -233,9 +281,9 @@ class ContentAgencyService:
             )
         )
         profiles = result.scalars().all()
-        
+
         logger.info(f"Running Content Agency for {len(profiles)} active profiles")
-        
+
         results = {
             "total_profiles": len(profiles),
             "successful": 0,
@@ -243,7 +291,7 @@ class ContentAgencyService:
             "failed": 0,
             "total_drafts": 0,
         }
-        
+
         for profile in profiles:
             try:
                 drafts = await self.run_for_profile(
@@ -260,6 +308,6 @@ class ContentAgencyService:
             except Exception as e:
                 logger.error(f"Failed to run agency for profile {profile.id}: {e}")
                 results["failed"] += 1
-        
+
         logger.info(f"Content Agency batch completed: {results}")
         return results
