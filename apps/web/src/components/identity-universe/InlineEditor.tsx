@@ -221,12 +221,16 @@ export function InlineEditor({ node, onSave, onClose }: InlineEditorProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                    onClose();
+                }
+            }}
         >
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl min-w-[400px] max-w-lg max-h-[80vh] overflow-y-auto">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl min-w-[400px] max-w-lg w-full max-h-[90vh] flex flex-col">
+                {/* Header - Fixed */}
+                <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100 flex-shrink-0">
                     <div>
                         <h4 className="text-lg font-semibold text-slate-900">
                             {isFieldEmpty(node.value, schema) ? 'Add' : 'Edit'} {schema.label}
@@ -245,15 +249,15 @@ export function InlineEditor({ node, onSave, onClose }: InlineEditorProps) {
 
                 {/* Required badge */}
                 {schema.required && (
-                    <div className="mb-4">
+                    <div className="px-6 pt-4 flex-shrink-0">
                         <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded">
                             Required
                         </span>
                     </div>
                 )}
 
-                {/* Field-specific editors */}
-                <div className="space-y-4">
+                {/* Field-specific editors - Scrollable */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                     {/* STRING / ENUM */}
                     {(schema.type === 'string' || schema.type === 'enum') && (
                         <>
@@ -566,8 +570,8 @@ export function InlineEditor({ node, onSave, onClose }: InlineEditorProps) {
                     )}
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                {/* Actions - Fixed at bottom */}
+                <div className="flex gap-3 p-6 pt-4 border-t border-slate-100 flex-shrink-0">
                     <Button
                         onClick={handleSave}
                         disabled={saving}

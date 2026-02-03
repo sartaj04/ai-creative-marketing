@@ -11,7 +11,7 @@ export default function IdentityLayout({
     children: React.ReactNode;
 }) {
     const router = useRouter();
-    const { user, checkAuth, isLoading } = useAuthStore();
+    const { user, checkAuth, isLoading, isHydrated } = useAuthStore();
     const { currentProfile, fetchProfiles, profiles } = useProfileStore();
 
     useEffect(() => {
@@ -26,13 +26,14 @@ export default function IdentityLayout({
 
     // Redirect to auth if not logged in
     useEffect(() => {
-        if (!isLoading && !user) {
+        // Only redirect if we are hydrated and not loading and have no user
+        if (isHydrated && !isLoading && !user) {
             router.push('/auth');
         }
-    }, [isLoading, user, router]);
+    }, [isHydrated, isLoading, user, router]);
 
     // Wait for auth check
-    if (isLoading) {
+    if (!isHydrated || isLoading) {
         return (
             <div className="min-h-screen bg-slate-950 flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />

@@ -1,17 +1,26 @@
-"""Analytics digest task - generates weekly tuning suggestions."""
+"""Analytics Digest Celery task - generates weekly reports.
+
+This task aggregates performance metrics and LLM-generated insights
+into a weekly digest for each active profile.
+"""
+
 import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.celery_app import celery_app
-from app.core.database import async_session_maker
+from app.core.database import celery_session_maker
 from app.llm.provider import get_primary_provider
-from app.models.agent import AgentRun
-from app.models.draft import AgentType, Draft, DraftStatus
+from app.models.agent import AgentRun, AgentType
+from app.models.draft import Draft, DraftStatus
 from app.models.profile import Profile
+
+logger = logging.getLogger(__name__)
 
 
 DIGEST_PROMPT = """Based on the following analytics data from a user's content performance, provide actionable tuning suggestions.
@@ -48,9 +57,10 @@ Respond in JSON format:
 """
 
 
-async def _run_analytics_digest(profile_id: str = None) -> dict:
-    """Async implementation of analytics digest."""
-    async with async_session_maker() as db:
+async def _run_analytics_digest(profile_id: Optional[str] = None) -> dict:
+    """Async implementation of analytics digest task."""
+    # Use NullPool session for Celery to avoid event loop issues
+    async with celery_session_maker() as db:
         # Get profiles to process
         if profile_id:
             result = await db.execute(
@@ -70,6 +80,8 @@ async def _run_analytics_digest(profile_id: str = None) -> dict:
 
         llm = get_primary_provider()
         week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+        logger.info(f"Generating analytics digests for {len(profiles)} profiles")
 
         for profile in profiles:
             # Create agent run
@@ -148,7 +160,9 @@ async def _run_analytics_digest(profile_id: str = None) -> dict:
                 format_stats = []
                 for row in format_result:
                     rate = (row.approved or 0) / row.count if row.count > 0 else 0
-                    format_stats.append(f"- {row.format.value}: {rate:.0%} approval ({row.count} drafts)")
+                    # format is an Enum, use .value
+                    format_name = row.format.value if hasattr(row.format, 'value') else str(row.format)
+                    format_stats.append(f"- {format_name}: {rate:.0%} approval ({row.count} drafts)")
 
                 # Generate suggestions with LLM
                 prompt = DIGEST_PROMPT.format(
@@ -186,6 +200,7 @@ async def _run_analytics_digest(profile_id: str = None) -> dict:
                 ]
 
             except Exception as e:
+                logger.error(f"Error generating digest for profile {profile.id}: {e}", exc_info=True)
                 agent_run.status = "failed"
                 agent_run.completed_at = datetime.now(timezone.utc)
                 agent_run.error_message = str(e)
@@ -195,11 +210,29 @@ async def _run_analytics_digest(profile_id: str = None) -> dict:
         return {"message": f"Generated digests for {len(profiles)} profiles"}
 
 
-@celery_app.task(name="app.tasks.analytics_digest.analytics_digest_task")
-def analytics_digest_task(profile_id: str = None) -> dict:
-    """Analytics digest Celery task.
-
+@celery_app.task(
+    name="app.tasks.analytics_digest.analytics_digest_task",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=300,  # 5 minutes
+)
+def analytics_digest_task(self, profile_id: Optional[str] = None) -> dict:
+    """Background task to generate weekly analytics digests.
+    
     Args:
-        profile_id: Specific profile to process, or None for all active profiles
+        profile_id: Optional profile ID string. If None, runs for all active profiles.
+        
+    Returns:
+        Dict with summary of results
     """
-    return asyncio.run(_run_analytics_digest(profile_id))
+    try:
+        if profile_id:
+            logger.info(f"Starting Analytics Digest for profile {profile_id}")
+        else:
+            logger.info("Starting Analytics Digest for all active profiles")
+        
+        return asyncio.run(_run_analytics_digest(profile_id))
+        
+    except Exception as e:
+        logger.error(f"Analytics Digest task failed: {e}", exc_info=True)
+        raise self.retry(exc=e)

@@ -17,7 +17,7 @@ export default function DashboardLayout({
 }) {
     const router = useRouter();
     const pathname = usePathname();
-    const { logout, user, checkAuth } = useAuthStore();
+    const { logout, user, checkAuth, isHydrated, isLoading } = useAuthStore();
     const { fetchProfiles, profiles, currentProfile } = useProfileStore();
     const [inboxCount, setInboxCount] = useState<number | null>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -25,6 +25,13 @@ export default function DashboardLayout({
     useEffect(() => {
         checkAuth();
     }, [checkAuth]);
+
+    useEffect(() => {
+        // Only redirect if hydrated, not loading, and no user
+        if (isHydrated && !isLoading && !user) {
+            router.push('/auth');
+        }
+    }, [isHydrated, isLoading, user, router]);
 
     useEffect(() => {
         if (user && profiles.length === 0) {
@@ -36,13 +43,23 @@ export default function DashboardLayout({
         if (!currentProfile) return;
         draftsApi.list({ profile_id: currentProfile.id, status: 'inbox', limit: 1 })
             .then(res => setInboxCount(res.total))
-            .catch(() => {});
+            .catch(() => { });
     }, [currentProfile?.id]);
 
     const handleLogout = async () => {
         await logout();
         router.push('/auth');
     };
+
+    if (!isHydrated) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!user) return null;
 
     return (
         <div className="min-h-screen bg-slate-50/50 flex">
@@ -51,7 +68,7 @@ export default function DashboardLayout({
                 <div className="p-6 border-b border-border/40">
                     <Link href="/dashboard" className="flex items-center gap-2">
                         <div className="w-8 h-8 relative rounded-lg overflow-hidden">
-                            <Image src="/android-chrome-192x192.png" alt="Pixo Logo" fill className="object-cover" />
+                            <Image src="/android-chrome-192x192.png" alt="Pixo Logo" fill sizes="32px" className="object-cover" />
                         </div>
                         <span className="text-xl font-bold tracking-tight text-foreground">Pixo</span>
                     </Link>
@@ -93,20 +110,19 @@ export default function DashboardLayout({
 
             {/* Mobile Menu Overlay */}
             {mobileMenuOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/50 z-40 md:hidden"
                     onClick={() => setMobileMenuOpen(false)}
                 />
             )}
 
             {/* Mobile Sidebar */}
-            <aside className={`fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-border/60 z-50 flex flex-col md:hidden transition-transform duration-300 ${
-                mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}>
+            <aside className={`fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-border/60 z-50 flex flex-col md:hidden transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}>
                 <div className="p-6 border-b border-border/40 flex items-center justify-between">
                     <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
                         <div className="w-8 h-8 relative rounded-lg overflow-hidden">
-                            <Image src="/android-chrome-192x192.png" alt="Pixo Logo" fill className="object-cover" />
+                            <Image src="/android-chrome-192x192.png" alt="Pixo Logo" fill sizes="32px" className="object-cover" />
                         </div>
                         <span className="text-xl font-bold tracking-tight text-foreground">Pixo</span>
                     </Link>
@@ -167,7 +183,7 @@ export default function DashboardLayout({
                     >
                         <Menu className="w-5 h-5" />
                     </Button>
-                    
+
                     <h1 className="font-semibold text-lg">Dashboard</h1>
                 </header>
 

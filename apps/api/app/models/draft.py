@@ -111,6 +111,12 @@ class Draft(Base):
     )
     external_post_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     engagement_data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    
+    # Style metadata for uniqueness tracking across sessions
+    hook_style: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    format_archetype: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    cta_style: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    hashtags: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

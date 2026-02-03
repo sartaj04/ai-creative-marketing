@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Card } from '@/components/ui/card';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -14,9 +13,9 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { X, Check, Edit2, Linkedin, Twitter, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { X, Check, Edit2, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
 import { PixoCharacter } from '@/components/auth/PixoCharacter';
+import { SwipeableCard, SwipeableCardHandle } from './components/swipeable-card';
 import { draftsApi, Draft } from '@/lib/api/drafts';
 import { generatorsApi } from '@/lib/api/generators';
 import { useProfileStore } from '@/stores/profile-store';
@@ -34,11 +33,8 @@ export default function InboxPage() {
     const [editHook, setEditHook] = useState('');
     const [editBody, setEditBody] = useState('');
 
-    const x = useMotionValue(0);
-    const rotate = useTransform(x, [-200, 200], [-15, 15]);
-    const bg = useTransform(x, [-200, 0, 200], ["rgba(239, 68, 68, 0.05)", "rgba(255,255,255,0)", "rgba(8, 145, 178, 0.05)"]);
-    const approveOverlayOpacity = useTransform(x, [50, 150], [0, 1]);
-    const rejectOverlayOpacity = useTransform(x, [-150, -50], [1, 0]);
+    // Map to hold references to card components for imperative actions (buttons)
+    const cardRefs = useRef<Map<string, SwipeableCardHandle>>(new Map());
 
     const loadInbox = useCallback(async () => {
         if (!currentProfile) return;
@@ -53,13 +49,13 @@ export default function InboxPage() {
             setCards(response.drafts);
         } catch (error: any) {
             // Handle 403 and other errors gracefully
-            const errorMessage = error?.response?.status === 403 
-                ? 'Access denied. Please try refreshing the page.' 
+            const errorMessage = error?.response?.status === 403
+                ? 'Access denied. Please try refreshing the page.'
                 : getErrorMessage(error);
-            toast({ 
-                title: 'Failed to load inbox', 
-                description: errorMessage, 
-                variant: 'destructive' 
+            toast({
+                title: 'Failed to load inbox',
+                description: errorMessage,
+                variant: 'destructive'
             });
         } finally {
             setIsLoading(false);
@@ -70,31 +66,59 @@ export default function InboxPage() {
         loadInbox();
     }, [loadInbox]);
 
-    const handleApprove = async (draft: Draft) => {
+    const handleSwipe = async (direction: 'left' | 'right', draft: Draft) => {
         if (isActioning) return;
-        setIsActioning(true);
+
+        // Optimistic update: Remove card immediately
+        setCards(prev => prev.filter(c => c.id !== draft.id));
+
         try {
-            await draftsApi.action(draft.id, { action: 'approve' });
-            setCards(prev => prev.filter(c => c.id !== draft.id));
-            toast({ title: 'Draft approved' });
+            if (direction === 'right') {
+                await draftsApi.action(draft.id, { action: 'approve' });
+                toast({ title: 'Draft approved' });
+            } else {
+                await draftsApi.action(draft.id, { action: 'reject' });
+                toast({ title: 'Draft rejected' });
+            }
         } catch (error) {
-            toast({ title: 'Failed to approve', description: getErrorMessage(error), variant: 'destructive' });
-        } finally {
-            setIsActioning(false);
+            // In a real optimistic UI, we might restore the card here, 
+            // but for swipe flows it's often better to just show an error toast 
+            // than to jerk the card back into view.
+            toast({
+                title: `Failed to ${direction === 'right' ? 'approve' : 'reject'}`,
+                description: getErrorMessage(error),
+                variant: 'destructive'
+            });
         }
     };
 
-    const handleReject = async (draft: Draft) => {
-        if (isActioning) return;
-        setIsActioning(true);
-        try {
-            await draftsApi.action(draft.id, { action: 'reject' });
-            setCards(prev => prev.filter(c => c.id !== draft.id));
-            toast({ title: 'Draft rejected' });
-        } catch (error) {
-            toast({ title: 'Failed to reject', description: getErrorMessage(error), variant: 'destructive' });
-        } finally {
+    const handleApproveClick = async () => {
+        if (cards.length === 0 || isActioning) return;
+
+        const topCard = cards[0];
+        const cardRef = cardRefs.current.get(topCard.id);
+
+        if (cardRef) {
+            // Trigger animation on the card
+            setIsActioning(true);
+            await cardRef.leaveScreen('right');
             setIsActioning(false);
+            // handleSwipe will be called by the card's onSwipe callback
+        }
+    };
+
+    const handleRejectClick = async () => {
+        if (cards.length === 0 || isActioning) return;
+
+        const topCard = cards[0];
+        const cardRef = cardRefs.current.get(topCard.id);
+
+        if (cardRef) {
+            // Trigger animation on the card
+            setIsActioning(true);
+            await cardRef.leaveScreen('left');
+            setIsActioning(false);
+            // handleSwipe will be called by the card's onSwipe callback
         }
     };
 
@@ -123,18 +147,9 @@ export default function InboxPage() {
         }
     };
 
-    const handleDragEnd = (_event: any, info: any) => {
-        if (isActioning || cards.length === 0) return;
-        if (info.offset.x > 100) {
-            handleApprove(cards[0]);
-        } else if (info.offset.x < -100) {
-            handleReject(cards[0]);
-        }
-    };
-
     const handleGenerateTrending = async () => {
         if (!currentProfile) return;
-        
+
         // Check if already have 10+ drafts in inbox
         if (cards.length >= 10) {
             toast({
@@ -144,7 +159,7 @@ export default function InboxPage() {
             });
             return;
         }
-        
+
         setIsGenerating(true);
         try {
             await generatorsApi.triggerContentAgency(currentProfile.id);
@@ -155,8 +170,8 @@ export default function InboxPage() {
             // Reload inbox after a delay to show new drafts
             setTimeout(loadInbox, 5000);
         } catch (error: any) {
-            const errorMessage = error?.response?.status === 403 
-                ? 'Access denied. Please try again later.' 
+            const errorMessage = error?.response?.status === 403
+                ? 'Access denied. Please try again later.'
                 : getErrorMessage(error);
             toast({
                 title: '⚠️ Generation Failed',
@@ -166,18 +181,6 @@ export default function InboxPage() {
         } finally {
             setIsGenerating(false);
         }
-    };
-
-    const getPlatformIcon = (platform: string | null) => {
-        if (platform === 'linkedin') return <Linkedin className="w-5 h-5 text-[#0077b5]" />;
-        if (platform === 'twitter') return <Twitter className="w-5 h-5 text-[#1DA1F2]" />;
-        return <Edit2 className="w-5 h-5 text-slate-400" />;
-    };
-
-    const getPlatformLabel = (platform: string | null) => {
-        if (platform === 'linkedin') return 'LinkedIn';
-        if (platform === 'twitter') return 'Twitter';
-        return 'Post';
     };
 
     if (isLoading) {
@@ -190,8 +193,6 @@ export default function InboxPage() {
 
     return (
         <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-start sm:justify-center bg-slate-50 relative overflow-hidden -mt-4 sm:-mt-6 ml-0 sm:-ml-6 md:-mt-8 md:-ml-8 pt-4 sm:pt-8 pb-8">
-            <motion.div style={{ backgroundColor: bg }} className="absolute inset-0 z-0 transition-colors" />
-
             {/* Header */}
             <div className="w-full max-w-5xl mb-6 sm:mb-8 z-10 space-y-2 px-4">
                 <div className="flex items-center gap-3 mb-2">
@@ -240,156 +241,23 @@ export default function InboxPage() {
             {/* Card Stack */}
             <div className="relative w-full max-w-5xl h-[500px] sm:h-[600px] flex items-center justify-center z-10 px-6 sm:px-4">
                 <AnimatePresence>
-                    {cards.map((draft, index) => {
-                        const isFront = index === 0;
-                        const confidencePercent = Math.round(draft.confidence * 100);
-                        return (
-                            <motion.div
-                                key={draft.id}
-                                style={{
-                                    zIndex: cards.length - index,
-                                    x: isFront ? x : 0,
-                                    rotate: isFront ? rotate : 0,
-                                    scale: 1 - index * 0.05,
-                                    y: index * 15,
-                                    opacity: index > 2 ? 0 : 1
-                                }}
-                                drag={isFront && !isActioning ? "x" : false}
-                                dragConstraints={{ left: 0, right: 0 }}
-                                onDragEnd={handleDragEnd}
-                                initial={{ scale: 0.95, opacity: 0 }}
-                                animate={{ scale: 1 - index * 0.05, opacity: index > 2 ? 0 : 1, y: index * 15 }}
-                                exit={{ x: x.get() < 0 ? -500 : 500, opacity: 0, transition: { duration: 0.2 } }}
-                                className="absolute w-full"
-                            >
-                                <Card className="h-[480px] sm:h-[550px] w-full shadow-2xl shadow-slate-200/50 border-0 sm:border sm:border-slate-100 flex flex-col overflow-hidden bg-white select-none cursor-grab active:cursor-grabbing rounded-3xl ring-1 ring-slate-900/5">
-                                    {/* Card Header */}
-                                    <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
-                                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm flex-shrink-0">
-                                                {getPlatformIcon(draft.platform)}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <h3 className="font-semibold text-slate-900 text-xs sm:text-sm truncate">{draft.topic || 'Untitled Draft'}</h3>
-                                                <p className="text-[10px] sm:text-xs text-slate-500 truncate">{getPlatformLabel(draft.platform)} &bull; {new Date(draft.created_at).toLocaleDateString()}</p>
-                                            </div>
-                                        </div>
-                                        <div className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-bold border flex-shrink-0 ${confidencePercent > 90 ? 'bg-green-50 text-green-700 border-green-200' : confidencePercent > 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                                            {confidencePercent}%
-                                        </div>
-                                    </div>
-
-                                    {/* Card Content - Scrollable */}
-                                    <div className="px-8 py-4 sm:p-10 flex-1 flex flex-col bg-white overflow-y-auto overscroll-contain">
-                                        {(() => {
-                                            // Check if body already starts with the hook to avoid duplication
-                                            const hookTrimmed = draft.hook.trim();
-                                            const bodyTrimmed = draft.body?.trim() || '';
-
-                                            // Check if body starts with hook (case-insensitive, allowing for slight variations)
-                                            const hookLower = hookTrimmed.toLowerCase();
-                                            const bodyLower = bodyTrimmed.toLowerCase();
-                                            const bodyStartsWithHook = hookLower && bodyLower.startsWith(hookLower);
-
-                                            // If body starts with hook, remove it from body to avoid duplication
-                                            let displayBody = bodyTrimmed;
-                                            if (bodyStartsWithHook && hookTrimmed) {
-                                                // Remove the hook from the beginning of body
-                                                displayBody = bodyTrimmed.substring(hookTrimmed.length).trim();
-                                            }
-
-                                            return (
-                                                        <div className="space-y-4 sm:space-y-6 flex-1 flex flex-col">
-                                                            {hookTrimmed && (
-                                                                <div className="pb-4 sm:pb-6 border-b border-slate-100">
-                                                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 sm:mb-3">Hook</p>
-                                                                    <p className="text-slate-900 leading-relaxed text-lg sm:text-2xl font-bold">
-                                                                        {hookTrimmed}
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                            {displayBody && (
-                                                                <div className="flex-1">
-                                                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 sm:mb-3">Content</p>
-                                                                    <div className="text-slate-600 leading-relaxed text-sm sm:text-lg prose prose-slate max-w-none">
-                                                                <ReactMarkdown
-                                                                    components={{
-                                                                        p: ({ children }) => (
-                                                                            <p className="mb-4 leading-relaxed">{children}</p>
-                                                                        ),
-                                                                        strong: ({ children }) => (
-                                                                            <strong className="font-semibold text-slate-900">{children}</strong>
-                                                                        ),
-                                                                        em: ({ children }) => (
-                                                                            <em className="italic">{children}</em>
-                                                                        ),
-                                                                        ul: ({ children }) => (
-                                                                            <ul className="list-disc list-outside ml-6 mb-4 space-y-2">{children}</ul>
-                                                                        ),
-                                                                        ol: ({ children }) => (
-                                                                            <ol className="list-decimal list-outside ml-6 mb-4 space-y-2">{children}</ol>
-                                                                        ),
-                                                                        li: ({ children }) => (
-                                                                            <li className="leading-relaxed">{children}</li>
-                                                                        ),
-                                                                        h1: ({ children }) => (
-                                                                            <h1 className="text-2xl font-bold text-slate-900 mt-6 mb-4">{children}</h1>
-                                                                        ),
-                                                                        h2: ({ children }) => (
-                                                                            <h2 className="text-xl font-bold text-slate-900 mt-5 mb-3">{children}</h2>
-                                                                        ),
-                                                                        h3: ({ children }) => (
-                                                                            <h3 className="text-lg font-semibold text-slate-900 mt-4 mb-2">{children}</h3>
-                                                                        ),
-                                                                        blockquote: ({ children }) => (
-                                                                            <blockquote className="border-l-4 border-cyan-500 pl-4 my-4 italic text-slate-600">{children}</blockquote>
-                                                                        ),
-                                                                        code: ({ children }) => (
-                                                                            <code className="bg-slate-100 px-1.5 py-0.5 rounded text-sm font-mono text-slate-800">{children}</code>
-                                                                        ),
-                                                                        pre: ({ children }) => (
-                                                                            <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto mb-4">{children}</pre>
-                                                                        ),
-                                                                        a: ({ href, children }) => (
-                                                                            <a href={href} className="text-cyan-600 hover:text-cyan-700 underline" target="_blank" rel="noopener noreferrer">{children}</a>
-                                                                        ),
-                                                                        hr: () => <hr className="my-6 border-slate-200" />,
-                                                                    }}
-                                                                >
-                                                                    {displayBody}
-                                                                </ReactMarkdown>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })()}
-
-                                        <div className="mt-auto pt-4 sm:pt-6 flex flex-wrap gap-2">
-                                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                                {draft.format}
-                                            </span>
-                                            {draft.topic && (
-                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium truncate max-w-[200px]">
-                                                    #{draft.topic}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Action Hints Overlay */}
-                                    <motion.div style={{ opacity: approveOverlayOpacity }} className="absolute inset-0 bg-cyan-500/90 flex flex-col items-center justify-center text-white z-20 pointer-events-none">
-                                        <Check className="w-16 h-16 sm:w-20 sm:h-20 mb-2 sm:mb-4" />
-                                        <span className="text-xl sm:text-2xl font-bold tracking-wide uppercase">Approve</span>
-                                    </motion.div>
-                                    <motion.div style={{ opacity: rejectOverlayOpacity }} className="absolute inset-0 bg-red-500/90 flex flex-col items-center justify-center text-white z-20 pointer-events-none">
-                                        <X className="w-16 h-16 sm:w-20 sm:h-20 mb-2 sm:mb-4" />
-                                        <span className="text-xl sm:text-2xl font-bold tracking-wide uppercase">Reject</span>
-                                    </motion.div>
-                                </Card>
-                            </motion.div>
-                        );
-                    })}
+                    {cards.map((draft, index) => (
+                        <SwipeableCard
+                            key={draft.id}
+                            ref={(el) => {
+                                if (el) cardRefs.current.set(draft.id, el);
+                                else cardRefs.current.delete(draft.id);
+                            }}
+                            draft={draft}
+                            index={index}
+                            isFront={index === 0}
+                            onSwipe={(direction) => handleSwipe(direction, draft)}
+                            onApprove={() => { }} // Removed, handled by onSwipe
+                            onReject={() => { }} // Removed, handled by onSwipe
+                            onEdit={handleEdit} // Pass existing handleEdit
+                            isActioning={isActioning}
+                        />
+                    ))}
                 </AnimatePresence>
 
                 {cards.length === 0 && !isLoading && (
@@ -420,7 +288,7 @@ export default function InboxPage() {
                         size="icon"
                         variant="ghost"
                         className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-red-50 hover:border-red-200 hover:text-red-500 hover:scale-110 transition-all duration-300"
-                        onClick={() => handleReject(cards[0])}
+                        onClick={handleRejectClick}
                         disabled={isActioning}
                     >
                         <X className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
@@ -440,7 +308,7 @@ export default function InboxPage() {
                         size="icon"
                         variant="ghost"
                         className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-600 hover:scale-110 transition-all duration-300"
-                        onClick={() => handleApprove(cards[0])}
+                        onClick={handleApproveClick}
                         disabled={isActioning}
                     >
                         <Check className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />

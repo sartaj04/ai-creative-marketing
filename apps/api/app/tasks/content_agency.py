@@ -9,7 +9,7 @@ import logging
 from typing import Optional
 
 from app.core.celery_app import celery_app
-from app.core.database import async_session_maker
+from app.core.database import celery_session_maker
 from app.services.content_agency_service import ContentAgencyService
 from sqlalchemy import select, func
 from app.models.profile import Profile
@@ -24,7 +24,8 @@ async def _check_and_fill_empty_inboxes() -> dict:
     Returns:
         Dict with summary of profiles checked and content generated
     """
-    async with async_session_maker() as db:
+    # Use NullPool session for Celery to avoid event loop issues
+    async with celery_session_maker() as db:
         service = ContentAgencyService(db)
         
         # Get all active profiles
@@ -86,7 +87,8 @@ async def _run_content_agency(profile_id: Optional[str] = None) -> dict:
     Returns:
         Dict with results summary
     """
-    async with async_session_maker() as db:
+    # Use NullPool session for Celery to avoid event loop issues
+    async with celery_session_maker() as db:
         service = ContentAgencyService(db)
         
         if profile_id:

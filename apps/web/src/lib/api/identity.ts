@@ -113,6 +113,7 @@ export interface StyleProfile {
   version: number;
   created_at: string;
   updated_at: string;
+  writing_samples_count?: number;
 }
 
 export interface StyleProfileUpdate {

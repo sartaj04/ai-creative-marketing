@@ -20,7 +20,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { getErrorMessage } from '@/lib/api/client';
 import { TemplateSelector } from './template-selector';
 import { GoalSelector, GOALS } from './goal-selector';
-import ReactMarkdown from 'react-markdown';
+import { GeneratorReview, GeneratedDraft } from './generator-review';
 
 interface ScratchModalProps {
     open: boolean;
@@ -40,13 +40,7 @@ export function ScratchModal({ open, onClose }: ScratchModalProps) {
     const [goal, setGoal] = useState('thought_leadership');
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [generatedDraft, setGeneratedDraft] = useState<{
-        draft_id: string;
-        hook: string;
-        body: string;
-        topic: string | null;
-        confidence: number;
-    } | null>(null);
+    const [generatedDraft, setGeneratedDraft] = useState<GeneratedDraft | null>(null);
 
     const handleAddKeyPoint = () => {
         if (keyPoints.length < 5) {
@@ -257,48 +251,7 @@ export function ScratchModal({ open, onClose }: ScratchModalProps) {
                     )}
 
                     {step === 'review' && generatedDraft && (
-                        <div className="space-y-6">
-                            {/* Confidence Badge */}
-                            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border border-cyan-100">
-                                <div>
-                                    <h3 className="font-semibold text-slate-900">{generatedDraft.topic || 'Your Draft'}</h3>
-                                    <p className="text-xs text-slate-500 mt-1">Review your generated post</p>
-                                </div>
-                                <div className="px-3 py-1.5 rounded-lg text-sm font-bold border bg-white border-cyan-200 text-cyan-700">
-                                    <Sparkles className="w-4 h-4 inline mr-1" />
-                                    {Math.round(generatedDraft.confidence * 100)}% Match
-                                </div>
-                            </div>
-
-                            {/* Draft Content */}
-                            <div className="space-y-6 p-6 bg-white rounded-lg border border-slate-200">
-                                {generatedDraft.hook && (
-                                    <div className="pb-6 border-b border-slate-100">
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Hook</p>
-                                        <p className="text-slate-900 leading-relaxed text-xl font-bold">
-                                            {generatedDraft.hook}
-                                        </p>
-                                    </div>
-                                )}
-                                {generatedDraft.body && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Content</p>
-                                        <div className="text-slate-600 leading-relaxed prose prose-slate max-w-none">
-                                            <ReactMarkdown
-                                                components={{
-                                                    p: ({ children }) => <p className="mb-4 leading-relaxed">{children}</p>,
-                                                    strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
-                                                    ul: ({ children }) => <ul className="list-disc list-outside ml-6 mb-4 space-y-2">{children}</ul>,
-                                                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                                                }}
-                                            >
-                                                {generatedDraft.body}
-                                            </ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <GeneratorReview draft={generatedDraft} />
                     )}
                 </div>
 

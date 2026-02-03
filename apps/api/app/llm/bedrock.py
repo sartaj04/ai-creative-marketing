@@ -91,6 +91,42 @@ class BedrockProvider(LLMProvider):
             print(f"Response was: {cleaned}")
             return {}
 
+    async def generate_structured(
+        self,
+        prompt: str,
+        response_schema: dict[str, Any],
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.3,
+        max_tokens: int = 4000,
+    ) -> dict[str, Any]:
+        """Generate structured JSON response following a schema.
+        
+        Args:
+            prompt: The user prompt
+            response_schema: JSON schema dict defining the expected response structure
+            system_prompt: Optional system instruction
+            temperature: Generation temperature
+            max_tokens: Maximum tokens to generate
+            
+        Returns:
+            Parsed JSON dict matching the schema
+        """
+        # Enhance prompt with schema information
+        schema_description = json.dumps(response_schema, indent=2)
+        enhanced_prompt = f"""{prompt}
+
+IMPORTANT: Respond with a valid JSON object that matches this exact schema:
+{schema_description}
+
+Return ONLY the JSON object, no markdown, no explanation."""
+        
+        # Use generate_json which handles JSON parsing
+        return await self.generate_json(
+            prompt=enhanced_prompt,
+            system_prompt=system_prompt,
+            temperature=temperature,
+        )
+
     async def embed(self, text: str) -> list[float]:
         """Generate embedding using Bedrock Titan."""
         try:

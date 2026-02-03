@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional, Type
 
@@ -257,27 +258,115 @@ class GeminiProvider(LLMProvider):
                 logger.error(f"Response length: {len(response.text)}")
                 logger.error(f"Response preview: {response.text[:500]}")
                 
-                # Check if JSON is incomplete (missing closing brace)
                 cleaned = response.text.strip()
-                open_braces = cleaned.count("{")
-                close_braces = cleaned.count("}")
-                if open_braces > close_braces:
-                    logger.warning(f"Incomplete JSON detected: {open_braces} opening braces, {close_braces} closing braces")
-                    # Try to complete it by adding missing closing braces
-                    missing_braces = open_braces - close_braces
-                    try:
-                        completed = cleaned + "}" * missing_braces
-                        parsed = json.loads(completed)
-                        if isinstance(parsed, dict):
-                            logger.info("Successfully completed incomplete JSON")
-                            return parsed
-                    except json.JSONDecodeError:
-                        pass
+                
+                # Try to repair incomplete JSON
+                try:
+                    # First, check for unterminated strings
+                    # Find the last unclosed quote
+                    last_quote_pos = cleaned.rfind('"')
+                    if last_quote_pos > 0:
+                        # Check if there's an odd number of quotes before this position
+                        quotes_before = cleaned[:last_quote_pos].count('"')
+                        if quotes_before % 2 == 0:  # Last quote is opening a string
+                            # Close the string
+                            cleaned = cleaned[:last_quote_pos + 1] + '"'
+                    
+                    # Then check for missing closing braces/brackets
+                    open_braces = cleaned.count("{")
+                    close_braces = cleaned.count("}")
+                    open_brackets = cleaned.count("[")
+                    close_brackets = cleaned.count("]")
+                    
+                    if open_braces > close_braces or open_brackets > close_brackets:
+                        logger.warning(
+                            f"Incomplete JSON detected: "
+                            f"{open_braces} opening braces, {close_braces} closing braces, "
+                            f"{open_brackets} opening brackets, {close_brackets} closing brackets"
+                        )
+                        
+                        # Close brackets first, then braces
+                        missing_brackets = open_brackets - close_brackets
+                        missing_braces = open_braces - close_braces
+                        
+                        # Add closing brackets and braces
+                        repaired = cleaned + "]" * missing_brackets + "}" * missing_braces
+                        
+                        try:
+                            parsed = json.loads(repaired)
+                            if isinstance(parsed, dict):
+                                logger.info("Successfully repaired incomplete JSON")
+                                return parsed
+                        except json.JSONDecodeError as repair_error:
+                            logger.warning(f"Repair attempt failed: {repair_error}")
+                            # Try a more aggressive repair: truncate at last complete key-value pair
+                            # Find the last complete "key": "value" pattern
+                            # Find all complete key-value pairs
+                            pattern = r'"([^"]+)":\s*"([^"]*)"'
+                            matches = list(re.finditer(pattern, cleaned))
+                            if matches:
+                                last_match = matches[-1]
+                                # Truncate after the last complete match and close JSON
+                                truncated = cleaned[:last_match.end()] + "}" * missing_braces
+                                try:
+                                    parsed = json.loads(truncated)
+                                    if isinstance(parsed, dict):
+                                        logger.info("Successfully repaired JSON by truncation")
+                                        return parsed
+                                except json.JSONDecodeError:
+                                    pass
+                except Exception as repair_error:
+                    logger.warning(f"JSON repair attempt failed: {repair_error}")
                 
                 raise ValueError(f"Failed to parse JSON response: {e}")
         
         except Exception as e:
             logger.error(f"Gemini JSON generation error: {e}", exc_info=True)
+            raise
+
+    async def generate_structured(
+        self,
+        prompt: str,
+        response_schema: dict[str, Any],
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.3,
+        max_tokens: int = 4000,
+    ) -> dict[str, Any]:
+        """Generate structured JSON response following a schema.
+        
+        Args:
+            prompt: The user prompt
+            response_schema: JSON schema dict defining the expected response structure
+            system_prompt: Optional system instruction
+            temperature: Generation temperature
+            max_tokens: Maximum tokens to generate
+            
+        Returns:
+            Parsed JSON dict matching the schema
+        """
+        if not self._initialized or not self._client:
+            raise RuntimeError("Gemini provider not initialized. Check GCP credentials.")
+
+        try:
+            # Enhance prompt with schema information
+            schema_description = json.dumps(response_schema, indent=2)
+            enhanced_prompt = f"""{prompt}
+
+IMPORTANT: Respond with a valid JSON object that matches this exact schema:
+{schema_description}
+
+Return ONLY the JSON object, no markdown, no explanation."""
+            
+            # Use generate_json which handles JSON mode
+            return await self.generate_json(
+                prompt=enhanced_prompt,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        
+        except Exception as e:
+            logger.error(f"Gemini structured generation error: {e}", exc_info=True)
             raise
 
     async def extract_resume_structured(self, resume_text: str) -> dict[str, Any]:

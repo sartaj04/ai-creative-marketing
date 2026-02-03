@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { useProfileStore } from '@/stores/profile-store';
 import { identityApi, IdentityUniverse, RegenerationPreview } from '@/lib/api/identity';
 import IdentityComposition from '@/components/identity-universe/IdentityComposition';
+import PersonalizeAgentCard from '@/components/dashboard/PersonalizeAgentCard';
+import { IdentityLoader } from '@/components/identity-universe/IdentityLoader';
 
 export default function IdentityUniversePage() {
     const router = useRouter();
@@ -66,21 +68,41 @@ export default function IdentityUniversePage() {
     };
 
     const handleFieldUpdate = async (field: string, value: any) => {
-        if (!currentProfile?.id) return;
+        if (!currentProfile?.id || !universe) return;
 
         // Determine if this is a style profile field or identity graph field
         const styleProfileFields = ['tone_sliders', 'format_preferences', 'taboo_list', 'preferred_hooks'];
         const isStyleField = styleProfileFields.includes(field);
 
+        // Optimistically update local state immediately (no reload)
+        setUniverse(prev => {
+            if (!prev) return prev;
+            if (isStyleField) {
+                return {
+                    ...prev,
+                    style_profile: prev.style_profile 
+                        ? { ...prev.style_profile, [field]: value }
+                        : null,
+                };
+            } else {
+                return {
+                    ...prev,
+                    identity_graph: { ...prev.identity_graph, [field]: value },
+                };
+            }
+        });
+
+        // Persist to backend in background
         try {
             if (isStyleField) {
                 await identityApi.updateStyleProfile(currentProfile.id, { [field]: value });
             } else {
                 await identityApi.updateIdentityGraph(currentProfile.id, { [field]: value });
             }
-            loadUniverse();
         } catch (err) {
             console.error('Failed to update field:', err);
+            // Revert on error by reloading
+            loadUniverse();
         }
     };
 
@@ -114,10 +136,17 @@ export default function IdentityUniversePage() {
                     </Link>
                 </div>
 
-                <div className="flex items-center gap-4 pointer-events-auto">
+                <div className="flex items-center gap-3 pointer-events-auto">
                     <div className="text-sm text-slate-500 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-200">
                         Completeness: <span className="text-cyan-600 font-semibold">{universe?.completeness_score ?? 0}%</span>
                     </div>
+                    {currentProfile?.id && (
+                        <PersonalizeAgentCard
+                            profileId={currentProfile.id}
+                            writingSamplesCount={universe?.style_profile?.writing_samples_count}
+                            compact
+                        />
+                    )}
                     <Button
                         variant="default"
                         className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm"
@@ -135,53 +164,42 @@ export default function IdentityUniversePage() {
             </header>
 
             {/* Main Content */}
-            <AnimatePresence mode="wait">
-                {loading ? (
-                    <motion.div
-                        key="loading"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 flex items-center justify-center bg-slate-50"
-                    >
-                        <div className="text-center">
-                            <div className="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4" />
-                            <p className="text-slate-500">Loading your identity universe...</p>
-                        </div>
-                    </motion.div>
-                ) : error ? (
-                    <motion.div
-                        key="error"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="absolute inset-0 flex items-center justify-center bg-slate-50"
-                    >
-                        <div className="text-center p-8 bg-white shadow-xl rounded-2xl border border-red-100 max-w-md">
-                            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                            <h2 className="text-xl font-semibold text-slate-900 mb-2">Something went wrong</h2>
-                            <p className="text-slate-500 mb-4">{error}</p>
-                            <Button onClick={loadUniverse} className="bg-cyan-600 hover:bg-cyan-700">
-                                Try Again
-                            </Button>
-                        </div>
-                    </motion.div>
-                ) : universe ? (
-                    <motion.div
-                        key="content"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0"
-                    >
-                        <IdentityComposition
-                            universe={universe}
-                            onFieldUpdate={handleFieldUpdate}
-                            regenerationPreview={regenerationPreview}
-                        />
-                    </motion.div>
-                ) : null}
-            </AnimatePresence>
+            {loading ? (
+                <div className="absolute inset-0 z-10">
+                    <IdentityLoader isLoading={loading} />
+                </div>
+            ) : error ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-50 z-10">
+                    <div className="text-center p-8 bg-white shadow-xl rounded-2xl border border-red-100 max-w-md">
+                        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                        <h2 className="text-xl font-semibold text-slate-900 mb-2">Something went wrong</h2>
+                        <p className="text-slate-500 mb-4">{error}</p>
+                        <Button onClick={loadUniverse} className="bg-cyan-600 hover:bg-cyan-700">
+                            Try Again
+                        </Button>
+                    </div>
+                </div>
+            ) : universe ? (
+                <motion.div
+                    key="content"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="absolute inset-0"
+                >
+                    <IdentityComposition
+                        universe={universe}
+                        onFieldUpdate={handleFieldUpdate}
+                        regenerationPreview={regenerationPreview}
+                    />
+                </motion.div>
+            ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
+                    <div className="text-center">
+                        <div className="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-slate-500">Preparing identity view...</p>
+                    </div>
+                </div>
+            )}
 
             {/* Regeneration Preview Overlay */}
             <AnimatePresence>

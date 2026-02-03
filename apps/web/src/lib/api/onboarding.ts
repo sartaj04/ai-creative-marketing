@@ -6,6 +6,8 @@ export interface OnboardingStatusResponse {
     completeness_score: number;
     has_extraction: boolean;
     extracted_sources: string[];
+    profile_id?: string;
+    writing_samples_count?: number;
 }
 
 export interface ExtractionSummary {

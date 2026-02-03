@@ -48,9 +48,11 @@ class GenerationState(TypedDict):
     source_type: str
     source_content: str
     template_content: Optional[str]
+    template_meta: Optional[dict]  # Template metadata (flexibility, min/max length)
 
     # Agent outputs (identity_analysis and style_analysis removed - no longer needed)
     content_analysis: Optional[dict]
+    length_decision: Optional[dict]  # Length Strategist output
 
     # Final output
     final_draft: Optional[dict]
@@ -151,7 +153,7 @@ Provide your analysis as JSON:
     "content_hooks": ["potential hook 1", "potential hook 2"]
 }}"""
 
-SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Your job is to create the final LinkedIn post based on persona context and content analysis.
+SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Your job is to create the final post based on persona context and content analysis.
 
 === PERSONA CONTEXT ===
 {persona_prompt}
@@ -163,7 +165,7 @@ SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Your job is to create t
 
 {regeneration_feedback}
 
-Create a LinkedIn post that:
+Create a post that:
 1. Authentically represents the person's professional identity
 2. Matches their communication style and tone
 3. Effectively conveys the key insights from the source material
@@ -171,23 +173,34 @@ Create a LinkedIn post that:
 5. Ends with engagement-driving content
 
 IMPORTANT GUIDELINES:
-- The hook should be punchy and attention-grabbing (first line people see)
-- Keep the post focused and valuable
-- Match the tone preferences from the persona context exactly
-- Avoid anything mentioned in "things to avoid" in the persona context
-- If a template structure was provided, follow it as guidance
-- If regeneration_feedback is provided, address those specific concerns
+1. The hook should be punchy and attention-grabbing (first line people see)
+2. Keep the post focused and valuable
+3. Match the tone preferences from the persona context exactly
+4. Avoid anything mentioned in "things to avoid" in the persona context
+5. If a template structure was provided, follow it as guidance
+6. If regeneration_feedback is provided, address those specific concerns
+
+CRITICAL STYLE RULES (MUST FOLLOW):
+- NEVER use dashes (—, –, -). Use periods, colons, or commas instead.
+- AVOID overused AI phrases: "game-changer", "dive deep", "unpack this", "spoiler alert", "plot twist", "let that sink in", "read that again", "in today's fast-paced world"
+- Be specific and concrete with real examples. Avoid vague, generic advice.
+- Use natural, conversational language. Vary sentence structure naturally.
+- No hollow platitudes or formulaic structures.
+- Include at least one lived, specific example (time, place, specific mistake or observation).
+- Use uneven sentence rhythm—not all sentences the same length.
+- If appropriate, add 2-4 high-impact hashtags at the end (industry-specific or trending, NOT generic like #success #motivation).
 
 Output the final post as JSON:
 {{
     "hook": "The attention-grabbing first line",
     "body": "The complete post including hook and body",
     "topic": "A short topic label (2-4 words)",
+    "hashtags": ["#Tag1", "#Tag2"],
     "confidence": 0.85,
     "reasoning": "Brief explanation of how the post reflects the persona and content"
 }}"""
 
-REVIEW_AGENT_PROMPT = """You are the Review Agent, a strict quality gatekeeper. Your role is to ensure the generated LinkedIn post meets EXCELLENT quality standards before it's saved. Be thorough and demanding - only approve posts that are truly great.
+REVIEW_AGENT_PROMPT = """You are the Review Agent, a strict quality gatekeeper. Your role is to ensure the generated post meets EXCELLENT quality standards before it's saved. Be thorough and demanding - only approve posts that are truly great.
 
 === GENERATED POST ===
 Hook: {hook}
@@ -225,14 +238,16 @@ Review the post with STRICT quality standards. Check:
    - Is the engagement call-to-action compelling and specific? (Not just "What do you think?")
    - Is the writing crisp and engaging? (No filler, every word counts)
    - Does it have personality and voice? (Not robotic or generic)
+   - Does it include at least one lived, specific example? (time, place, specific observation)
 
 4. FORMATTING & STRUCTURE (MUST BE PROFESSIONAL):
-   - Is the post properly formatted for LinkedIn? (Short paragraphs, white space)
-   - Is it an appropriate length? (1300-3000 characters ideal, not too short/long)
+   - Is the post properly formatted? (Short paragraphs, white space)
+   - Is it an appropriate length? ({target_length_range}, as determined by Length Strategist for this specific topic)
    - Are paragraphs well-structured? (One idea per paragraph, 2-4 lines max)
    - Is there proper use of line breaks? (Not a wall of text)
    - Are emojis used appropriately? (If used, sparingly and meaningfully)
    - Is the hook on its own line? (First impression matters)
+   - Are hashtags (if present) high-impact and industry-specific? (NOT generic like #success #motivation)
 
 5. APPROPRIATENESS & PROFESSIONALISM (ZERO TOLERANCE):
    - Is the content professional and appropriate? (No casual language unless style allows)
@@ -435,7 +450,7 @@ class MultiAgentGenerator:
         """Build the LangGraph workflow.
         
         Optimized 3-agent flow (was 5 agents):
-        Content Agent → Synthesis Agent → Review Agent
+        Content Agent → Length Strategist → Synthesis Agent → Review Agent
         
         Identity/Style agents removed - persona_prompt now provides this context.
         """
@@ -443,12 +458,14 @@ class MultiAgentGenerator:
 
         # Add agent nodes (identity_agent and style_agent removed)
         workflow.add_node("content_agent", self._content_agent)
+        workflow.add_node("length_strategist", self._length_strategist_node)
         workflow.add_node("synthesis_agent", self._synthesis_agent)
         workflow.add_node("review_agent", self._review_agent)
 
-        # Set entry point and edges (now starts with content_agent)
+        # Set entry point and edges
         workflow.set_entry_point("content_agent")
-        workflow.add_edge("content_agent", "synthesis_agent")
+        workflow.add_edge("content_agent", "length_strategist")
+        workflow.add_edge("length_strategist", "synthesis_agent")
         workflow.add_edge("synthesis_agent", "review_agent")
         
         # Conditional edge: review can approve or request regeneration
@@ -486,6 +503,51 @@ class MultiAgentGenerator:
         # Otherwise, regenerate
         logger.info(f"Review agent requested regeneration (attempt {regeneration_count + 1}/2)")
         return "regenerate"
+
+    def _length_strategist_node(self, state: GenerationState) -> dict:
+        """Length Strategist: Determine optimal content length."""
+        content = state.get("content_analysis", {})
+        if not content:
+            # Fallback if content analysis failed
+            return {"length_decision": None}
+            
+        logger.info("Length Strategist analyzing optimal length")
+        
+        try:
+            from app.services.length_strategist import LengthStrategistService
+            import asyncio
+            
+            strategist = LengthStrategistService()
+            template_meta = state.get("template_meta", {})
+            
+            # Use content analysis to inform the decision
+            topic = content.get("main_message", "General Content")
+            brief = f"Main message: {content.get('main_message')}. Insights: {', '.join(content.get('key_insights', [])[:3])}"
+            
+            # Determine optimal length (sync wrapper for async call)
+            decision = asyncio.run(strategist.determine_optimal_length(
+                topic=topic,
+                template_category=template_meta.get("category"),
+                template_flexibility=template_meta.get("length_flexibility", "flexible"),
+                template_min=template_meta.get("min_length"),
+                template_max=template_meta.get("max_length"),
+                brief_description=brief,
+                # Note: We don't have direct access to user patterns here without extra queries,
+                # but the variance introduction in LengthStrategistService helps uniqueness anyway.
+                user_length_patterns=None, 
+            ))
+            
+            logger.info(
+                f"Length decision: {decision['target_min_words']}-{decision['target_max_words']} words. "
+                f"Reason: {decision['reasoning'][:50]}..."
+            )
+            
+            return {"length_decision": decision}
+            
+        except Exception as e:
+            logger.error(f"Length Strategist error: {e}", exc_info=True)
+            return {"length_decision": None}
+
 
     def _identity_agent(self, state: GenerationState) -> dict:
         """Analyze identity graph and provide content guidance."""
@@ -585,10 +647,20 @@ class MultiAgentGenerator:
             for issue in review_feedback.get("issues", []):
                 regeneration_feedback += f"- [{issue.get('severity', 'unknown').upper()}] {issue.get('category', 'unknown')}: {issue.get('description', '')}\n"
             regeneration_feedback += "\nPlease regenerate with these concerns addressed.\n"
+        
+        # Include length guidance
+        length_guidance = ""
+        length_decision = state.get("length_decision")
+        if length_decision:
+            length_guidance = (
+                f"\nTARGET LENGTH: {length_decision['target_min_words']}-{length_decision['target_max_words']} words\n"
+                f"LENGTH STRATEGY: {length_decision.get('reasoning', '')}\n"
+                f"STRUCTURE SUGGESTION: {length_decision.get('structure_suggestion', '')}\n"
+            )
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", "You are an expert LinkedIn content creator who synthesizes persona context and content insights into compelling posts. You MUST respond with ONLY valid JSON, no additional text."),
-            ("user", SYNTHESIS_AGENT_PROMPT),
+            ("user", SYNTHESIS_AGENT_PROMPT + "\n\n{length_guidance}"),
         ])
 
         variables = {
@@ -596,6 +668,7 @@ class MultiAgentGenerator:
             "content_analysis": json.dumps(state.get("content_analysis", {}), indent=2),
             "template_section": template_section,
             "regeneration_feedback": regeneration_feedback,
+            "length_guidance": length_guidance,
         }
 
         try:
@@ -656,6 +729,14 @@ class MultiAgentGenerator:
         try:
             # Prepare source content preview (truncated)
             source_preview = state.get("source_content", "")[:500] + "..." if len(state.get("source_content", "")) > 500 else state.get("source_content", "")
+            
+            # Get length decision for validation
+            length_decision = state.get("length_decision", {
+                "target_min_words": 150,
+                "target_max_words": 250,
+                "reasoning": "Default range",
+            })
+            target_length_range = f"{length_decision['target_min_words']}-{length_decision['target_max_words']} words"
 
             variables = {
                 "hook": hook,
@@ -663,6 +744,7 @@ class MultiAgentGenerator:
                 "persona_prompt": state.get("persona_prompt", "No persona context available."),
                 "source_type": state.get("source_type", "unknown"),
                 "source_content_preview": source_preview,
+                "target_length_range": target_length_range,
             }
 
             result = self._invoke_with_fallback(prompt, variables, "Review Agent")
@@ -770,20 +852,7 @@ class MultiAgentGenerator:
 
         if not identity:
             raise ValueError("Profile has no identity graph. Please complete onboarding first.")
-
-        # Load template if provided
-        template_content = None
-        if template_id:
-            template_result = await db.execute(
-                select(Template).where(Template.id == template_id, Template.is_active == True)
-            )
-            template = template_result.scalar_one_or_none()
-            if template:
-                template_content = template.content
-
-        # Prepare source content based on type
-        source_content = self._prepare_source_content(source_type, source_data)
-
+        
         # Get cached persona prompt (synthesized from identity + style)
         persona_prompt = profile.persona_prompt
         if not persona_prompt:
@@ -795,13 +864,57 @@ class MultiAgentGenerator:
             if not persona_prompt:
                 raise ValueError("Failed to generate persona prompt. Please complete onboarding first.")
 
+        # Load template if provided
+        template_content = None
+        template_meta = {}
+        if template_id:
+            template_result = await db.execute(
+                select(Template).where(Template.id == template_id, Template.is_active == True)
+            )
+            template = template_result.scalar_one_or_none()
+            if template:
+                template_content = template.content
+                template_meta = {
+                    "category": template.category.value if template.category else None,
+                    "length_flexibility": template.length_flexibility,
+                    "min_length": template.min_length,
+                    "max_length": template.max_length,
+                }
+
+        # Prepare source content based on type
+        source_content = self._prepare_source_content(source_type, source_data)
+        
+        # Determine optimal length using Length Strategist
+        from app.services.length_strategist import LengthStrategistService
+        length_strategist = LengthStrategistService()
+        
+        # Extract writing patterns from persona if available
+        writing_patterns = None
+        if persona_prompt and "LENGTH PATTERNS:" in persona_prompt:
+            start = persona_prompt.find("LENGTH PATTERNS:")
+            end = persona_prompt.find("\n\n", start)
+            if end > start:
+                writing_patterns = persona_prompt[start:end]
+        
+        length_decision = await length_strategist.determine_optimal_length(
+            topic=source_data.get("topic", "Content Generation"),
+            template_category=template_meta.get("category"),
+            template_flexibility=template_meta.get("length_flexibility", "flexible"),
+            template_min=template_meta.get("min_length"),
+            template_max=template_meta.get("max_length"),
+            brief_description=source_content[:200],  # First 200 chars as brief
+            user_length_patterns=writing_patterns,
+        )
+
         # Build initial state (simplified - no need for identity_data/style_data)
         initial_state: GenerationState = {
             "persona_prompt": persona_prompt,
             "source_type": source_type,
             "source_content": source_content,
             "template_content": template_content,
+            "template_meta": template_meta,
             "content_analysis": None,
+            "length_decision": length_decision,
             "final_draft": None,
             "review_approved": None,
             "review_feedback": None,

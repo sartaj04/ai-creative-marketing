@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -99,6 +99,22 @@ class Template(Base):
         JSONB,
         nullable=True,
         comment="Image/video slots in template",
+    )
+    # Length control
+    length_flexibility: Mapped[str] = mapped_column(
+        String(50),
+        default="flexible",
+        comment="fixed, semi_flexible, or flexible",
+    )
+    min_length: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Minimum word count (if fixed/semi_flexible)",
+    )
+    max_length: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Maximum word count (if fixed/semi_flexible)",
     )
     # Template ownership and visibility
     is_system: Mapped[bool] = mapped_column(

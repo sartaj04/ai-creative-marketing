@@ -12,13 +12,15 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { Loader2, Link2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Link2, ChevronLeft, ChevronRight, Check, RefreshCw } from 'lucide-react';
 import { generatorsApi } from '@/lib/api/generators';
+import { draftsApi } from '@/lib/api/drafts';
 import { useProfileStore } from '@/stores/profile-store';
 import { useToast } from '@/components/ui/use-toast';
 import { getErrorMessage } from '@/lib/api/client';
 import { TemplateSelector } from './template-selector';
 import { GoalSelector } from './goal-selector';
+import { GeneratorReview, GeneratedDraft } from './generator-review';
 
 interface ArticleModalProps {
     open: boolean;
@@ -27,7 +29,7 @@ interface ArticleModalProps {
 
 const URL_REGEX = /^https?:\/\/.+/;
 
-type Step = 'input' | 'template';
+type Step = 'input' | 'template' | 'review';
 
 export function ArticleModal({ open, onClose }: ArticleModalProps) {
     const router = useRouter();
@@ -39,6 +41,7 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
     const [goal, setGoal] = useState('thought_leadership');  // Default for articles
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [generatedDraft, setGeneratedDraft] = useState<GeneratedDraft | null>(null);
 
     const isValidUrl = URL_REGEX.test(articleUrl);
 
@@ -51,10 +54,14 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
     };
 
     const handleBack = () => {
-        setStep('input');
+        if (step === 'review') {
+            setStep('template');
+        } else {
+            setStep('input');
+        }
     };
 
-    const handleSubmit = async () => {
+    const handleGenerate = async () => {
         if (!currentProfile) {
             toast({ title: 'No profile selected', variant: 'destructive' });
             return;
@@ -62,16 +69,14 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
 
         setIsLoading(true);
         try {
-            await generatorsApi.article({
+            const response = await generatorsApi.article({
                 profile_id: currentProfile.id,
                 article_url: articleUrl.trim(),
                 template_id: selectedTemplateId,
             });
 
-            toast({ title: 'Draft generated successfully!' });
-            onClose();
-            resetForm();
-            router.push('/dashboard/inbox');
+            setGeneratedDraft(response);
+            setStep('review');
         } catch (error) {
             toast({
                 title: 'Failed to generate draft',
@@ -83,11 +88,37 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
         }
     };
 
+    const handleApprove = async () => {
+        if (!generatedDraft) return;
+        setIsLoading(true);
+        try {
+            await draftsApi.action(generatedDraft.draft_id, { action: 'approve' });
+            toast({ title: 'Draft approved and moved to kanban!' });
+            onClose();
+            resetForm();
+            router.push('/dashboard/drafts');
+        } catch (error) {
+            toast({
+                title: 'Failed to approve',
+                description: getErrorMessage(error),
+                variant: 'destructive'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRegenerate = () => {
+        setGeneratedDraft(null);
+        setStep('template');
+    };
+
     const resetForm = () => {
         setStep('input');
         setArticleUrl('');
         setGoal('thought_leadership');
         setSelectedTemplateId(null);
+        setGeneratedDraft(null);
     };
 
     const handleClose = () => {
@@ -102,7 +133,7 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
             <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        {step === 'template' && (
+                        {(step === 'template' || step === 'review') && (
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -118,7 +149,7 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
                         </div>
                         Generate from Article
                         <span className="text-xs text-slate-400 font-normal ml-auto">
-                            Step {step === 'input' ? '1' : '2'} of 2
+                            Step {step === 'input' ? '1' : step === 'template' ? '2' : '3'} of 3
                         </span>
                     </DialogTitle>
                 </DialogHeader>
@@ -173,13 +204,17 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
                             disabled={isLoading}
                         />
                     )}
+
+                    {step === 'review' && generatedDraft && (
+                        <GeneratorReview draft={generatedDraft} />
+                    )}
                 </div>
 
                 <DialogFooter>
                     <Button variant="outline" onClick={handleClose} disabled={isLoading}>
                         Cancel
                     </Button>
-                    {step === 'input' ? (
+                    {step === 'input' && (
                         <Button
                             onClick={handleNext}
                             disabled={!articleUrl.trim() || !isValidUrl}
@@ -188,15 +223,37 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
                             Next
                             <ChevronRight className="w-4 h-4 ml-1" />
                         </Button>
-                    ) : (
+                    )}
+                    {step === 'template' && (
                         <Button
-                            onClick={handleSubmit}
+                            onClick={handleGenerate}
                             disabled={isLoading}
                             className="bg-cyan-600 hover:bg-cyan-500"
                         >
                             {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                             Generate Draft
                         </Button>
+                    )}
+                    {step === 'review' && (
+                        <>
+                            <Button
+                                variant="outline"
+                                onClick={handleRegenerate}
+                                disabled={isLoading}
+                                className="border-slate-300 hover:border-cyan-300"
+                            >
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Regenerate
+                            </Button>
+                            <Button
+                                onClick={handleApprove}
+                                disabled={isLoading}
+                                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                            >
+                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                                Approve & Move to Kanban
+                            </Button>
+                        </>
                     )}
                 </DialogFooter>
             </DialogContent>

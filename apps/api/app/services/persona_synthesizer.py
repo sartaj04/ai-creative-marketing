@@ -47,6 +47,9 @@ Topics to Avoid: {taboo_list}
 === LEARNED PREFERENCES ===
 {learned_preferences}
 
+=== WRITING STYLE ANALYSIS (from actual posts) ===
+{writing_sample_insights}
+
 === INSTRUCTIONS ===
 Create a persona prompt (300-500 words) that:
 1. Describes who this person is professionally (role, expertise, positioning)
@@ -55,6 +58,7 @@ Create a persona prompt (300-500 words) that:
 4. Provides clear guidance for writing in their authentic voice
 5. Mentions their target audience and how to speak to them
 6. Incorporates any learned preferences from their feedback history
+7. **IMPORTANT**: If writing style analysis is provided, PROMINENTLY incorporate their actual writing patterns, vocabulary, and structural preferences
 
 Write it as instructions to an AI, starting with "You are writing as [name/role]..."
 
@@ -266,12 +270,26 @@ class PersonaSynthesizerService:
         
         # Include learned preferences
         learned_preferences = profile.learned_preferences or "No preferences learned yet from feedback."
+        
+        # Include writing sample insights if available
+        writing_sample_insights = "No writing samples analyzed yet."
+        if style and style.writing_sample_insights:
+            from app.services.writing_sample_analyzer import WritingSampleAnalyzer
+            
+            analyzer = WritingSampleAnalyzer()
+            # Check if detected_patterns exists for structured formatting
+            if style.detected_patterns:
+                writing_sample_insights = analyzer.format_insights_for_persona(style.detected_patterns)
+            else:
+                # Use the text summary directly
+                writing_sample_insights = style.writing_sample_insights
 
         # Format the prompt
         prompt = PERSONA_SYNTHESIS_PROMPT.format(
             **identity_data, 
             **style_data,
             learned_preferences=learned_preferences,
+            writing_sample_insights=writing_sample_insights,
         )
 
         try:

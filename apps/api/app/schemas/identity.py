@@ -125,6 +125,7 @@ class StyleProfileResponse(BaseModel):
     version: int
     created_at: datetime
     updated_at: datetime
+    writing_samples_count: int = 0
 
     class Config:
         from_attributes = True

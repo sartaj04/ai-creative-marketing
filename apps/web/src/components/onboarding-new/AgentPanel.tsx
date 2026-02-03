@@ -57,6 +57,7 @@ export function AgentPanel({ step, totalSteps, agentState }: AgentPanelProps) {
                             src="/android-chrome-192x192.png"
                             alt="Pixo Logo"
                             fill
+                            sizes="40px"
                             className="object-cover"
                         />
                     </div>

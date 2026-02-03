@@ -8,12 +8,14 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isHydrated: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
+  setHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -23,7 +25,10 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      isHydrated: false,
       error: null,
+
+      setHydrated: (state: boolean) => set({ isHydrated: state }),
 
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
@@ -111,6 +116,15 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({ token: state.token }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setHydrated(true);
+          // If we have a token but no user, we might want to trigger a fetch
+          if (state.token && !state.user) {
+            state.checkAuth();
+          }
+        }
+      },
     }
   )
 );

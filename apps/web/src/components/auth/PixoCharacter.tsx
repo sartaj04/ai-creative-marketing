@@ -122,6 +122,7 @@ export function PixoCharacter({ showBubbles = true }: PixoCharacterProps = {}) {
                                     src="/android-chrome-192x192.png"
                                     alt="Pixo Logo"
                                     fill
+                                    sizes="(max-width: 768px) 16px, 24px"
                                     className="object-contain rounded-lg"
                                 />
                             </div>
@@ -258,6 +259,7 @@ export function PixoCharacter({ showBubbles = true }: PixoCharacterProps = {}) {
                                         src="/android-chrome-192x192.png"
                                         alt="Pixo Logo"
                                         fill
+                                        sizes="(max-width: 768px) 24px, 32px"
                                         className="object-contain rounded-lg"
                                     />
                                 </div>
@@ -276,10 +278,10 @@ export function PixoCharacter({ showBubbles = true }: PixoCharacterProps = {}) {
                 {showBubbles && (action !== 'typing' && action !== 'throwing') && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0, y: 5, x: -5 }}
-                        animate={{ 
-                            opacity: 1, 
-                            scale: 1, 
-                            y: 0, 
+                        animate={{
+                            opacity: 1,
+                            scale: 1,
+                            y: 0,
                             x: 0,
                         }}
                         exit={{ opacity: 0, scale: 0 }}

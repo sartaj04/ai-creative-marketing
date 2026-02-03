@@ -32,6 +32,7 @@ export function Navbar() {
               src="/android-chrome-192x192.png"
               alt="Pixo Logo"
               fill
+              sizes="32px"
               className="object-cover"
             />
           </div>
@@ -211,6 +212,7 @@ export function Footer() {
                   src="/android-chrome-192x192.png"
                   alt="Pixo Logo"
                   fill
+                  sizes="36px"
                   className="object-cover"
                 />
               </div>

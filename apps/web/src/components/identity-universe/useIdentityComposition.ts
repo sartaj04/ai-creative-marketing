@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Delaunay } from 'd3-delaunay';
 import { IdentityUniverse } from '@/lib/api/identity';
-import { 
-    IDENTITY_SCHEMA, 
-    getFieldsByRegion, 
+import {
+    IDENTITY_SCHEMA,
+    getFieldsByRegion,
     REGION_DEFINITIONS,
     calculateCompleteness,
     CompletenessResult

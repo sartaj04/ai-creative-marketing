@@ -150,6 +150,22 @@ class StyleProfile(Base):
         },
         comment="Learned weights from user feedback",
     )
+    # Writing sample metadata
+    writing_samples_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        comment="Number of user posts analyzed",
+    )
+    writing_sample_insights: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+        comment="LLM-generated summary of user writing patterns",
+    )
+    detected_patterns: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Structured patterns extracted from writing samples",
+    )
     # Metadata
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(

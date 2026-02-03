@@ -86,7 +86,14 @@ function AuthContent() {
                     <div className="space-y-2 text-center">
                         <div className="flex items-center justify-center gap-3 mb-8 lg:hidden">
                             <div className="w-10 h-10 relative rounded-xl overflow-hidden shadow-sm">
-                                <Image src="/android-chrome-192x192.png" alt="Pixo Logo" fill className="object-cover" />
+                                <Image
+                                    src="/android-chrome-192x192.png"
+                                    alt="Pixo Logo"
+                                    fill
+                                    sizes="40px"
+                                    priority
+                                    className="object-cover"
+                                />
                             </div>
                             <div className="flex items-start">
                                 <span className="text-2xl font-bold tracking-tight text-slate-900 leading-none">Pixo</span>
@@ -143,6 +150,7 @@ function AuthContent() {
                                 <Input
                                     id="password"
                                     type="password"
+                                    autoComplete="current-password"
                                     placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}

@@ -41,8 +41,8 @@ export function Dialog({ open, onOpenChange, children, className }: DialogProps)
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <div
           className={cn(
-            "relative max-h-[90vh] w-full max-w-lg overflow-auto rounded-lg bg-background shadow-lg",
-            className
+            "relative max-h-[90vh] w-full overflow-auto rounded-lg bg-background shadow-lg",
+            className || "max-w-lg"
           )}
           onClick={(e) => e.stopPropagation()}
         >

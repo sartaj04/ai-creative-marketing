@@ -13,6 +13,7 @@ class Base(DeclarativeBase):
 
 
 # Create async engine
+# Note: We use the default pool (QueuePool) for the main API for performance
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,  # Set to False in production for better performance
@@ -31,6 +32,36 @@ engine = create_async_engine(
 # Create async session factory
 async_session_maker = async_sessionmaker(
     engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
+# ------------------------------------------------------------------------------
+# Celery Worker Database Configuration
+# ------------------------------------------------------------------------------
+# Celery workers use asyncio.run() which creates a new event loop for each task.
+# Standard connection pooling (QueuePool) binds connections to an event loop,
+# causing "Future attached to a different loop" errors when reused across tasks.
+# We use NullPool for Celery to force a fresh connection for every task.
+
+from sqlalchemy.pool import NullPool
+
+celery_engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=settings.DEBUG,
+    poolclass=NullPool,  # Disable pooling for Celery
+    connect_args={
+        "server_settings": {
+            "application_name": "pixo_worker",
+            "jit": "off",
+        }
+    },
+)
+
+celery_session_maker = async_sessionmaker(
+    celery_engine,
     class_=AsyncSession,
     expire_on_commit=False,
     autocommit=False,

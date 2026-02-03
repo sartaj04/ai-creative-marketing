@@ -75,6 +75,8 @@ class OnboardingService:
                 "completeness_score": 0,
                 "has_extraction": False,
                 "extracted_sources": [],
+                "profile_id": str(profile_id),
+                "writing_samples_count": 0,
             }
 
         # Load style profile
@@ -96,12 +98,19 @@ class OnboardingService:
         style_data = style_profile_to_dict(style_profile)
         completeness = calculate_completeness(identity_data, style_data)
 
+        # Get writing samples count
+        writing_samples_count = 0
+        if style_profile and hasattr(style_profile, 'writing_samples_count'):
+            writing_samples_count = style_profile.writing_samples_count or 0
+
         return {
             "is_complete": context.get("step") == "COMPLETE",
             "step": context.get("step"),
             "completeness_score": completeness.percentage,  # Use calculated value, not stored
             "has_extraction": context.get("has_extraction", False),
             "extracted_sources": extracted_sources,
+            "profile_id": str(profile_id),
+            "writing_samples_count": writing_samples_count,
         }
 
     async def process_extraction(

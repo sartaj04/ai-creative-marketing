@@ -37,6 +37,8 @@ class OnboardingStatusResponse(BaseModel):
     completeness_score: int = 0
     has_extraction: bool = False
     extracted_sources: List[str] = []
+    profile_id: Optional[str] = None
+    writing_samples_count: int = 0
 
 
 # Step-specific data schemas

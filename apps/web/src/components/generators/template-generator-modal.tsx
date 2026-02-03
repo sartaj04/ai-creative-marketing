@@ -21,6 +21,7 @@ import { getErrorMessage } from '@/lib/api/client';
 import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { GeneratorReview, GeneratedDraft } from './generator-review';
 
 interface TemplateGeneratorModalProps {
     open: boolean;
@@ -48,13 +49,7 @@ export function TemplateGeneratorModal({ open, onClose, templateCategory, catego
     // Form State
     const [topic, setTopic] = useState('');
     const [keyPoints, setKeyPoints] = useState<string[]>(['']);
-    const [generatedDraft, setGeneratedDraft] = useState<{
-        draft_id: string;
-        hook: string;
-        body: string;
-        topic: string | null;
-        confidence: number;
-    } | null>(null);
+    const [generatedDraft, setGeneratedDraft] = useState<GeneratedDraft | null>(null);
 
     // Initial Load
     useEffect(() => {
@@ -352,36 +347,7 @@ export function TemplateGeneratorModal({ open, onClose, templateCategory, catego
                     )}
 
                     {step === 'review' && generatedDraft && (
-                        <div className="space-y-6">
-                            {/* Draft Content */}
-                            <div className="space-y-6 p-6 bg-white rounded-lg border border-slate-200 shadow-sm">
-                                {generatedDraft.hook && (
-                                    <div className="pb-6 border-b border-slate-100">
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Hook</p>
-                                        <p className="text-slate-900 leading-relaxed text-xl font-bold">
-                                            {generatedDraft.hook}
-                                        </p>
-                                    </div>
-                                )}
-                                {generatedDraft.body && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Content</p>
-                                        <div className="text-slate-600 leading-relaxed prose prose-slate max-w-none">
-                                            <ReactMarkdown
-                                                components={{
-                                                    p: ({ children }) => <p className="mb-4 leading-relaxed">{children}</p>,
-                                                    strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
-                                                    ul: ({ children }) => <ul className="list-disc list-outside ml-6 mb-4 space-y-2">{children}</ul>,
-                                                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                                                }}
-                                            >
-                                                {generatedDraft.body}
-                                            </ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <GeneratorReview draft={generatedDraft} />
                     )}
                 </div>
 
@@ -426,7 +392,7 @@ export function TemplateGeneratorModal({ open, onClose, templateCategory, catego
                                 className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
                             >
                                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
-                                Approve & Save
+                                Approve & Move to Kanban
                             </Button>
                         </>
                     )}

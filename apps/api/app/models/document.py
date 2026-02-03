@@ -18,6 +18,7 @@ class SourceType(str, PyEnum):
     MANUAL = "manual"
     RSS = "rss"
     BLOG = "blog"
+    USER_POST = "user_post"
 
 
 class ExtractedDocument(Base):

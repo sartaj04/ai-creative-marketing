@@ -46,6 +46,7 @@ class ContentAgencyService:
         max_drafts: int = 3,
         skip_if_has_content: bool = False,
         max_inbox_threshold: int = 10,
+        platform_intent: str = "generic",
     ) -> list[Draft]:
         """Run the Content Agency for a profile and create drafts.
         
@@ -54,6 +55,7 @@ class ContentAgencyService:
             max_drafts: Maximum number of drafts to generate (default 3)
             skip_if_has_content: If True, skip generation if inbox already has drafts (default False)
             max_inbox_threshold: Skip generation if inbox has >= this many drafts (default 10)
+            platform_intent: Target platform (linkedin, x, ig, newsletter, generic)
             
         Returns:
             List of created Draft objects
@@ -117,19 +119,35 @@ class ContentAgencyService:
         
         # Get existing topics to avoid duplicates (last 30 days)
         existing_topics = []
+        historical_uniqueness = {
+            "used_hook_styles": [],
+            "used_format_archetypes": [],
+            "used_cta_styles": [],
+        }
         if profile.drafts:
             for draft in profile.drafts:
                 if draft.topic:
                     existing_topics.append(draft.topic)
+                # Collect style metadata for cross-session uniqueness
+                if draft.hook_style:
+                    historical_uniqueness["used_hook_styles"].append(draft.hook_style)
+                if draft.format_archetype:
+                    historical_uniqueness["used_format_archetypes"].append(draft.format_archetype)
+                if draft.cta_style:
+                    historical_uniqueness["used_cta_styles"].append(draft.cta_style)
         existing_topics = existing_topics[-20:]  # Keep recent 20
+        # Keep recent 15 of each style for diversity without over-constraining
+        for key in historical_uniqueness:
+            historical_uniqueness[key] = historical_uniqueness[key][-15:]
         
         # Get style data
         style = profile.style_profile
         tone_sliders = style.tone_sliders if style else {}
         preferred_hooks = style.preferred_hooks if style else []
         taboo_list = style.taboo_list if style else []
+        writing_sample_insights = style.writing_sample_insights if style else None
         
-        logger.info(f"Running Content Agency for profile {profile_id}")
+        logger.info(f"Running Content Agency for profile {profile_id} (platform: {platform_intent}, history: {len(historical_uniqueness['used_hook_styles'])} hooks)")
         
         # Run the agency workflow
         try:
@@ -141,6 +159,9 @@ class ContentAgencyService:
                 taboo_list=taboo_list,
                 tone_sliders=tone_sliders,
                 preferred_hooks=preferred_hooks,
+                platform_intent=platform_intent,
+                historical_uniqueness=historical_uniqueness,
+                writing_sample_insights=writing_sample_insights,
             )
         except Exception as e:
             logger.error(f"Agency workflow failed: {e}", exc_info=True)
@@ -164,10 +185,15 @@ class ContentAgencyService:
                     confidence=data.get("qa_score", 0.7),
                     sources_json=[],
                     generated_by=AgentType.CONTENT_AGENCY,
+                    # Style metadata for cross-session uniqueness
+                    hook_style=data.get("hook_style"),
+                    format_archetype=data.get("format_archetype"),
+                    cta_style=data.get("cta_style"),
+                    hashtags=data.get("hashtags", []),
                 )
                 self.db.add(draft)
                 created_drafts.append(draft)
-                logger.info(f"Created draft: {draft.topic[:50] if draft.topic else 'Untitled'}")
+                logger.info(f"Created draft: {draft.topic[:50] if draft.topic else 'Untitled'} (hook: {draft.hook_style}, format: {draft.format_archetype})")
             except Exception as e:
                 logger.error(f"Failed to create draft: {e}")
         
