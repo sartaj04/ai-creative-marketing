@@ -106,16 +106,6 @@ export const INDUSTRY_OPTIONS: FieldOption[] = [
   { value: 'other', label: 'Other', description: 'Specify your industry' },
 ];
 
-export const CAREER_STAGE_OPTIONS: FieldOption[] = [
-  { value: 'early_career', label: 'Early Career', description: '0-3 years experience' },
-  { value: 'mid_career', label: 'Mid Career', description: '4-10 years experience' },
-  { value: 'senior', label: 'Senior', description: '10+ years, individual contributor' },
-  { value: 'leadership', label: 'Leadership', description: 'Managing teams or departments' },
-  { value: 'executive', label: 'Executive', description: 'C-suite, VP level' },
-  { value: 'founder', label: 'Founder/Entrepreneur', description: 'Started own company' },
-  { value: 'advisor', label: 'Advisor/Board Member', description: 'Advisory roles' },
-  { value: 'thought_leader', label: 'Thought Leader', description: 'Industry influencer' },
-];
 
 export const INTEREST_OPTIONS: FieldOption[] = [
   { value: 'ai_technology', label: 'AI & Technology' },
@@ -312,26 +302,6 @@ export const BELIEFS_OPTIONS: FieldOption[] = [
   { value: 'gratitude_practice', label: 'Gratitude Changes Everything' },
 ];
 
-export const CONTRARIAN_VIEWS_OPTIONS: FieldOption[] = [
-  // Work & Career
-  { value: 'hustle_culture_toxic', label: 'Hustle Culture is Toxic' },
-  { value: 'college_overrated', label: 'College Degrees are Overrated' },
-  { value: 'remote_better', label: 'Remote Work is Superior' },
-  { value: 'meetings_waste', label: 'Most Meetings are Wasteful' },
-  { value: 'titles_meaningless', label: 'Titles are Meaningless' },
-  // Industry
-  { value: 'growth_at_all_costs_wrong', label: 'Growth at All Costs is Wrong' },
-  { value: 'networking_overrated', label: 'Networking is Overrated' },
-  { value: 'passion_myth', label: '"Follow Your Passion" is a Myth' },
-  { value: 'metrics_misleading', label: 'Most Metrics are Misleading' },
-  { value: 'best_practices_trap', label: 'Best Practices are a Trap' },
-  // Life & Society
-  { value: 'success_redefined', label: 'Success Needs Redefining' },
-  { value: 'less_is_more', label: 'Less is More' },
-  { value: 'slow_down', label: 'We Should All Slow Down' },
-  { value: 'expertise_overrated', label: 'Expertise is Overrated' },
-  { value: 'planning_overrated', label: 'Planning is Overrated' },
-];
 
 export const TABOO_TOPICS_OPTIONS: FieldOption[] = [
   // Content topics to avoid
@@ -350,49 +320,7 @@ export const TABOO_TOPICS_OPTIONS: FieldOption[] = [
   { value: 'legal_matters', label: 'Ongoing Legal Matters' },
 ];
 
-export const TONE_MARKERS_OPTIONS: FieldOption[] = [
-  // Voice characteristics
-  { value: 'conversational', label: 'Conversational' },
-  { value: 'direct', label: 'Direct & Concise' },
-  { value: 'storytelling', label: 'Storytelling' },
-  { value: 'analytical', label: 'Analytical' },
-  { value: 'inspirational', label: 'Inspirational' },
-  { value: 'witty', label: 'Witty/Humorous' },
-  { value: 'empathetic', label: 'Empathetic' },
-  { value: 'provocative', label: 'Provocative' },
-  { value: 'educational', label: 'Educational' },
-  { value: 'vulnerable', label: 'Vulnerable/Authentic' },
-  { value: 'optimistic', label: 'Optimistic' },
-  { value: 'pragmatic', label: 'Pragmatic' },
-  { value: 'reflective', label: 'Reflective' },
-  { value: 'energetic', label: 'Energetic' },
-];
 
-export const TOPICS_OPTIONS: FieldOption[] = [
-  // Professional
-  { value: 'startups', label: 'Startups & Entrepreneurship' },
-  { value: 'leadership', label: 'Leadership' },
-  { value: 'product', label: 'Product Development' },
-  { value: 'marketing', label: 'Marketing & Growth' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'technology', label: 'Technology & Innovation' },
-  { value: 'ai', label: 'AI & Machine Learning' },
-  { value: 'career', label: 'Career Development' },
-  { value: 'hiring', label: 'Hiring & Talent' },
-  { value: 'remote_work', label: 'Remote Work' },
-  // Life & Personal
-  { value: 'productivity', label: 'Productivity' },
-  { value: 'personal_growth', label: 'Personal Growth' },
-  { value: 'mental_health', label: 'Mental Health' },
-  { value: 'work_life_balance', label: 'Work-Life Balance' },
-  { value: 'relationships', label: 'Relationships' },
-  { value: 'parenting', label: 'Parenting' },
-  // Philosophical
-  { value: 'success', label: 'Success & Achievement' },
-  { value: 'purpose', label: 'Purpose & Meaning' },
-  { value: 'wisdom', label: 'Wisdom & Learning' },
-  { value: 'creativity', label: 'Creativity' },
-];
 
 // ============================================
 // Complete Identity Schema
@@ -421,16 +349,6 @@ export const IDENTITY_SCHEMA: FieldSchema[] = [
     region: 'core',
     options: INDUSTRY_OPTIONS,
     allowCustom: true,
-  },
-  {
-    key: 'career_stage',
-    label: 'Career Stage',
-    description: 'Your current career level',
-    type: 'enum',
-    required: false,
-    source: 'identity_graph',
-    region: 'core',
-    options: CAREER_STAGE_OPTIONS,
   },
   {
     key: 'bio_summary',
@@ -474,18 +392,6 @@ export const IDENTITY_SCHEMA: FieldSchema[] = [
     maxItems: 10,
   },
   {
-    key: 'expertise_keywords',
-    label: 'Expertise Keywords',
-    description: 'Specific skills and keywords that define your expertise',
-    type: 'array',
-    required: false,
-    source: 'identity_graph',
-    region: 'expertise',
-    allowCustom: true,
-    placeholder: 'Add specific skills or keywords...',
-    maxItems: 20,
-  },
-  {
     key: 'career_highlights',
     label: 'Career Highlights',
     description: 'Key achievements and milestones in your career',
@@ -495,21 +401,6 @@ export const IDENTITY_SCHEMA: FieldSchema[] = [
     region: 'expertise',
     placeholder: 'Add a career achievement...',
     maxItems: 10,
-  },
-  {
-    key: 'education',
-    label: 'Education',
-    description: 'Your educational background',
-    type: 'object_array',
-    required: false,
-    source: 'identity_graph',
-    region: 'expertise',
-    objectSchema: {
-      degree: { label: 'Degree', type: 'string' },
-      school: { label: 'School', type: 'string' },
-      year: { label: 'Year', type: 'number' },
-    },
-    maxItems: 5,
   },
 
   // ===== CONTENT REGION =====
@@ -537,18 +428,6 @@ export const IDENTITY_SCHEMA: FieldSchema[] = [
     options: NARRATIVE_THEMES_OPTIONS,
     allowCustom: true,
     maxItems: 10,
-  },
-  {
-    key: 'themes',
-    label: 'Topics',
-    description: 'General topics you frequently discuss',
-    type: 'array_enum',
-    required: false,
-    source: 'identity_graph',
-    region: 'content',
-    options: TOPICS_OPTIONS,
-    allowCustom: true,
-    maxItems: 15,
   },
   {
     key: 'preferred_hooks',
@@ -624,28 +503,54 @@ export const IDENTITY_SCHEMA: FieldSchema[] = [
     maxItems: 10,
   },
   {
-    key: 'beliefs',
-    label: 'Core Beliefs',
-    description: 'Fundamental beliefs that guide your perspective',
-    type: 'array_enum',
+    key: 'interest_details',
+    label: 'Interest Details',
+    description: 'Specific details about each interest (auto-extracted from your posts)',
+    type: 'dict',
     required: false,
     source: 'identity_graph',
     region: 'character',
-    options: BELIEFS_OPTIONS,
+    placeholder: 'e.g., cooking: "Fermentation and sourdough. Same starter for 3 years."',
+  },
+  {
+    key: 'beliefs',
+    label: 'Core Beliefs',
+    description: 'What do you believe strongly enough to argue about? Write full sentences, not labels.',
+    type: 'array',
+    required: false,
+    source: 'identity_graph',
+    region: 'character',
     allowCustom: true,
+    placeholder: 'e.g., "I think most productivity advice is designed for people who don\'t actually have hard problems to solve."',
+    maxItems: 10,
+    validation: { minLength: 20 },
+  },
+  {
+    key: 'opinion_statements',
+    label: 'Opinion Statements',
+    description: 'Specific opinions you hold strongly, in your own words (auto-extracted from your posts)',
+    type: 'array',
+    required: false,
+    source: 'identity_graph',
+    region: 'character',
+    allowCustom: true,
+    placeholder: 'Add a specific opinion in your own words...',
     maxItems: 10,
   },
   {
-    key: 'contrarian_views',
-    label: 'Contrarian Views',
-    description: 'Opinions that go against the mainstream in your industry',
-    type: 'array_enum',
+    key: 'stories',
+    label: 'Stories & Episodes',
+    description: 'Concrete anecdotes and experiences from your life (auto-extracted from your posts)',
+    type: 'object_array',
     required: false,
     source: 'identity_graph',
     region: 'character',
-    options: CONTRARIAN_VIEWS_OPTIONS,
-    allowCustom: true,
-    maxItems: 10,
+    objectSchema: {
+      title: { label: 'Title', type: 'string' },
+      narrative: { label: 'What happened (2-4 sentences)', type: 'string' },
+      emotional_core: { label: 'Emotional core', type: 'string' },
+    },
+    maxItems: 15,
   },
   {
     key: 'taboo_list',
@@ -684,18 +589,6 @@ export const IDENTITY_SCHEMA: FieldSchema[] = [
     options: AUTHORITY_ANGLES_OPTIONS,
     allowCustom: true,
     maxItems: 10,
-  },
-  {
-    key: 'tone_markers',
-    label: 'Tone Markers',
-    description: 'Voice and tone characteristics',
-    type: 'array_enum',
-    required: false,
-    source: 'identity_graph',
-    region: 'voice',
-    options: TONE_MARKERS_OPTIONS,
-    allowCustom: true,
-    maxItems: 5,
   },
   {
     key: 'tone_sliders',

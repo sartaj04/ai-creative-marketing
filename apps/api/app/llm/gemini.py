@@ -547,6 +547,162 @@ Extract ONLY professional information following these guidelines:
             logger.error(f"Gemini structured extraction error: {e}", exc_info=True)
             raise
 
+    async def extract_career_timeline(self, linkedin_data: dict[str, Any]) -> dict[str, Any]:
+        """Extract a structured career timeline from LinkedIn profile data.
+
+        Uses Gemini JSON mode to produce chronological timeline events,
+        a narrative career arc, and suggested content topics.
+
+        Args:
+            linkedin_data: Raw LinkedIn profile dict with experience[], education[],
+                          summary, headline, skills[], etc.
+
+        Returns:
+            {
+                "events": [{type, title, organization, start_date, end_date, is_current,
+                            description, key_achievements, transition_reason, skills_used,
+                            emotional_core}],
+                "narrative_arc": str,
+                "suggested_topics": [str]
+            }
+        """
+        if not self._initialized or not self._client:
+            raise RuntimeError("Gemini provider not initialized. Check GCP credentials.")
+
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["work", "education"],
+                                "description": "Type of timeline entry",
+                            },
+                            "title": {
+                                "type": "string",
+                                "description": "Job title or degree name",
+                            },
+                            "organization": {
+                                "type": "string",
+                                "description": "Company or school name",
+                            },
+                            "start_date": {
+                                "type": "string",
+                                "description": "Start date as YYYY-MM (e.g. 2019-01)",
+                            },
+                            "end_date": {
+                                "type": "string",
+                                "description": "End date as YYYY-MM, or null if current",
+                            },
+                            "is_current": {
+                                "type": "boolean",
+                                "description": "True if this is the current role/study",
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Narrative description: what they did, why it mattered, what they learned. NOT bullet points.",
+                            },
+                            "key_achievements": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "maxItems": 4,
+                                "description": "Top achievements with concrete impact",
+                            },
+                            "transition_reason": {
+                                "type": "string",
+                                "description": "Why they moved to the next role (infer from context). Empty for last/current role.",
+                            },
+                            "skills_used": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "maxItems": 6,
+                                "description": "Key skills applied in this role",
+                            },
+                            "emotional_core": {
+                                "type": "string",
+                                "description": "What this experience meant to them personally (infer only if clear from context, otherwise empty)",
+                            },
+                        },
+                        "required": ["type", "title", "organization", "start_date", "is_current", "description"],
+                    },
+                    "description": "Chronological career timeline entries (earliest first)",
+                },
+                "narrative_arc": {
+                    "type": "string",
+                    "description": "3-5 sentence career story connecting the dots — written as a narrative, not a list",
+                },
+                "suggested_topics": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "maxItems": 10,
+                    "minItems": 5,
+                    "description": "Content topics specific to THIS person's experience",
+                },
+            },
+            "required": ["events", "narrative_arc", "suggested_topics"],
+        }
+
+        # Serialize the LinkedIn data for the prompt
+        profile_text = json.dumps(linkedin_data, indent=2, default=str)
+
+        prompt = f"""Analyze this LinkedIn profile data and extract a structured career timeline.
+
+IMPORTANT RULES:
+- Order events CHRONOLOGICALLY (earliest first)
+- For each role, write a NARRATIVE description (what they did, why it mattered) — NOT job description bullet points
+- Infer transition_reason between consecutive roles based on context (e.g. "moved from engineering to product because...")
+- Intersperse education entries at their correct chronological position
+- Write narrative_arc as a STORY connecting their career journey, not a bullet list
+- For emotional_core, only fill in when you can genuinely infer personal significance from context. Leave empty otherwise.
+- For suggested_topics: suggest 8-10 content topics SPECIFIC to this person's unique experience. Mix of:
+  * Professional expertise topics (what they know deeply)
+  * Industry insight topics (trends they'd have informed opinions on)
+  * Career story topics (transitions, lessons, experiences worth sharing)
+  * Personal angles that connect to their work (leadership philosophy, industry contrarian takes, etc.)
+  Do NOT suggest generic topics like "leadership" or "innovation" — be specific to their actual background.
+
+LinkedIn Profile Data:
+{profile_text}"""
+
+        try:
+            config = types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=8192,
+                response_mime_type="application/json",
+                response_schema=response_schema,
+            )
+
+            response = await asyncio.get_event_loop().run_in_executor(
+                _executor,
+                lambda: self._client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=config,
+                ),
+            )
+
+            if response and response.text:
+                data = json.loads(response.text)
+                logger.info(
+                    f"Career timeline extraction: {len(data.get('events', []))} events, "
+                    f"{len(data.get('suggested_topics', []))} topics"
+                )
+                return data
+            else:
+                logger.error("Empty response from Gemini career timeline extraction")
+                return {"events": [], "narrative_arc": "", "suggested_topics": []}
+
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error in career timeline extraction: {e}")
+            return {"events": [], "narrative_arc": "", "suggested_topics": []}
+        except Exception as e:
+            logger.error(f"Gemini career timeline extraction error: {e}", exc_info=True)
+            raise
+
     async def embed(self, text: str) -> list[float]:
         """Generate embedding using Google Gen AI SDK."""
         if not self._initialized or not self._client:

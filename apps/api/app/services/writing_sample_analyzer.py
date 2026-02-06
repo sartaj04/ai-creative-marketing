@@ -35,6 +35,10 @@ Extract and describe the following patterns:
    - Technical vs. casual language
    - Industry jargon usage
    - Unique expressions or catchphrases
+   - VOCABULARY SOPHISTICATION LEVEL (important):
+     * "simple" = Short sentences (8-12 words avg), everyday words, minimal jargon, direct statements
+     * "moderate" = Mixed sentence lengths, some technical terms, balanced structure
+     * "sophisticated" = Longer sentences (18+ words avg), complex vocabulary, heavy jargon, subordinate clauses
 
 5. **Tone Markers**:
    - Formal vs. casual
@@ -82,7 +86,9 @@ Return ONLY valid JSON:
     "common_phrases": ["game-changer", "here's what works", "the reality is"],
     "tone": "conversational but authoritative",
     "jargon_level": "minimal - prefers plain language",
-    "unique_expressions": ["plot twist:", "here's the kicker:"]
+    "unique_expressions": ["plot twist:", "here's the kicker:"],
+    "sophistication_level": "simple | moderate | sophisticated",
+    "avg_sentence_length": "8-12 words | 12-18 words | 18+ words"
   }},
   "tone_examples": [
     {{"quote": "Actual sentence from their post showing tone", "note": "Shows confident but approachable style"}},
@@ -108,9 +114,70 @@ Return ONLY valid JSON:
 }}"""
 
 
+IDENTITY_EXTRACTION_PROMPT = """You are an expert identity analyst. Analyze these posts to extract the author's IDENTITY -- not their writing style, but WHO THEY ARE: their stories, opinions, specific interests, recurring tensions, and signature perspectives.
+
+POSTS:
+{samples}
+
+Extract the following. Be SPECIFIC -- labels like "leadership" or "travel" are useless. Extract the actual substance.
+
+1. **STORIES** (3-8 concrete episodes):
+   Extract specific anecdotes, experiences, or episodes the author has shared.
+   Each story must be a CONCRETE event, not a general pattern.
+   - title: 3-6 word label
+   - narrative: 2-4 sentences retelling what happened (in third person)
+   - tags: 2-4 category tags (e.g., "career", "failure", "hiring", "personal")
+   - emotional_core: one of: pride, frustration, surprise, regret, humor, wonder, vulnerability, determination
+   - source_post_excerpt: 1-2 key sentences quoted directly from the post
+
+2. **OPINION STATEMENTS** (3-6 specific positions):
+   Extract ARGUED positions, not labels. Each must be a complete sentence with reasoning.
+   Look for: "I think...", "I believe...", repeated arguments, strong takes.
+   BAD: "Values transparency" (label)
+   GOOD: "I think most companies claim to be transparent but use it as a marketing tactic rather than actually sharing hard truths with their teams." (argued position)
+
+3. **INTEREST DETAILS** (for each non-professional interest mentioned):
+   Extract WHAT SPECIFICALLY they care about within each interest.
+   BAD: {{"travel": "Likes to travel"}}
+   GOOD: {{"travel": "Slow travel in Japan. Has visited 15 times. Interested in rural onsen towns, not tourist spots."}}
+
+4. **RECURRING TENSIONS** (1-3 contradictions):
+   What unresolved tensions appear across their posts?
+   Example: "Advocates for work-life balance but regularly posts about working weekends on exciting problems."
+
+5. **SIGNATURE PERSPECTIVES** (2-4 unique mental models):
+   Unique framings or lenses they repeatedly apply to analyze different situations.
+   Example: "Frames most business problems as design problems -- asks 'who is this designed for?' about everything from org charts to pricing."
+
+Return ONLY valid JSON:
+{{
+  "stories": [
+    {{
+      "title": "Short descriptive title",
+      "narrative": "2-4 sentences describing what happened",
+      "tags": ["tag1", "tag2"],
+      "emotional_core": "pride|frustration|surprise|regret|humor|wonder|vulnerability|determination",
+      "source_post_excerpt": "Direct quote from post"
+    }}
+  ],
+  "opinion_statements": [
+    "Complete sentence expressing a specific argued position"
+  ],
+  "interest_details": {{
+    "interest_key": "Specific description of what they actually care about"
+  }},
+  "recurring_tensions": [
+    "Description of a contradiction or unresolved tension across their posts"
+  ],
+  "signature_perspectives": [
+    "Description of a unique mental model or framing they repeatedly use"
+  ]
+}}"""
+
+
 class WritingSampleAnalyzer:
-    """Service for analyzing user's writing samples."""
-    
+    """Service for analyzing user's writing samples and extracting identity."""
+
     def __init__(self):
         """Initialize Writing Sample Analyzer."""
         self.llm_provider = get_llm_provider()
@@ -202,6 +269,92 @@ class WritingSampleAnalyzer:
             logger.error(f"Error analyzing writing samples: {e}", exc_info=True)
             return None
     
+    async def extract_identity_from_posts(self, samples: List[str]) -> Optional[Dict[str, any]]:
+        """
+        Extract deep identity material from posts: stories, opinions, interest details,
+        recurring tensions, and signature perspectives.
+
+        This goes beyond writing style analysis to extract the SUBSTANCE of who someone is,
+        providing concrete narrative material for content generation.
+
+        Args:
+            samples: List of post texts (minimum 10 for meaningful extraction).
+
+        Returns:
+            Dict with stories, opinion_statements, interest_details,
+            recurring_tensions, signature_perspectives. Or None on failure.
+        """
+        if not samples or len(samples) < 3:
+            logger.warning(f"Not enough samples for identity extraction ({len(samples) if samples else 0})")
+            return None
+
+        try:
+            formatted_samples = "\n\n---\n\n".join([
+                f"POST {i+1}:\n{sample}"
+                for i, sample in enumerate(samples)
+            ])
+
+            logger.info(f"Extracting identity from {len(samples)} posts")
+
+            prompt = IDENTITY_EXTRACTION_PROMPT.format(samples=formatted_samples)
+
+            response = await self.llm_provider.generate_structured(
+                prompt=prompt,
+                response_schema={
+                    "type": "object",
+                    "properties": {
+                        "stories": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {"type": "string"},
+                                    "narrative": {"type": "string"},
+                                    "tags": {"type": "array", "items": {"type": "string"}},
+                                    "emotional_core": {"type": "string"},
+                                    "source_post_excerpt": {"type": "string"},
+                                },
+                            },
+                        },
+                        "opinion_statements": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "interest_details": {
+                            "type": "object",
+                        },
+                        "recurring_tensions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "signature_perspectives": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": ["stories", "opinion_statements", "interest_details"],
+                },
+                max_tokens=8000,
+            )
+
+            if not response or not isinstance(response, dict):
+                logger.error("Invalid response from identity extraction")
+                return None
+
+            stories_count = len(response.get("stories", []))
+            opinions_count = len(response.get("opinion_statements", []))
+            interests_count = len(response.get("interest_details", {}))
+            logger.info(
+                f"Identity extraction complete: {stories_count} stories, "
+                f"{opinions_count} opinions, {interests_count} interest details"
+            )
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error extracting identity from posts: {e}", exc_info=True)
+            return None
+
     def format_insights_for_persona(self, analysis: Dict[str, any]) -> str:
         """
         Format analysis into natural language for persona prompt.
@@ -251,6 +404,16 @@ class WritingSampleAnalyzer:
                 phrases = ", ".join(f'"{p}"' for p in vocab["common_phrases"][:4])
                 insights.append(f"COMMON PHRASES: {phrases}")
             insights.append(f"TONE: {vocab.get('tone', 'Professional and engaging')}")
+            # Add vocabulary sophistication level
+            sophistication = vocab.get('sophistication_level', 'moderate')
+            avg_sentence = vocab.get('avg_sentence_length', '12-18 words')
+            insights.append(f"VOCABULARY LEVEL: {sophistication} ({avg_sentence} sentences)")
+            if sophistication == "simple":
+                insights.append("→ Use short sentences, everyday words, direct statements. Avoid jargon.")
+            elif sophistication == "sophisticated":
+                insights.append("→ Longer sentences OK, technical vocabulary acceptable, complex structure OK.")
+            else:
+                insights.append("→ Mix sentence lengths, some technical terms OK, balanced approach.")
             insights.append("")
         
         # Visual elements

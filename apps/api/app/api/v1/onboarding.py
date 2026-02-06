@@ -9,12 +9,14 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
-from app.models.profile import Profile, ProfileType
+from app.models.profile import Profile, ProfileSource, ProfileType
 from app.models.identity import IdentityGraph, StyleProfile
 from app.models.user import User
 from app.models.document import ExtractedDocument, SourceType
 from app.schemas.onboarding import (
     ChatMessage,
+    ContentFocusRequest,
+    ContentFocusResponse,
     ConversationalExtractedData,
     OnboardingChatRequest,
     OnboardingChatResponse,
@@ -25,8 +27,11 @@ from app.schemas.onboarding import (
     OnboardingStepSaveResponse,
 )
 from app.services.onboarding_service import OnboardingService
+from app.services.timeline_service import TimelineService
+from app.models.identity import TimelineEventType
 from app.services.onboarding_prompts import (
     PIXO_ONBOARDING_SYSTEM_PROMPT,
+    PIXO_REFINEMENT_SYSTEM_PROMPT,
     PIXO_CONVERSATION_PROMPT,
     PIXO_EXTRACTION_PROMPT,
     check_extraction_complete,
@@ -40,7 +45,23 @@ ALLOWED_EXTENSIONS = {"pdf", "docx"}
 MAX_FILE_SIZE_MB = 5
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
-# LinkedIn extraction removed - users upload resume instead
+from pydantic import BaseModel
+
+
+class LinkedInURLRequest(BaseModel):
+    """Request schema for LinkedIn URL submission."""
+    linkedin_url: str
+
+
+class LinkedInURLResponse(BaseModel):
+    """Response schema for LinkedIn URL submission."""
+    success: bool
+    message: str
+    profile_extracted: bool = False
+    posts_scraping_queued: bool = False
+    career_timeline_extracted: bool = False
+    suggested_topics: list[str] = []
+    error: str | None = None
 
 
 async def get_or_create_user_profile(user_id, db, user_name: str = None):
@@ -99,6 +120,185 @@ async def get_onboarding_status(
     service = OnboardingService(db)
     status_result = await service.get_onboarding_status(profile.id)
     return status_result
+
+
+@router.post("/linkedin-url", response_model=LinkedInURLResponse)
+async def submit_linkedin_url(
+    request: LinkedInURLRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+):
+    """Submit LinkedIn profile URL to scrape profile data and posts.
+
+    This is the primary onboarding input. Scrapes the user's LinkedIn profile
+    for structured identity data, and queues an async task to scrape their
+    posts for deep identity extraction (stories, opinions, interest details).
+    """
+    from app.services.extraction_service import ExtractionService, LINKEDIN_URL_PATTERN
+
+    profile = await get_or_create_user_profile(current_user.id, db, current_user.name)
+
+    # Validate URL format
+    if not LINKEDIN_URL_PATTERN.match(request.linkedin_url):
+        return LinkedInURLResponse(
+            success=False,
+            message="Invalid LinkedIn URL. Expected format: linkedin.com/in/username",
+            error="invalid_url",
+        )
+
+    # Save LinkedIn URL to ProfileSource for future use
+    source_stmt = select(ProfileSource).where(ProfileSource.profile_id == profile.id)
+    source_result = await db.execute(source_stmt)
+    profile_source = source_result.scalars().first()
+    if profile_source:
+        profile_source.linkedin_url = request.linkedin_url
+    else:
+        profile_source = ProfileSource(
+            profile_id=profile.id,
+            linkedin_url=request.linkedin_url,
+        )
+        db.add(profile_source)
+    await db.flush()
+
+    extraction = ExtractionService()
+    profile_extracted = False
+
+    # Step 1: Scrape LinkedIn profile (synchronous, fast)
+    try:
+        linkedin_data = await extraction.extract_linkedin_profile(request.linkedin_url)
+        if linkedin_data:
+            # Save extracted data directly to identity graph
+            service = OnboardingService(db)
+            graph = await service.get_or_create_identity_graph(profile.id)
+            ctx = dict(graph.onboarding_context) if graph.onboarding_context else {}
+            extracted = dict(ctx.get("extracted_data", {}))
+            extracted.update(linkedin_data)
+            ctx["extracted_data"] = extracted
+            ctx["has_extraction"] = True
+            ctx["linkedin_extracted"] = True
+            graph.onboarding_context = ctx
+
+            # Also set direct fields on identity graph
+            if linkedin_data.get("current_role"):
+                graph.current_role = linkedin_data["current_role"]
+            if linkedin_data.get("industry"):
+                graph.industry = linkedin_data["industry"]
+            if linkedin_data.get("expertise_areas"):
+                graph.expertise_areas = linkedin_data["expertise_areas"]
+            if linkedin_data.get("bio_summary"):
+                graph.bio_summary = linkedin_data["bio_summary"]
+            if linkedin_data.get("career_highlights"):
+                graph.career_highlights = linkedin_data["career_highlights"]
+
+            await db.commit()
+            profile_extracted = True
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"LinkedIn profile extraction failed: {e}")
+        
+        # Check for critical errors that should stop the flow
+        error_msg = str(e)
+        if "free plan" in error_msg.lower() or "apify token" in error_msg.lower() or "paid apify plan" in error_msg.lower():
+            return LinkedInURLResponse(
+                success=False,
+                message="An error occurred during extraction. Please try uploading your LinkedIn profile PDF instead.",
+                error=error_msg,
+                profile_extracted=False
+            )
+        
+        # For other errors, we check if they are critical enough to stop the flow
+        # If no profile data was extracted, we should likely fail to let the user know
+        if not profile_extracted:
+             return LinkedInURLResponse(
+                success=False,
+                message="We couldn't extract data from this LinkedIn URL.",
+                error=str(e),
+                profile_extracted=False
+            )
+        # If we somehow have data but got an error (unlikely here but safe fallback), pass
+
+    # Step 2: Extract career timeline via Gemini (if we have profile data)
+    career_timeline_extracted = False
+    suggested_topics: list[str] = []
+    if profile_extracted and linkedin_data:
+        try:
+            from app.llm.gemini import GeminiProvider
+            from datetime import datetime as dt
+
+            gemini = GeminiProvider()
+            timeline_result = await gemini.extract_career_timeline(linkedin_data)
+
+            if timeline_result and timeline_result.get("events"):
+                service = OnboardingService(db)
+                graph = await service.get_or_create_identity_graph(profile.id)
+                timeline_service = TimelineService(db)
+                timeline = await timeline_service.get_or_create_timeline(graph.id)
+
+                # Save narrative arc
+                timeline.narrative_arc = timeline_result.get("narrative_arc", "")
+
+                # Create TimelineEvents from extracted data
+                for event_data in timeline_result["events"]:
+                    event_type_str = event_data.get("type", "other")
+                    event_type_map = {
+                        "work": TimelineEventType.WORK,
+                        "education": TimelineEventType.EDUCATION,
+                    }
+                    event_type = event_type_map.get(event_type_str, TimelineEventType.OTHER)
+
+                    # Parse dates (YYYY-MM format)
+                    start_date = None
+                    end_date = None
+                    try:
+                        if event_data.get("start_date"):
+                            start_date = dt.strptime(event_data["start_date"], "%Y-%m")
+                    except (ValueError, TypeError):
+                        pass
+                    try:
+                        if event_data.get("end_date"):
+                            end_date = dt.strptime(event_data["end_date"], "%Y-%m")
+                    except (ValueError, TypeError):
+                        pass
+
+                    await timeline_service.add_event(
+                        timeline_id=timeline.id,
+                        title=f"{event_data.get('title', '')} at {event_data.get('organization', '')}".strip(" at "),
+                        event_type=event_type,
+                        start_date=start_date,
+                        end_date=end_date,
+                        description=event_data.get("description", ""),
+                        tags=event_data.get("skills_used", []),
+                    )
+
+                    # Set additional fields via direct update if available
+                    # (TimelineService.add_event doesn't accept all fields)
+
+                await db.commit()
+                career_timeline_extracted = True
+                suggested_topics = timeline_result.get("suggested_topics", [])
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Career timeline extraction failed: {e}")
+            # Non-critical: continue without timeline
+
+    # Step 3: Queue async task to scrape posts + extract identity
+    posts_queued = False
+    try:
+        from app.tasks.linkedin_identity_extraction import scrape_and_extract_identity_task
+        scrape_and_extract_identity_task.delay(str(profile.id), request.linkedin_url)
+        posts_queued = True
+    except Exception:
+        pass
+
+    return LinkedInURLResponse(
+        success=True,
+        message="LinkedIn profile processed. Post analysis running in background.",
+        profile_extracted=profile_extracted,
+        posts_scraping_queued=posts_queued,
+        career_timeline_extracted=career_timeline_extracted,
+        suggested_topics=suggested_topics,
+    )
 
 
 @router.post("/save-step", response_model=OnboardingStepSaveResponse)
@@ -172,6 +372,25 @@ async def upload_resume(
         result = await service.process_extraction(
             profile.id, "resume", tmp_path, file_type=ext
         )
+
+        # Attempt to find LinkedIn URL in the uploaded document for post scraping
+        try:
+            from app.services.extraction_service import extract_linkedin_url_from_text, ResumeParser
+            parser = ResumeParser()
+            if ext == "pdf":
+                raw_text = parser._extract_text_from_pdf(tmp_path)
+            elif ext in ("docx", "doc"):
+                raw_text = parser._extract_text_from_docx(tmp_path)
+            else:
+                raw_text = ""
+
+            linkedin_url = extract_linkedin_url_from_text(raw_text)
+            if linkedin_url:
+                from app.tasks.linkedin_identity_extraction import scrape_and_extract_identity_task
+                scrape_and_extract_identity_task.delay(str(profile.id), linkedin_url)
+        except Exception:
+            pass  # Non-critical: post scraping is a bonus
+
         return result
     finally:
         # Async cleanup
@@ -179,6 +398,38 @@ async def upload_resume(
             await aiofiles.os.remove(tmp_path)
         except OSError:
             pass  # File may not exist if extraction failed early
+
+
+@router.post("/content-focus", response_model=ContentFocusResponse)
+async def save_content_focus(
+    request: ContentFocusRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+):
+    """Save user's content focus topics during onboarding.
+
+    Merges primary_topics and custom_topics (deduped) and saves
+    to Timeline.primary_focus as a JSON string.
+    """
+    import json as _json
+
+    profile = await get_or_create_user_profile(current_user.id, db, current_user.name)
+
+    # Merge and deduplicate topics
+    all_topics: list[str] = list(request.primary_topics)
+    for custom in request.custom_topics:
+        if custom and custom.strip() and custom.strip() not in all_topics:
+            all_topics.append(custom.strip())
+
+    # Save to Timeline.primary_focus
+    service = OnboardingService(db)
+    graph = await service.get_or_create_identity_graph(profile.id)
+    timeline_service = TimelineService(db)
+    timeline = await timeline_service.get_or_create_timeline(graph.id)
+    timeline.primary_focus = _json.dumps(all_topics)
+    await db.commit()
+
+    return ContentFocusResponse(success=True, topics_saved=len(all_topics))
 
 
 @router.post("/chat", response_model=OnboardingChatResponse)
@@ -246,8 +497,9 @@ async def onboarding_chat(
         has_humble_confident=has_humble_confident,
     )
     
-    # Use system prompt + conversation prompt
-    full_prompt = f"{PIXO_ONBOARDING_SYSTEM_PROMPT}\n\n{conversation_prompt}"
+    # Use appropriate system prompt based on mode
+    system_prompt = PIXO_REFINEMENT_SYSTEM_PROMPT if request.mode == "refinement" else PIXO_ONBOARDING_SYSTEM_PROMPT
+    full_prompt = f"{system_prompt}\n\n{conversation_prompt}"
     pixo_response = await llm.generate(full_prompt, max_tokens=2000)  # Increased from default 1000 to 2000 for full responses
     
     # Extract structured data from conversation
@@ -304,7 +556,46 @@ async def onboarding_chat(
             identity_graph.career_highlights = [merged_data["career_highlight"]]
         if merged_data.get("bio_summary"):
             identity_graph.bio_summary = merged_data["bio_summary"]
-        
+
+        # Save stories and opinion_statements (append, don't replace)
+        if merged_data.get("stories"):
+            existing_stories = identity_graph.stories or []
+            new_stories = merged_data["stories"]
+            if isinstance(new_stories, list):
+                for s in new_stories:
+                    if s and s not in existing_stories:
+                        existing_stories.append(s)
+            identity_graph.stories = existing_stories
+
+            # [NEW] Add stories to Timeline
+            try:
+                timeline_service = TimelineService(db)
+                timeline = await timeline_service.get_or_create_timeline(identity_graph.id)
+                new_stories_list = merged_data["stories"]
+                if isinstance(new_stories_list, list):
+                    for s in new_stories_list:
+                        if isinstance(s, dict):
+                            await timeline_service.add_event(
+                                timeline_id=timeline.id,
+                                title=s.get("title", "New Story"),
+                                event_type=TimelineEventType.LIFE_EVENT,
+                                description=s.get("narrative", ""),
+                                emotional_core=s.get("emotional_core", ""),
+                                source="chat"
+                            )
+            except Exception as e:
+                # Don't fail chat if timeline update fails
+                pass
+
+        if merged_data.get("opinion_statements"):
+            existing_opinions = identity_graph.opinion_statements or []
+            new_opinions = merged_data["opinion_statements"]
+            if isinstance(new_opinions, list):
+                for o in new_opinions:
+                    if o and o not in existing_opinions:
+                        existing_opinions.append(o)
+            identity_graph.opinion_statements = existing_opinions
+
         # Update style profile with tone sliders
         style_stmt = select(StyleProfile).where(StyleProfile.profile_id == profile.id)
         style_result = await db.execute(style_stmt)
@@ -323,7 +614,18 @@ async def onboarding_chat(
             style_profile.tone_sliders = tone_sliders
         
         await db.commit()
-    
+
+        # If refinement chat added new identity data, regenerate persona prompt
+        # so content generation picks up the new stories/opinions
+        if request.mode == "refinement" and (
+            merged_data.get("stories") or merged_data.get("opinion_statements")
+        ):
+            try:
+                from app.tasks.persona_synthesizer import synthesize_persona_task
+                synthesize_persona_task.delay(str(profile.id))
+            except Exception:
+                pass  # Non-blocking — persona regen can happen later
+
     # Build response
     extracted_response = ConversationalExtractedData(
         current_role=merged_data.get("current_role", ""),

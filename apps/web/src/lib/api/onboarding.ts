@@ -81,6 +81,7 @@ export interface ConversationalExtractedData {
 export interface ChatRequest {
     message: string;
     conversation_history: ChatMessage[];
+    mode?: 'onboarding' | 'refinement';
 }
 
 export interface ChatResponse {
@@ -90,12 +91,45 @@ export interface ChatResponse {
     conversation_history: ChatMessage[];
 }
 
+export interface LinkedInURLRequest {
+    linkedin_url: string;
+}
+
+export interface LinkedInURLResponse {
+    success: boolean;
+    message: string;
+    profile_extracted: boolean;
+    posts_scraping_queued: boolean;
+    career_timeline_extracted: boolean;
+    suggested_topics: string[];
+}
+
+export interface ContentFocusRequest {
+    primary_topics: string[];
+    custom_topics: string[];
+}
+
+export interface ContentFocusResponse {
+    success: boolean;
+    topics_saved: number;
+}
+
 export const onboardingApi = {
     /**
      * Get onboarding status without modifying state (read-only)
      */
     getStatus: async (): Promise<OnboardingStatusResponse> => {
         const { data } = await apiClient.get<OnboardingStatusResponse>('/onboarding/status');
+        return data;
+    },
+
+    /**
+     * Submit LinkedIn profile URL for scraping profile + posts
+     */
+    submitLinkedInUrl: async (linkedinUrl: string): Promise<LinkedInURLResponse> => {
+        const { data } = await apiClient.post<LinkedInURLResponse>('/onboarding/linkedin-url', {
+            linkedin_url: linkedinUrl,
+        });
         return data;
     },
 
@@ -126,6 +160,17 @@ export const onboardingApi = {
      */
     complete: async (): Promise<{ success: boolean; redirect_url: string }> => {
         const { data } = await apiClient.post<{ success: boolean; redirect_url: string }>('/onboarding/complete', {});
+        return data;
+    },
+
+    /**
+     * Save content focus topics during onboarding
+     */
+    saveContentFocus: async (primaryTopics: string[], customTopics: string[] = []): Promise<ContentFocusResponse> => {
+        const { data } = await apiClient.post<ContentFocusResponse>('/onboarding/content-focus', {
+            primary_topics: primaryTopics,
+            custom_topics: customTopics,
+        });
         return data;
     },
 

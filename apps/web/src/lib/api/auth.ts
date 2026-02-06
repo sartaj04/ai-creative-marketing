@@ -46,4 +46,8 @@ export const authApi = {
     const response = await apiClient.get<User>('/auth/me');
     return response.data;
   },
+
+  deleteAccount: async (): Promise<void> => {
+    await apiClient.delete('/auth/me');
+  },
 };

@@ -147,10 +147,6 @@ class ProfileSource(Base):
         unique=True,
     )
     linkedin_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    website_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    resume_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    manual_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    rss_urls: Mapped[list] = mapped_column(JSONB, default=list)
     last_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

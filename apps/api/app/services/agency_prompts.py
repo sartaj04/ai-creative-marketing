@@ -95,14 +95,78 @@ EMOTIONAL_TONES = [
 # ============================================================================
 
 IDENTITY_FACET_CATEGORIES = {
-    "expertise": ["expertise_areas", "expertise_keywords", "authority_angles"],
-    "career_stories": ["career_highlights", "narrative_themes"],
-    "interests_hobbies": ["interests"],
-    "beliefs_values": ["beliefs", "contrarian_views"],
+    "expertise": ["expertise_areas", "authority_angles"],
+    "career_stories": ["career_highlights", "narrative_themes", "timeline_events", "narrative_arc"],
+    "interests_hobbies": ["interests", "interest_details"],
+    "beliefs_values": ["beliefs", "opinion_statements"],
     "goals_aspirations": ["aspirations", "goals", "desired_positioning"],
-    "audience_context": ["target_audience", "audience_notes"],
+    "audience_context": ["target_audience"],
     "unique_angles": ["unique_angles", "content_pillars"],
+    "personal_stories": ["stories"],
+    "content_focus": ["primary_focus"],
 }
+
+
+def calculate_identity_depth(identity_dict: dict) -> dict:
+    """Score identity by generative richness, not completeness.
+
+    Completeness asks: "how many fields are filled?"
+    Depth asks: "is there enough substance for the generation engine
+    to produce genuinely varied content?"
+
+    Stories, argued opinions, and qualified interest details are worth
+    far more than enum labels because the facet sampler can draw
+    concrete material from them.
+
+    Returns:
+        {
+            "score": int,          # 0-83
+            "max": 83,
+            "percentage": int,     # 0-100
+            "populated_categories": int,  # of 9
+            "total_categories": 9,
+            "weakest_areas": ["stories", ...],
+            "verdict": "rich" | "moderate" | "thin",
+        }
+    """
+    if not identity_dict:
+        return {
+            "score": 0,
+            "max": 83,
+            "percentage": 0,
+            "populated_categories": 0,
+            "total_categories": len(IDENTITY_FACET_CATEGORIES),
+            "weakest_areas": ["stories", "opinions", "interest_details", "beliefs_rich", "contrarian", "interests", "timeline_events", "content_focus"],
+            "verdict": "thin",
+        }
+
+    scores = {
+        "stories": min(len(identity_dict.get("stories", [])), 5) * 4,        # 20 pts max
+        "opinions": min(len(identity_dict.get("opinion_statements", [])), 5) * 3,  # 15 pts max
+        "interest_details": min(len(identity_dict.get("interest_details", {})), 4) * 4,  # 16 pts max
+        "beliefs_rich": sum(1 for b in identity_dict.get("beliefs", []) if len(str(b)) > 30) * 3,  # argued > label
+        "contrarian": min(len([b for b in identity_dict.get("beliefs", []) if "contrarian" in str(b).lower()]), 3) * 3,  # 9 pts max (from beliefs)
+        "interests": min(len(identity_dict.get("interests", [])), 5) * 2,  # 10 pts max
+        "timeline_events": min(len(identity_dict.get("timeline_events", [])), 5) * 2,  # 10 pts max
+        "content_focus": (3 if identity_dict.get("primary_focus") else 0),  # 3 pts
+    }
+    total = sum(scores.values())
+    max_possible = 83
+
+    populated_categories = sum(
+        1 for cat, fields in IDENTITY_FACET_CATEGORIES.items()
+        if any(identity_dict.get(f) for f in fields)
+    )
+
+    return {
+        "score": total,
+        "max": max_possible,
+        "percentage": round(total / max_possible * 100),
+        "populated_categories": populated_categories,
+        "total_categories": len(IDENTITY_FACET_CATEGORIES),
+        "weakest_areas": [k for k, v in scores.items() if v == 0],
+        "verdict": "rich" if total >= 50 else "moderate" if total >= 28 else "thin",
+    }
 
 
 def sample_identity_facets(
@@ -171,16 +235,17 @@ def sample_identity_facets(
     if not pool:
         pool = list(available.keys())
 
-    # Boosted categories — personal identity gets 2x selection weight
-    # This ensures hobbies, beliefs, and unique angles are picked more often
-    # than expertise/career which already dominate content
-    BOOSTED_CATEGORIES = {"interests_hobbies", "beliefs_values", "unique_angles"}
+    # Boosted categories — personal identity gets 2x selection weight,
+    # but ONLY if the category has enough items to avoid repetition.
+    # With few items, boosting just recycles the same material across posts.
+    BOOSTED_CATEGORIES = {"interests_hobbies", "beliefs_values", "unique_angles", "personal_stories", "career_stories"}
+    MIN_ITEMS_FOR_BOOST = 6
 
     weighted_pool = []
     for c in pool:
         weighted_pool.append(c)
-        if c in BOOSTED_CATEGORIES:
-            weighted_pool.append(c)  # Double weight for personal categories
+        if c in BOOSTED_CATEGORIES and len(available.get(c, [])) >= MIN_ITEMS_FOR_BOOST:
+            weighted_pool.append(c)  # Double weight only if enough variety
 
     # Select primary categories from weighted pool (dedup after selection)
     primary_count = min(num_primary, len(pool))
@@ -198,27 +263,192 @@ def sample_identity_facets(
     secondary_count = min(num_secondary, len(remaining))
     secondary_cats = random.sample(remaining, secondary_count) if remaining else []
 
-    # Build result
-    primary_facets = {cat: available[cat] for cat in primary_cats}
-    secondary_facets = {cat: available[cat] for cat in secondary_cats}
+    # Build result — select SPECIFIC items, not whole categories
+    # This forces each draft to use concrete material, not a buffet of options
+    primary_facets = {}
+    for cat in primary_cats:
+        vals = available[cat]
+        # For story-like categories, pick 1 item (the story IS the content)
+        # For list categories, pick 1-2 specific items
+        if cat == "personal_stories":
+            primary_facets[cat] = [random.choice(vals)]
+        elif cat == "career_stories":
+            # Prefer timeline events (dicts with event_type) over plain strings
+            event_vals = [v for v in vals if isinstance(v, dict) and v.get("event_type")]
+            other_vals = [v for v in vals if not isinstance(v, dict)]
+            if event_vals:
+                primary_facets[cat] = [random.choice(event_vals)]
+            elif other_vals:
+                primary_facets[cat] = [random.choice(other_vals)]
+            else:
+                primary_facets[cat] = vals[:1]
+        elif cat == "content_focus":
+            primary_facets[cat] = vals[:1]
+        elif cat == "beliefs_values":
+            # Prefer opinion_statements (full sentences) over enum labels
+            opinions = [v for v in vals if len(v) > 30]  # Opinion statements are longer
+            labels = [v for v in vals if len(v) <= 30]
+            if opinions:
+                primary_facets[cat] = [random.choice(opinions)]
+            elif labels:
+                primary_facets[cat] = [random.choice(labels)]
+            else:
+                primary_facets[cat] = vals[:1]
+        elif cat == "interests_hobbies":
+            # Check for interest_details (qualified descriptions)
+            detail_vals = [v for v in vals if len(v) > 20]
+            simple_vals = [v for v in vals if len(v) <= 20]
+            if detail_vals:
+                primary_facets[cat] = [random.choice(detail_vals)]
+            elif simple_vals:
+                primary_facets[cat] = [random.choice(simple_vals)]
+            else:
+                primary_facets[cat] = vals[:1]
+        else:
+            count = min(2, len(vals))
+            primary_facets[cat] = random.sample(vals, count)
+
+    secondary_facets = {}
+    for cat in secondary_cats:
+        vals = available[cat]
+        secondary_facets[cat] = [random.choice(vals)]
+
     ignored = [cat for cat in available if cat not in primary_cats and cat not in secondary_cats]
 
-    # Build natural language summary
+    # Build natural language summary — directive, not descriptive
     summary_parts = []
     for cat, vals in primary_facets.items():
         label = cat.replace("_", " ").title()
-        summary_parts.append(f"PRIMARY — {label}: {', '.join(vals[:5])}")
+        if cat == "personal_stories":
+            # Stories are structured dicts
+            story = vals[0]
+            if isinstance(story, dict):
+                summary_parts.append(
+                    f"PRIMARY — Use this specific story as raw material for this post:\n"
+                    f"  Title: {story.get('title', '')}\n"
+                    f"  What happened: {story.get('narrative', '')}\n"
+                    f"  Emotional core: {story.get('emotional_core', '')}"
+                )
+            else:
+                summary_parts.append(f"PRIMARY — Use this story: {story}")
+        elif cat == "career_stories":
+            for v in vals:
+                if isinstance(v, dict) and v.get("event_type"):
+                    # Timeline event entry
+                    summary_parts.append(
+                        f"PRIMARY — Use this career moment as raw material:\n"
+                        f"  {v.get('title', '')} ({v.get('event_type', '')})\n"
+                        f"  {v.get('description', '')}\n"
+                        f"  Emotional core: {v.get('emotional_core', '')}\n"
+                        f"  Lessons: {', '.join(v.get('lessons_learned', []))}"
+                    )
+                else:
+                    summary_parts.append(f"PRIMARY — Career Stories: {v}")
+        elif cat == "content_focus":
+            summary_parts.append(f"PRIMARY — The user explicitly wants to write about: {vals[0]}")
+        elif cat == "beliefs_values":
+            summary_parts.append(f"PRIMARY — Build this post around this specific belief/opinion: {vals[0]}")
+        elif cat == "interests_hobbies":
+            summary_parts.append(f"PRIMARY — Use this specific interest as the lens for this post: {vals[0]}")
+        else:
+            summary_parts.append(f"PRIMARY — {label}: {', '.join(str(v) for v in vals)}")
     for cat, vals in secondary_facets.items():
         label = cat.replace("_", " ").title()
-        summary_parts.append(f"SECONDARY (for flavor) — {label}: {', '.join(vals[:3])}")
+        if cat == "content_focus":
+            summary_parts.append(f"SECONDARY — User wants to write about: {vals[0]}")
+        else:
+            summary_parts.append(f"SECONDARY (reference once for flavor) — {label}: {vals[0]}")
     if ignored:
         summary_parts.append(f"DELIBERATELY IGNORED this draft: {', '.join(ignored)}")
+
+    # Compute depth warning for thin profiles
+    depth = calculate_identity_depth(identity_dict)
+    depth_warning = None
+    if depth["populated_categories"] < 4:
+        depth_warning = (
+            f"Identity depth: {depth['verdict']} ({depth['populated_categories']}/{depth['total_categories']} "
+            f"facet categories populated). Weakest: {', '.join(depth['weakest_areas'][:3])}. "
+            f"Content diversity will be limited until more personal identity data is added."
+        )
 
     return {
         "primary_facets": primary_facets,
         "secondary_facets": secondary_facets,
         "ignored_categories": ignored,
         "facet_summary": "\n".join(summary_parts),
+        "depth_warning": depth_warning,
+        "identity_depth": depth,
+    }
+
+
+def compute_authority_constraints(identity_dict: dict) -> dict:
+    """Determine which authority postures are appropriate for this user.
+
+    Users with thin identity data or few timeline events should not be positioned
+    as experienced experts. This prevents the system from generating content that
+    claims "years of experience" when the user's profile doesn't support it.
+
+    Args:
+        identity_dict: Raw identity graph as dict.
+
+    Returns:
+        {
+            "allowed_postures": ["curious", "peer_level", ...],
+            "blocked_postures": ["experienced", "decisive"],
+            "constraint_text": "Natural language explanation for prompts",
+            "experience_level": "early_career" | "mid_career" | "senior"
+        }
+    """
+    if not identity_dict:
+        return {
+            "allowed_postures": ["curious", "uncertain", "peer_level"],
+            "blocked_postures": ["experienced", "decisive"],
+            "constraint_text": "No identity data available. Use only humble/curious postures.",
+            "experience_level": "unknown",
+        }
+
+    # Count timeline events (work and education)
+    timeline_events = identity_dict.get("timeline_events", [])
+    work_events = [e for e in timeline_events if isinstance(e, dict) and e.get("event_type") == "work"]
+    career_highlights = identity_dict.get("career_highlights", [])
+    stories = identity_dict.get("stories", [])
+
+    # Calculate experience signals
+    work_count = len(work_events)
+    highlight_count = len(career_highlights)
+    story_count = len(stories)
+
+    # Determine experience level
+    experience_score = work_count * 3 + highlight_count * 2 + story_count
+
+    if experience_score >= 12:  # e.g., 3+ work events + highlights + stories
+        experience_level = "senior"
+        allowed = ["curious", "uncertain", "peer_level", "experienced", "reflective", "decisive"]
+        blocked = []
+        constraint_text = "User has substantial career history. All authority postures are available."
+    elif experience_score >= 6:  # e.g., 2 work events + some highlights
+        experience_level = "mid_career"
+        allowed = ["curious", "uncertain", "peer_level", "experienced", "reflective"]
+        blocked = ["decisive"]
+        constraint_text = (
+            "User has moderate career depth. Avoid 'decisive' posture (demanding tone). "
+            "Prefer 'experienced' only when discussing topics they've explicitly worked on."
+        )
+    else:
+        experience_level = "early_career"
+        allowed = ["curious", "uncertain", "peer_level", "reflective"]
+        blocked = ["experienced", "decisive"]
+        constraint_text = (
+            "User has limited career history documented. Do NOT use 'experienced' or 'decisive' postures. "
+            "These postures claim authority the user's timeline doesn't support. "
+            "Use 'curious', 'peer_level', or 'reflective' instead."
+        )
+
+    return {
+        "allowed_postures": allowed,
+        "blocked_postures": blocked,
+        "constraint_text": constraint_text,
+        "experience_level": experience_level,
     }
 
 
@@ -253,6 +483,13 @@ What topics and formats they've previously liked/disliked:
 
 === EXISTING TOPICS (avoid duplicates) ===
 {existing_topics}
+
+=== CONTENT FOCUS (user's declared topics of interest) ===
+{content_focus}
+
+=== TRENDING TOPICS & INDUSTRY SIGNALS (optional external context) ===
+{trending_signals}
+If trending signals are provided, consider incorporating 1-2 that align with the person's expertise and interests. Don't force trends that don't fit.
 
 === INSTRUCTIONS ===
 VARIETY REQUIREMENTS — your 3-5 opportunities MUST include:
@@ -316,14 +553,23 @@ What they like and dislike in content:
 {identity_facets}
 
 === DIVERSITY CONSTRAINTS (MUST RESPECT) ===
-The following have been used recently. DO NOT reuse any of these:
-- Used hook styles: {used_hook_styles}
-- Used format archetypes: {used_format_archetypes}
-- Used CTA styles: {used_cta_styles}
-- Used content modes: {used_content_modes}
-- Used authority postures: {used_authority_postures}
-- Used emotional tones: {used_emotional_tones}
-- Used topic domains: {used_topic_domains}
+HARD AVOID — used in last 5 drafts, do NOT reuse under any circumstances:
+- Hook styles: {hard_avoid_hook_styles}
+- Format archetypes: {hard_avoid_format_archetypes}
+- CTA styles: {hard_avoid_cta_styles}
+- Content modes: {hard_avoid_content_modes}
+- Authority postures: {hard_avoid_authority_postures}
+- Emotional tones: {hard_avoid_emotional_tones}
+- Topic domains: {hard_avoid_topic_domains}
+
+SOFT AVOID — used in last 30 drafts, reuse only if all alternatives exhausted:
+- Hook styles: {soft_avoid_hook_styles}
+- Format archetypes: {soft_avoid_format_archetypes}
+- CTA styles: {soft_avoid_cta_styles}
+- Content modes: {soft_avoid_content_modes}
+- Authority postures: {soft_avoid_authority_postures}
+- Emotional tones: {soft_avoid_emotional_tones}
+- Topic domains: {soft_avoid_topic_domains}
 
 Available format archetypes: narrative, insight, contrarian, framework, case_study, question, confession, prediction
 Available hook styles: bold_claim, question, story_opener, statistic, contrarian, confession, observation, dialogue
@@ -332,14 +578,19 @@ Available content modes: builder, learner, narrator, observer, explainer, skepti
 Available authority postures: curious, uncertain, peer_level, experienced, reflective, decisive
 Available emotional tones: excited, frustrated, contemplative, amused, vulnerable, matter_of_fact
 
+=== AUTHORITY POSTURE CONSTRAINTS ===
+{authority_constraints}
+These constraints MUST be respected. If the identity doesn't have enough timeline depth, do NOT use "experienced" or "decisive" postures.
+
 === INSTRUCTIONS ===
 1. Select the opportunity that adds the MOST VARIETY from recent content. Impact matters, but variety matters MORE. If recent drafts were professional, pick a personal topic. If recent drafts were expert-mode, pick a learning/uncertain topic. NEVER pick 2 professional topics in a row.
 2. Consider their learned preferences when choosing
 3. CRITICAL: Pick format_archetype, hook_style, cta_style, content_mode, authority_posture, and emotional_tone that are NOT in the used lists above
-4. Define a clear content angle
-5. Outline key points to cover
-6. Assign a topic_domain (technical, personal, industry, philosophical, creative, professional)
-7. Record which identity facet categories this draft draws from
+4. RESPECT authority_constraints above. If "experienced" is blocked, use "peer_level", "reflective", or "curious" instead.
+5. Define a clear content angle
+6. Outline key points to cover
+7. Assign a topic_domain (technical, personal, industry, philosophical, creative, professional)
+8. Record which identity facet categories this draft draws from
 
 Return ONLY valid JSON:
 {{
@@ -372,11 +623,18 @@ The same person sounds different when they're learning vs. teaching, frustrated 
 WRITING VOICE — SOUND HUMAN, NOT AI:
 Write like you're texting a smart friend or posting a quick thought. Not like you're writing a blog post or giving a TED talk.
 
-1. Use SIMPLE words. "use" not "utilize". "help" not "facilitate". "start" not "embark". "show" not "demonstrate". "think" not "conceptualize".
+VOCABULARY ADAPTATION (check WRITING STYLE section for user's level):
+- If user writes at "simple" level: Force short sentences (8-12 words avg), everyday words only, NO jargon even for technical topics. Direct statements.
+- If user writes at "moderate" level: Mix sentence lengths, some technical terms OK, balanced structure.
+- If user writes at "sophisticated" level: Longer sentences OK (18+ words), complex vocabulary acceptable, industry jargon OK, subordinate clauses permitted.
+- DEFAULT to "moderate" if no user style data provided.
+The anti-AI word list below still applies, but sentence complexity should match the user's natural style.
+
+1. Use SIMPLE words UNLESS user's vocabulary level is "sophisticated". "use" not "utilize". "help" not "facilitate". "start" not "embark". "show" not "demonstrate". "think" not "conceptualize".
 2. Write SHORT sentences. Then a longer one when you need it. Then short again. Real people don't write in uniform 15-word sentences.
 3. Start sentences with "And", "But", "So", "Look,", "Thing is,". Real people do this. AI doesn't.
 4. Leave thoughts UNFINISHED sometimes. Trail off. Not every paragraph needs a neat conclusion.
-5. Be SPECIFIC. Not "I learned a lot from failure" but "I mass-emailed 200 investors with the wrong company name in the subject line."
+5. Be SPECIFIC using ONLY details from the identity context provided. If you don't have a specific time, place, or number from the identity data, DON'T invent one. Leave it vague rather than fabricate. "I once got an email rejection that stung" is fine if you don't have the actual details. You may REFERENCE a fact (e.g., "I studied at University of Edinburgh") but NEVER expand it into a scene or narrative the person didn't share (e.g., don't write about "walking along the Water of Leith after lectures" just because they went to Edinburgh).
 6. Use contractions. "I'm", "don't", "can't", "it's", "that's", "won't". Always. No exceptions.
 7. NEVER use these words/phrases: "landscape", "leverage", "navigate", "harness", "unlock", "delve", "foster", "utilize", "facilitate", "embark", "moreover", "furthermore", "it's worth noting", "at the end of the day", "game-changer", "deep dive", "unpack", "let that sink in", "read that again", "here's the thing", "spoiler alert", "plot twist", "in today's fast-paced world", "here's why this matters"
 8. NEVER use dashes (—, –, -) for parenthetical thoughts. Use periods or restructure.
@@ -384,9 +642,13 @@ Write like you're texting a smart friend or posting a quick thought. Not like yo
 10. Don't start multiple sentences with "I". Mix it up.
 11. No transition words between paragraphs. Don't write "Moreover", "Furthermore", "That said", "Having said that", "On the flip side". Just start the next thought.
 12. CURRENT YEAR IS 2026. Do NOT refer to 2024 or 2025 as "this year".
-13. Include at least one concrete, lived example (a specific time, place, mistake, or observation).
+13. If the identity context includes a concrete story or example, use it faithfully. If not, write from general experience without inventing specific dates, places, or events that aren't in the identity data. Vague but honest beats specific but fabricated.
 14. Avoid listicles unless explicitly requested in the format_archetype. Prefer conversational flow.
-15. Include 2-4 high-impact hashtags when platform-appropriate (industry-specific or trending, NOT generic like #success #motivation)."""
+15. Include 2-4 high-impact hashtags when platform-appropriate (industry-specific or trending, NOT generic like #success #motivation).
+16. NEVER fabricate OR extrapolate biographical details. Two distinct rules:
+    a) Don't change facts: If the identity says "moved to Edinburgh 4 years ago", don't change it to 2 years.
+    b) Don't expand facts into scenes: If the identity says "studied at University of Edinburgh", you can mention that. But don't write about specific streets, cafes, weather, routines, or experiences there unless the identity data explicitly describes them. "I studied in Edinburgh" = OK. "I remember the cold mornings walking to class through Old Town" = NOT OK unless they actually said that.
+    The person will read this post. Getting their own life story wrong, or putting words in their mouth about experiences they never described, destroys trust instantly."""
 
 WRITER_AGENT_PROMPT = """Create a post based on this brief.
 
@@ -419,6 +681,7 @@ This determines your STANCE, independent of content mode.
 
 === CONTENT BRIEF ===
 Topic: {topic}
+Topic Domain: {topic_domain}
 Angle: {angle}
 Format Archetype: {format_archetype}
 Hook Style: {hook_style}
@@ -440,11 +703,17 @@ Target: {target_length}
 Reasoning: {length_reasoning}
 Structure: {structure_suggestion}
 
-=== IDENTITY CONTEXT (focused for THIS draft) ===
+=== IDENTITY CONTEXT FOR THIS DRAFT ===
+Role: {current_role}, {industry}
+Voice: {tone_description}
 {identity_facets_summary}
 
-=== FULL PERSONA (reference only — do NOT default to full-persona voice) ===
-{persona_prompt}
+Do NOT reference any identity data not listed above. Draw ONLY from the facets provided.
+
+=== WRITING STYLE (from actual user posts) ===
+{writing_style_guidance}
+
+CRITICAL: Match the user's actual writing patterns above. If they use short punchy sentences, you use short punchy sentences. If they use complex vocabulary, you can too. If they rarely use emojis, don't add emojis. Mirror their style.
 
 === TEMPLATE (follow this structure if provided) ===
 {template}
@@ -468,6 +737,10 @@ Write in their authentic voice, adapted to the content_mode and authority_postur
 - AVOID dashes (—, –, -) completely. Use periods, colons, or commas instead.
 - AVOID overused AI phrases.
 - Be specific and concrete with real examples.
+- **TOPIC DOMAIN VOCABULARY RULE**: Match vocabulary to the topic_domain, NOT to the person's expertise.
+  - If topic_domain is "personal", "philosophical", or "creative": Do NOT use technical jargon, industry frameworks, or professional terminology. Write like a human talking about their life, not an expert analyzing it. A post about living in a city should read like a personal essay, not a case study.
+  - If topic_domain is "technical" or "professional": Technical language is appropriate and expected.
+  - A software engineer writing about missing home should NOT mention "transformer models" or "retrieval pipelines". Keep technical vocabulary out of non-technical posts.
 
 Return ONLY valid JSON:
 {{
@@ -521,6 +794,7 @@ Emotional Tone: {emotional_tone}
 {platform_intent}
 
 === STYLE PREFERENCES ===
+Topic Domain: {topic_domain}
 Tone Sliders (0-1 scale):
 - Formal/Casual: {formal_casual} (0=formal, 1=casual)
 - Technical/Simple: {technical_simple} (0=simple, 1=technical)
@@ -528,6 +802,11 @@ Tone Sliders (0-1 scale):
 - Humble/Confident: {humble_confident} (0=humble, 1=confident)
 
 Preferred Hook Styles: {preferred_hooks}
+
+=== USER'S ACTUAL WRITING STYLE (from analyzed posts) ===
+{writing_style_guidance}
+
+IMPORTANT: When editing, preserve the user's natural writing patterns above. Don't make a casual writer sound formal. Don't add complexity to simple writing. Mirror their style.
 
 === INSTRUCTIONS ===
 Improve the draft by:
@@ -542,6 +821,7 @@ Improve the draft by:
 9. ELIMINATING overused AI phrases
 10. Making it sound authentic with natural language variation
 11. Ensuring hashtags (if present) are high-impact and industry-specific, not generic
+12. If topic_domain is "personal", "philosophical", or "creative", remove any technical jargon that crept in. A post about a life experience should not mention "retrieval pipelines", "transformer models", or industry frameworks unless the post is explicitly about those topics. Match vocabulary to the topic, not the person's job.
 
 CRITICAL: If content_mode is "learner", "observer", or "narrator" — do NOT add authoritative conclusions. If authority_posture is "uncertain" or "curious" — do NOT make statements sound more confident. Preserve the intentional voice.
 
@@ -571,6 +851,12 @@ Body:
 
 === PERSONA ===
 {persona_prompt}
+
+=== IDENTITY FACETS PROVIDED TO WRITER ===
+{identity_facets_summary}
+
+=== TOPIC DOMAIN ===
+{topic_domain}
 
 === INTENTIONAL VOICE FOR THIS DRAFT ===
 Content Mode: {content_mode}
@@ -625,6 +911,34 @@ Check the following:
    - Are the opening words/pattern too similar?
    - Is the overall TONE similar to previous drafts? (e.g., all confident, all teaching)
    If any significant repetition detected, REJECT and specify what's repeated.
+
+9. **Fabrication & Extrapolation Check**: Two things to catch:
+   a) **Fabrication**: Does the post contain specific biographical details (dates, locations, career events, timelines) that aren't in the identity facets above? If the post invents moments like "Last month I was optimizing a retrieval pipeline" or changes "4 years ago" to "2 years ago", flag as fabrication.
+   b) **Extrapolation**: Does the post take a real fact and expand it into a scene or narrative the person never described? Example: identity says "studied at University of Edinburgh" but the post describes "walking along the Water of Leith" or "cold mornings on George Square". Referencing the fact is fine ("I studied in Edinburgh"). Building a fictional scene around it is not.
+   REJECT if the post contains invented anecdotes, extrapolated scenes, or altered timelines presented as real lived experience.
+
+10. **Technical-Domain Mismatch**: If topic_domain is "personal", "philosophical", or "creative", the post should NOT contain technical jargon (framework names, algorithm terminology, technical processes). A post about missing a city should not mention "transformer models". REJECT if a personal/creative post reads like a technical case study.
+
+11. **Length Compliance**: Does the post match the target length range?
+   - Target: {target_length}
+   - Count the words in the body (rough estimate is fine)
+   - If the post is more than 25% shorter than target minimum, REJECT with reason "Too short - target was {target_length}"
+   - If the post is more than 25% longer than target maximum, REJECT with reason "Too long - target was {target_length}"
+   - This is a hard constraint. Length variety is important for authentic content.
+
+12. **User Voice Alignment**: Does the post sound like THIS person based on their writing style?
+   - User's writing patterns: {writing_style_summary}
+   - If the user writes simply (short sentences, everyday words), does the post match?
+   - If the user writes formally (longer sentences, complex vocabulary), does the post match?
+   - If user's signature phrases are provided, are any naturally incorporated?
+   - REJECT if the post sounds like generic thought leadership instead of the user's actual voice
+   - REJECT if the vocabulary complexity doesn't match the user's sophistication level
+
+13. **Authority Posture Validation**: Does the claimed experience match identity depth?
+   - Authority constraints: {authority_constraints}
+   - If authority_posture is "experienced" or "decisive" but user has thin identity, REJECT
+   - Phrases like "After years of..." or "In my decade of experience..." require timeline support
+   - REJECT if the post claims expertise the identity data doesn't support
 
 IMPORTANT:
 - If ANY taboo topic is present, reject immediately

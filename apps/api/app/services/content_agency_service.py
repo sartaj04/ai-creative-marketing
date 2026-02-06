@@ -35,7 +35,12 @@ def get_agency_graph() -> ContentAgencyGraph:
 
 
 def _identity_to_dict(identity) -> dict:
-    """Convert an IdentityGraph model instance to a plain dict for facet sampling."""
+    """Convert an IdentityGraph model instance to a plain dict for facet sampling.
+
+    Includes Timeline relationship data (narrative_arc, primary_focus,
+    timeline_events) which lives in separate tables but is needed by
+    the facet sampler and identity depth calculator.
+    """
     if not identity:
         return {}
     data = {}
@@ -46,6 +51,26 @@ def _identity_to_dict(identity) -> dict:
         elif isinstance(val, datetime):
             val = val.isoformat()
         data[col.name] = val
+
+    # Include Timeline data if the relationship was loaded
+    if hasattr(identity, "timeline") and identity.timeline:
+        timeline = identity.timeline
+        data["narrative_arc"] = timeline.narrative_arc
+        data["primary_focus"] = timeline.primary_focus
+        data["timeline_events"] = [
+            {
+                "title": e.title,
+                "description": e.description,
+                "event_type": e.event_type.value if e.event_type else None,
+                "start_date": e.start_date.isoformat() if e.start_date else None,
+                "end_date": e.end_date.isoformat() if e.end_date else None,
+                "is_current": e.is_current,
+                "emotional_core": e.emotional_core,
+                "lessons_learned": e.lessons_learned or [],
+                "tags": e.tags or [],
+            }
+            for e in (timeline.events or [])
+        ]
     return data
 
 
@@ -92,11 +117,14 @@ class ContentAgencyService:
             logger.info(f"Profile {profile_id} has {inbox_count} drafts in inbox (>= {max_inbox_threshold}), skipping generation")
             return []
 
-        # Load profile with all related data
+        # Load profile with all related data (including timeline for facet sampling)
+        from app.models.identity import IdentityGraph as IG, Timeline as TL
         result = await self.db.execute(
             select(Profile)
             .options(
-                selectinload(Profile.identity_graph),
+                selectinload(Profile.identity_graph)
+                    .selectinload(IG.timeline)
+                    .selectinload(TL.events),
                 selectinload(Profile.style_profile),
                 selectinload(Profile.drafts),
             )
@@ -135,6 +163,25 @@ class ContentAgencyService:
 
         # Extract raw identity graph dict for facet sampling
         identity_dict = _identity_to_dict(profile.identity_graph)
+        
+        # [NEW] Fetch Trending Signals
+        from app.services.trending_service import TrendingSignalsService
+        trending_signals = None
+        try:
+            # Extract personalization signals from identity/timeline
+            industry = identity_dict.get("industry", "General")
+            primary_focus = identity_dict.get("primary_focus", "")
+            
+            # Fetch signals
+            trending_service = TrendingSignalsService()
+            trending_signals = await trending_service.get_trending_signals(
+                industry=industry,
+                primary_focus=primary_focus
+            )
+            logger.info(f"Injected trending signals for profile {profile_id}")
+        except Exception as e:
+            logger.warning(f"Failed to inject trending signals: {e}")
+            trending_signals = "No trending signals available this time."
 
         # Get existing topics to avoid duplicates (last 30 days)
         existing_topics = []
@@ -173,9 +220,11 @@ class ContentAgencyService:
                         historical_uniqueness["used_identity_categories"].append(cat)
 
         existing_topics = existing_topics[-20:]  # Keep recent 20
-        # Keep recent 15 of each style for diversity without over-constraining
+        # Keep recent 30 of each style for diversity without over-constraining.
+        # The Strategist prompt splits these into HARD avoid (recent 5) and
+        # SOFT avoid (older 6-30), so a longer window doesn't over-constrain.
         for key in historical_uniqueness:
-            historical_uniqueness[key] = historical_uniqueness[key][-15:]
+            historical_uniqueness[key] = historical_uniqueness[key][-30:]
 
         # Get style data
         style = profile.style_profile
@@ -204,6 +253,7 @@ class ContentAgencyService:
                 writing_sample_insights=writing_sample_insights,
                 location=location,
                 identity_facets=identity_dict,
+                trending_signals=trending_signals,
             )
         except Exception as e:
             logger.error(f"Agency workflow failed: {e}", exc_info=True)

@@ -8,11 +8,10 @@ interface LinkedInImportStepProps {
     onFileSelect: (file: File) => void;
     isProcessing: boolean;
     onBack?: () => void;
-    onSwitchToManual?: () => void;
     onSwitchToConversation?: () => void;
 }
 
-export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitchToManual, onSwitchToConversation }: LinkedInImportStepProps) {
+export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitchToConversation }: LinkedInImportStepProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,8 +193,8 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
                 </motion.div>
             </div>
 
-            {/* Manual Entry Options */}
-            {(onSwitchToConversation || onSwitchToManual) && (
+            {/* Alternative Option */}
+            {onSwitchToConversation && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -205,38 +204,18 @@ export function LinkedInImportStep({ onFileSelect, isProcessing, onBack, onSwitc
                     <p className="text-sm text-slate-600 mb-3 text-center">
                         Don't have a profile or resume ready?
                     </p>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* Speak with Pixo option */}
-                        {onSwitchToConversation && (
-                            <motion.button
-                                onClick={onSwitchToConversation}
-                                className="py-3 px-4 bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 border-2 border-cyan-200 hover:border-cyan-300 rounded-lg text-sm font-medium text-slate-700 transition-all"
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
-                            >
-                                <div className="flex flex-col items-center gap-1">
-                                    <span className="text-base">💬</span>
-                                    <span>Speak with Pixo</span>
-                                </div>
-                            </motion.button>
-                        )}
-                        
-                        {/* Manual form option */}
-                        {onSwitchToManual && (
-                            <motion.button
-                                onClick={onSwitchToManual}
-                                className="py-3 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-lg text-sm font-medium text-slate-700 transition-all"
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
-                            >
-                                <div className="flex flex-col items-center gap-1">
-                                    <span className="text-base">📝</span>
-                                    <span>Fill Out Forms</span>
-                                </div>
-                            </motion.button>
-                        )}
-                    </div>
+
+                    <motion.button
+                        onClick={onSwitchToConversation}
+                        className="w-full py-3 px-4 bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 border-2 border-cyan-200 hover:border-cyan-300 rounded-lg text-sm font-medium text-slate-700 transition-all"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                    >
+                        <div className="flex flex-col items-center gap-1">
+                            <span className="text-base">💬</span>
+                            <span>Chat with Pixo instead</span>
+                        </div>
+                    </motion.button>
                 </motion.div>
             )}
             

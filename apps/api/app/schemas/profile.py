@@ -12,9 +12,6 @@ class ProfileSourceCreate(BaseModel):
     """Schema for creating profile sources."""
 
     linkedin_url: Optional[str] = None
-    website_url: Optional[str] = None
-    manual_text: Optional[str] = None
-    rss_urls: list[str] = Field(default_factory=list)
 
 
 class ProfileSourceResponse(BaseModel):
@@ -23,10 +20,6 @@ class ProfileSourceResponse(BaseModel):
     id: UUID
     profile_id: UUID
     linkedin_url: Optional[str] = None
-    website_url: Optional[str] = None
-    resume_path: Optional[str] = None
-    manual_text: Optional[str] = None
-    rss_urls: list[str] = Field(default_factory=list)
     last_synced_at: Optional[datetime] = None
     created_at: datetime
 
@@ -62,7 +55,7 @@ class ProfileResponse(BaseModel):
     name: str
     description: Optional[str] = None
     avatar_url: Optional[str] = None
-    location: Optional[str] = None
+    location: Optional[Any] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

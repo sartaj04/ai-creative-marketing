@@ -120,11 +120,26 @@ class ConversationalExtractedData(BaseModel):
     bio_summary: str = ""
 
 
+class ContentFocusRequest(BaseModel):
+    """Request to save content focus topics from onboarding."""
+
+    primary_topics: List[str] = Field(min_length=1)
+    custom_topics: List[str] = Field(default_factory=list)
+
+
+class ContentFocusResponse(BaseModel):
+    """Response from saving content focus."""
+
+    success: bool
+    topics_saved: int = 0
+
+
 class OnboardingChatRequest(BaseModel):
     """Request for conversational onboarding."""
 
     message: str
     conversation_history: List[ChatMessage] = Field(default_factory=list)
+    mode: str = "onboarding"  # 'onboarding' or 'refinement'
 
 
 class OnboardingChatResponse(BaseModel):

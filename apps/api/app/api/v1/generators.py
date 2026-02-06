@@ -301,6 +301,9 @@ async def generate_from_scratch(
             key_points=request.key_points,
             goal=request.goal,
             template_id=request.template_id,
+            use_persona=request.use_persona,
+            feedback=request.feedback,
+            previous_draft_id=request.previous_draft_id,
         )
         return _draft_to_response(draft)
     except ValueError as e:
@@ -315,6 +318,9 @@ async def generate_from_audio(
     profile_id: Annotated[UUID, Form()],
     file: UploadFile = File(...),
     template_id: Annotated[Optional[UUID], Form()] = None,
+    use_persona: Annotated[bool, Form()] = True,
+    feedback: Annotated[Optional[str], Form()] = None,
+    previous_draft_id: Annotated[Optional[UUID], Form()] = None,
     db: AsyncSession = Depends(get_db),
 ) -> GeneratorResponse:
     """Generate a draft from audio content.
@@ -344,6 +350,9 @@ async def generate_from_audio(
             audio_content=content,
             filename=file.filename,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )
         return _draft_to_response(draft)
     except ValueError as e:
@@ -358,6 +367,9 @@ async def generate_from_pdf(
     profile_id: Annotated[UUID, Form()],
     file: UploadFile = File(...),
     template_id: Annotated[Optional[UUID], Form()] = None,
+    use_persona: Annotated[bool, Form()] = True,
+    feedback: Annotated[Optional[str], Form()] = None,
+    previous_draft_id: Annotated[Optional[UUID], Form()] = None,
     db: AsyncSession = Depends(get_db),
 ) -> GeneratorResponse:
     """Generate a draft from PDF content.
@@ -393,6 +405,9 @@ async def generate_from_pdf(
             pdf_content=content,
             filename=file.filename,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )
         return _draft_to_response(draft)
     except ValueError as e:
@@ -424,6 +439,9 @@ async def generate_from_youtube(
             profile_id=request.profile_id,
             youtube_url=request.youtube_url,
             template_id=request.template_id,
+            use_persona=request.use_persona,
+            feedback=request.feedback,
+            previous_draft_id=request.previous_draft_id,
         )
         return _draft_to_response(draft)
     except ValueError as e:
@@ -455,6 +473,9 @@ async def generate_from_article(
             profile_id=request.profile_id,
             article_url=request.article_url,
             template_id=request.template_id,
+            use_persona=request.use_persona,
+            feedback=request.feedback,
+            previous_draft_id=request.previous_draft_id,
         )
         return _draft_to_response(draft)
     except ValueError as e:
@@ -486,6 +507,9 @@ async def generate_formatted(
             profile_id=request.profile_id,
             content=request.content,
             template_id=request.template_id,
+            use_persona=request.use_persona,
+            feedback=request.feedback,
+            previous_draft_id=request.previous_draft_id,
         )
         return _draft_to_response(draft)
     except ValueError as e:

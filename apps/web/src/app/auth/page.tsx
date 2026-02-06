@@ -54,15 +54,20 @@ function AuthContent() {
                 // Check onboarding status before redirecting
                 try {
                     const status = await onboardingApi.getStatus();
-                    if (!status.is_complete) {
-                        router.push('/onboarding');
-                    } else {
+                    if (status.is_complete) {
                         router.push('/dashboard/inbox');
+                    } else if (status.completeness_score > 0 || status.has_extraction) {
+                        // User has some data but onboarding wasn't formally completed.
+                        // Auto-complete and send to dashboard — identity page handles the rest.
+                        try { await onboardingApi.complete(); } catch {}
+                        router.push('/dashboard/inbox');
+                    } else {
+                        router.push('/onboarding');
                     }
                 } catch (error) {
-                    // If status check fails, redirect to onboarding to be safe
+                    // If status check fails, go to dashboard (safer for returning users)
                     console.error('Failed to check onboarding status:', error);
-                    router.push('/onboarding');
+                    router.push('/dashboard/inbox');
                 }
             }
         } catch (err) {

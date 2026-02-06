@@ -3,19 +3,22 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useIdentityComposition, Region } from './useIdentityComposition';
-import { IdentityUniverse, RegenerationPreview } from '@/lib/api/identity';
+import { IdentityUniverse, RegenerationPreview, Timeline } from '@/lib/api/identity';
 import { InlineEditor } from './InlineEditor';
+import { CareerTimeline } from './CareerTimeline';
 import { cn } from '@/lib/utils';
 import { Sparkles, Edit2, Plus, AlertCircle, CheckCircle } from 'lucide-react';
 import { getFieldByKey, isFieldEmpty, FieldSchema, BELIEFS_OPTIONS } from '@/lib/schemas/identity-schema';
 
 interface IdentityCompositionProps {
     universe: IdentityUniverse;
+    timeline: Timeline | null;
     onFieldUpdate: (field: string, value: any) => Promise<void>;
+    onTimelineEventUpdate?: (eventId: string, field: string, value: any) => Promise<void>;
     regenerationPreview: RegenerationPreview | null;
 }
 
-export default function IdentityComposition({ universe, onFieldUpdate, regenerationPreview }: IdentityCompositionProps) {
+export default function IdentityComposition({ universe, timeline, onFieldUpdate, onTimelineEventUpdate, regenerationPreview }: IdentityCompositionProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
@@ -244,6 +247,16 @@ export default function IdentityComposition({ universe, onFieldUpdate, regenerat
                                             <Sparkles className="w-5 h-5 text-slate-400" />
                                         </button>
                                     </div>
+
+                                    {/* Career Timeline for Expertise Region */}
+                                    {activeRegion.id === 'expertise' && timeline && timeline.events.length > 0 && (
+                                        <div className="mb-8">
+                                            <CareerTimeline
+                                                timeline={timeline}
+                                                onEventUpdate={onTimelineEventUpdate}
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Render ALL Fields from Schema */}
                                     <div className="space-y-6">

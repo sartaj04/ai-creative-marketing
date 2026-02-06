@@ -21,10 +21,6 @@ class TemplateCreate(BaseModel):
     use_cases: list[str] = Field(default_factory=list)
     tone_fit: list[str] = Field(default_factory=list)
     platform: str = "both"
-    # Future fields
-    image_template: Optional[str] = None
-    carousel_slides: Optional[list[dict[str, Any]]] = None
-    media_placeholders: Optional[dict[str, Any]] = None
 
 
 class TemplateUpdate(BaseModel):
@@ -128,9 +124,6 @@ class TemplateResponse(BaseModel):
     use_cases: list[str] = Field(default_factory=list)
     tone_fit: list[str] = Field(default_factory=list)
     platform: str
-    image_template: Optional[str] = None
-    carousel_slides: Optional[list[dict[str, Any]]] = None
-    media_placeholders: Optional[dict[str, Any]] = None
     # Ownership and contribution
     is_system: bool = False
     is_contributed: bool = False

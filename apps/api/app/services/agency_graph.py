@@ -10,6 +10,7 @@ identity facet sampling, and topic_domain tracking.
 
 import json
 import logging
+import random
 from typing import Any, Optional
 from uuid import UUID
 
@@ -40,6 +41,8 @@ from app.services.agency_prompts import (
     AUTHORITY_POSTURES,
     EMOTIONAL_TONES,
     sample_identity_facets,
+    calculate_identity_depth,
+    compute_authority_constraints,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +72,7 @@ class AgencyState(TypedDict):
     template: Optional[str]
     template_meta: Optional[dict]  # Template metadata (flexibility, min/max length)
     platform_intent: str  # Platform target: linkedin, x, ig, newsletter, generic
+    trending_signals: Optional[str]  # External trending topics/news for topic discovery
 
     # Identity sampling
     identity_facets: Optional[dict]  # Raw identity graph dict for sampling
@@ -112,6 +116,79 @@ def _get_gcp_credentials():
         credentials_info,
         scopes=["https://www.googleapis.com/auth/cloud-platform"],
     )
+
+
+def _build_tone_description(
+    tone_sliders: dict,
+    content_mode: str | None = None,
+    emotional_tone: str | None = None,
+) -> str:
+    """Build a human-readable tone description from slider values.
+
+    Each slider is 0.0-1.0. Values near 0.5 are neutral and omitted.
+    Only notable leanings (< 0.3 or > 0.7) are mentioned.
+
+    When content_mode or emotional_tone are provided, sliders are nudged
+    contextually. A learner writing vulnerably should sound more humble
+    than their baseline; an advisor writing decisively should sound
+    more confident. The user's baseline is respected -- we nudge, not override.
+    """
+    if not tone_sliders:
+        tone_sliders = {}
+
+    # Start from user's baseline
+    adjusted = {
+        "formal_casual": tone_sliders.get("formal_casual", 0.5),
+        "technical_simple": tone_sliders.get("technical_simple", 0.5),
+        "serious_playful": tone_sliders.get("serious_playful", 0.5),
+        "humble_confident": tone_sliders.get("humble_confident", 0.5),
+    }
+
+    # Context-dependent adjustments (nudge, don't override)
+    _MODE_ADJUSTMENTS = {
+        "learner": {"humble_confident": -0.2, "formal_casual": +0.1},
+        "narrator": {"serious_playful": +0.1, "formal_casual": +0.15},
+        "skeptic": {"humble_confident": +0.1},
+        "observer": {"humble_confident": -0.15, "formal_casual": +0.1},
+        "builder": {"formal_casual": +0.1},
+    }
+    _TONE_ADJUSTMENTS = {
+        "vulnerable": {"humble_confident": -0.2, "formal_casual": +0.1},
+        "amused": {"serious_playful": +0.2},
+        "frustrated": {"humble_confident": +0.1, "serious_playful": -0.1},
+        "excited": {"serious_playful": +0.1, "humble_confident": +0.1},
+        "contemplative": {"serious_playful": -0.1, "formal_casual": -0.1},
+    }
+
+    for key, delta in _MODE_ADJUSTMENTS.get(content_mode, {}).items():
+        adjusted[key] = max(0.0, min(1.0, adjusted[key] + delta))
+    for key, delta in _TONE_ADJUSTMENTS.get(emotional_tone, {}).items():
+        adjusted[key] = max(0.0, min(1.0, adjusted[key] + delta))
+
+    descriptors = []
+    if adjusted["formal_casual"] < 0.3:
+        descriptors.append("formal")
+    elif adjusted["formal_casual"] > 0.7:
+        descriptors.append("casual")
+
+    if adjusted["technical_simple"] < 0.3:
+        descriptors.append("technical")
+    elif adjusted["technical_simple"] > 0.7:
+        descriptors.append("simple/accessible")
+
+    if adjusted["serious_playful"] < 0.3:
+        descriptors.append("serious")
+    elif adjusted["serious_playful"] > 0.7:
+        descriptors.append("playful")
+
+    if adjusted["humble_confident"] < 0.3:
+        descriptors.append("humble")
+    elif adjusted["humble_confident"] > 0.7:
+        descriptors.append("confident")
+
+    if not descriptors:
+        return "Balanced, professional tone"
+    return ", ".join(descriptors).capitalize() + " tone"
 
 
 # ============================================================================
@@ -303,6 +380,12 @@ class ContentAgencyGraph:
             else:
                 location_str = "Global/Unspecified"
 
+            # Get content focus from identity if available
+            content_focus = identity_facets.get("primary_focus") or "Not specified"
+
+            # Get trending signals if available (can be populated by external service)
+            trending_signals = state.get("trending_signals") or "No trending signals available. Generate topics from persona and identity."
+
             opportunities = chain.invoke({
                 "persona_prompt": state["persona_prompt"],
                 "identity_facets": identity_summary,
@@ -310,6 +393,8 @@ class ContentAgencyGraph:
                 "location": location_str or "Global/Unspecified",
                 "learned_preferences": state.get("learned_preferences", "No preferences learned yet."),
                 "existing_topics": ", ".join(state.get("existing_topics", [])) or "None",
+                "content_focus": content_focus,
+                "trending_signals": trending_signals,
             })
 
             # Ensure we have a list
@@ -359,6 +444,9 @@ class ContentAgencyGraph:
             used_categories=uniqueness_ctx.get("used_identity_categories", []),
         )
 
+        # Compute authority constraints based on timeline depth
+        authority_constraints = compute_authority_constraints(identity_facets)
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", STRATEGIST_AGENT_SYSTEM),
             ("human", STRATEGIST_AGENT_PROMPT),
@@ -367,19 +455,51 @@ class ContentAgencyGraph:
         try:
             chain = prompt | self.gemini_llm | JsonOutputParser()
 
+            # Split used styles into hard avoid (recent 5) and soft avoid (older 6-30)
+            def _split_constraints(items: list) -> tuple[str, str]:
+                hard = items[-5:] if len(items) >= 5 else items
+                soft = items[:-5] if len(items) > 5 else []
+                return (
+                    ", ".join(hard) or "None yet",
+                    ", ".join(soft) or "None",
+                )
+
+            hard_hooks, soft_hooks = _split_constraints(uniqueness_ctx.get("used_hook_styles", []))
+            hard_formats, soft_formats = _split_constraints(uniqueness_ctx.get("used_format_archetypes", []))
+            hard_ctas, soft_ctas = _split_constraints(uniqueness_ctx.get("used_cta_styles", []))
+            hard_modes, soft_modes = _split_constraints(uniqueness_ctx.get("used_content_modes", []))
+            hard_postures, soft_postures = _split_constraints(uniqueness_ctx.get("used_authority_postures", []))
+            hard_tones, soft_tones = _split_constraints(uniqueness_ctx.get("used_emotional_tones", []))
+            hard_domains, soft_domains = _split_constraints(uniqueness_ctx.get("used_topic_domains", []))
+
+            # Add blocked postures to hard_avoid if identity doesn't support them
+            blocked_postures = authority_constraints.get("blocked_postures", [])
+            if blocked_postures:
+                existing_hard_postures = hard_postures.split(", ") if hard_postures != "None yet" else []
+                combined_postures = list(set(existing_hard_postures + blocked_postures))
+                hard_postures = ", ".join(combined_postures) or "None yet"
+
             brief = chain.invoke({
                 "opportunities": json.dumps([selected_opportunity], indent=2),
                 "persona_prompt": state["persona_prompt"],
                 "platform_intent": state.get("platform_intent", "generic"),
                 "learned_preferences": state.get("learned_preferences", "No preferences yet."),
                 "identity_facets": sampled.get("facet_summary", "No identity facets available."),
-                "used_hook_styles": ", ".join(uniqueness_ctx.get("used_hook_styles", [])) or "None yet",
-                "used_format_archetypes": ", ".join(uniqueness_ctx.get("used_format_archetypes", [])) or "None yet",
-                "used_cta_styles": ", ".join(uniqueness_ctx.get("used_cta_styles", [])) or "None yet",
-                "used_content_modes": ", ".join(uniqueness_ctx.get("used_content_modes", [])) or "None yet",
-                "used_authority_postures": ", ".join(uniqueness_ctx.get("used_authority_postures", [])) or "None yet",
-                "used_emotional_tones": ", ".join(uniqueness_ctx.get("used_emotional_tones", [])) or "None yet",
-                "used_topic_domains": ", ".join(uniqueness_ctx.get("used_topic_domains", [])) or "None yet",
+                "authority_constraints": authority_constraints.get("constraint_text", "No constraints."),
+                "hard_avoid_hook_styles": hard_hooks,
+                "hard_avoid_format_archetypes": hard_formats,
+                "hard_avoid_cta_styles": hard_ctas,
+                "hard_avoid_content_modes": hard_modes,
+                "hard_avoid_authority_postures": hard_postures,
+                "hard_avoid_emotional_tones": hard_tones,
+                "hard_avoid_topic_domains": hard_domains,
+                "soft_avoid_hook_styles": soft_hooks,
+                "soft_avoid_format_archetypes": soft_formats,
+                "soft_avoid_cta_styles": soft_ctas,
+                "soft_avoid_content_modes": soft_modes,
+                "soft_avoid_authority_postures": soft_postures,
+                "soft_avoid_emotional_tones": soft_tones,
+                "soft_avoid_topic_domains": soft_domains,
             })
 
             logger.info(
@@ -505,15 +625,30 @@ class ContentAgencyGraph:
                 if qa_result.get("repetition_detected"):
                     qa_feedback += f"\n\nREPETITION ISSUE: {qa_result.get('repetition_details', 'Use a completely different structure.')}"
 
+            # Extract identity context for Writer (replaces full persona prompt)
+            identity_data = state.get("identity_facets") or {}
+            current_role = identity_data.get("current_role", "Professional")
+            industry = identity_data.get("industry", "")
+            tone_sliders = state.get("tone_sliders", {})
+            tone_description = _build_tone_description(
+                tone_sliders,
+                content_mode=brief.get("content_mode"),
+                emotional_tone=brief.get("emotional_tone"),
+            )
+
+            # Get writing style insights from analyzed samples
+            writing_style_guidance = state.get("writing_sample_insights") or "No writing samples analyzed yet. Use natural, human language."
+
             draft = chain.invoke({
                 "topic": brief.get("selected_topic", ""),
+                "topic_domain": brief.get("topic_domain", "professional"),
                 "angle": brief.get("content_angle", ""),
-                "format_archetype": brief.get("format_archetype", "insight"),
-                "hook_style": brief.get("target_hook_style", "bold_claim"),
-                "cta_style": brief.get("cta_style", "question"),
-                "content_mode": brief.get("content_mode", "explainer"),
-                "authority_posture": brief.get("authority_posture", "experienced"),
-                "emotional_tone": brief.get("emotional_tone", "matter_of_fact"),
+                "format_archetype": brief.get("format_archetype") or random.choice(FORMAT_ARCHETYPES),
+                "hook_style": brief.get("target_hook_style") or random.choice(HOOK_STYLES),
+                "cta_style": brief.get("cta_style") or random.choice(CTA_STYLES),
+                "content_mode": brief.get("content_mode") or random.choice(CONTENT_MODES),
+                "authority_posture": brief.get("authority_posture") or random.choice(AUTHORITY_POSTURES),
+                "emotional_tone": brief.get("emotional_tone") or random.choice(EMOTIONAL_TONES),
                 "key_points": json.dumps(brief.get("key_points", [])),
                 "goal": brief.get("goal", "thought_leadership"),
                 "tone_guidance": brief.get("tone_guidance", "") + qa_feedback,
@@ -522,9 +657,12 @@ class ContentAgencyGraph:
                 "length_reasoning": length_decision.get("reasoning", ""),
                 "structure_suggestion": length_decision.get("structure_suggestion", ""),
                 "identity_facets_summary": identity_facets_summary,
-                "persona_prompt": state["persona_prompt"],
+                "current_role": current_role,
+                "industry": industry,
+                "tone_description": tone_description,
                 "template": state.get("template", "No template provided."),
                 "location": ", ".join(state.get("location") or []) or "Global/Unspecified",
+                "writing_style_guidance": writing_style_guidance,
             })
 
             logger.info(f"Writer created draft with hook: {draft.get('hook', '')[:50]}...")
@@ -555,18 +693,23 @@ class ContentAgencyGraph:
         try:
             chain = prompt | llm | JsonOutputParser()
 
+            # Get writing style insights
+            writing_style_guidance = state.get("writing_sample_insights") or "No writing samples analyzed. Use natural, human language."
+
             refined = chain.invoke({
                 "hook": draft.get("hook", ""),
                 "body": draft.get("body", ""),
-                "content_mode": brief.get("content_mode", "explainer"),
-                "authority_posture": brief.get("authority_posture", "experienced"),
-                "emotional_tone": brief.get("emotional_tone", "matter_of_fact"),
+                "content_mode": brief.get("content_mode") or random.choice(CONTENT_MODES),
+                "authority_posture": brief.get("authority_posture") or random.choice(AUTHORITY_POSTURES),
+                "emotional_tone": brief.get("emotional_tone") or random.choice(EMOTIONAL_TONES),
+                "topic_domain": brief.get("topic_domain", "professional"),
                 "platform_intent": state.get("platform_intent", "generic"),
                 "formal_casual": tone_sliders.get("formal_casual", 0.5),
                 "technical_simple": tone_sliders.get("technical_simple", 0.5),
                 "serious_playful": tone_sliders.get("serious_playful", 0.5),
                 "humble_confident": tone_sliders.get("humble_confident", 0.5),
                 "preferred_hooks": ", ".join(state.get("preferred_hooks", [])) or "Any",
+                "writing_style_guidance": writing_style_guidance,
             })
 
             # Preserve topic and hashtags from original draft
@@ -581,6 +724,73 @@ class ContentAgencyGraph:
             # On error, pass through the original draft
             return {"refined_draft": draft}
 
+    def _check_semantic_similarity(self, current_body: str, completed_drafts: list[dict]) -> dict | None:
+        """Check if current draft is semantically too similar to previous drafts.
+
+        Uses Gemini embedding API to compute cosine similarity. Returns a
+        rejection dict if similarity > 0.85, otherwise None (pass).
+        """
+        if not completed_drafts or not current_body:
+            return None
+
+        previous_bodies = [d.get("body", "") for d in completed_drafts if d.get("body")]
+        if not previous_bodies:
+            return None
+
+        try:
+            from google import genai
+
+            client = genai.Client(
+                vertexai=True,
+                project=settings.GCP_PROJECT_ID,
+                location=settings.GCP_LOCATION,
+            )
+
+            all_texts = [current_body] + previous_bodies
+            response = client.models.embed_content(
+                model="text-embedding-004",
+                contents=all_texts,
+            )
+
+            current_embedding = response.embeddings[0].values
+            max_similarity = 0.0
+            most_similar_idx = 0
+
+            for i, emb in enumerate(response.embeddings[1:]):
+                # Cosine similarity (embeddings are already normalized)
+                similarity = sum(a * b for a, b in zip(current_embedding, emb.values))
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    most_similar_idx = i
+
+            if max_similarity > 0.85:
+                logger.warning(
+                    f"Semantic similarity {max_similarity:.3f} detected with draft {most_similar_idx + 1}"
+                )
+                return {
+                    "qa_result": {
+                        "approved": False,
+                        "score": 0.3,
+                        "issues": [f"Semantic similarity {max_similarity:.2f} with draft {most_similar_idx + 1}"],
+                        "rejection_reason": (
+                            "This draft says the same thing as a previous draft in different words. "
+                            "Write about a genuinely different topic or take a genuinely different angle."
+                        ),
+                        "repetition_detected": True,
+                        "repetition_details": (
+                            f"Cosine similarity {max_similarity:.2f} with previous draft. "
+                            f"Surface structure differs but core message converges."
+                        ),
+                    },
+                }
+
+            return None
+
+        except Exception as e:
+            # Non-fatal: if embeddings fail, fall through to LLM-based QA check
+            logger.warning(f"Semantic similarity check failed (non-fatal): {e}")
+            return None
+
     def _qa_agent(self, state: AgencyState) -> dict:
         """QA Agent: Validate brand voice, quality, mode/posture adherence, and detect repetition."""
         draft = state.get("refined_draft") or state.get("draft")
@@ -591,8 +801,53 @@ class ContentAgencyGraph:
         brief = state.get("content_brief", {})
         logger.info("QA Agent reviewing draft")
 
-        # Build previous drafts summary for repetition detection
+        # Pre-check 1: Hard word count validation
+        length_decision = state.get("length_decision", {})
+        target_min = length_decision.get("target_min_words", 150)
+        target_max = length_decision.get("target_max_words", 250)
+        body_text = draft.get("body", "")
+        word_count = len(body_text.split())
+
+        # Reject if more than 25% outside target range
+        min_allowed = int(target_min * 0.75)
+        max_allowed = int(target_max * 1.25)
+
+        if word_count < min_allowed:
+            logger.warning(f"Draft too short: {word_count} words, target was {target_min}-{target_max}")
+            return {
+                "qa_result": {
+                    "approved": False,
+                    "score": 0.3,
+                    "issues": [f"Post is too short ({word_count} words, target: {target_min}-{target_max})"],
+                    "rejection_reason": f"Too short. Got {word_count} words, need at least {target_min}. Expand with more detail.",
+                },
+                "regeneration_count": state.get("regeneration_count", 0) + 1,
+            }
+
+        if word_count > max_allowed:
+            logger.warning(f"Draft too long: {word_count} words, target was {target_min}-{target_max}")
+            return {
+                "qa_result": {
+                    "approved": False,
+                    "score": 0.3,
+                    "issues": [f"Post is too long ({word_count} words, target: {target_min}-{target_max})"],
+                    "rejection_reason": f"Too long. Got {word_count} words, max is {target_max}. Tighten and cut.",
+                },
+                "regeneration_count": state.get("regeneration_count", 0) + 1,
+            }
+
+        # Pre-check 2: semantic similarity before LLM QA
         completed_drafts = state.get("completed_drafts", [])
+        similarity_rejection = self._check_semantic_similarity(
+            draft.get("body", ""), completed_drafts
+        )
+        if similarity_rejection:
+            return {
+                **similarity_rejection,
+                "regeneration_count": state.get("regeneration_count", 0) + 1,
+            }
+
+        # Build previous drafts summary for repetition detection
         previous_drafts_summary = "None"
         if completed_drafts:
             summaries = []
@@ -614,16 +869,32 @@ class ContentAgencyGraph:
         try:
             chain = prompt | self.gemini_llm | JsonOutputParser()
 
+            # Get length target for validation
+            length_decision = state.get("length_decision", {})
+            target_length = f"{length_decision.get('target_min_words', 150)}-{length_decision.get('target_max_words', 250)} words"
+
+            # Get writing style summary for alignment check
+            writing_style_summary = state.get("writing_sample_insights") or "No writing samples analyzed yet."
+
+            # Compute authority constraints for alignment check
+            identity_facets = state.get("identity_facets") or {}
+            authority_constraints = compute_authority_constraints(identity_facets)
+
             result = chain.invoke({
                 "hook": draft.get("hook", ""),
                 "body": draft.get("body", ""),
                 "persona_prompt": state["persona_prompt"],
-                "content_mode": brief.get("content_mode", "explainer"),
-                "authority_posture": brief.get("authority_posture", "experienced"),
-                "emotional_tone": brief.get("emotional_tone", "matter_of_fact"),
+                "identity_facets_summary": state.get("sampled_facets", {}).get("facet_summary", "No facets available"),
+                "topic_domain": brief.get("topic_domain", "professional"),
+                "content_mode": brief.get("content_mode") or "explainer",
+                "authority_posture": brief.get("authority_posture") or "experienced",
+                "emotional_tone": brief.get("emotional_tone") or "matter_of_fact",
                 "platform_intent": state.get("platform_intent", "generic"),
                 "taboo_list": ", ".join(state.get("taboo_list", [])) or "None specified",
                 "previous_drafts": previous_drafts_summary,
+                "target_length": target_length,
+                "writing_style_summary": writing_style_summary,
+                "authority_constraints": authority_constraints.get("constraint_text", "No constraints."),
             })
 
             # Log repetition detection
@@ -666,6 +937,8 @@ class ContentAgencyGraph:
                 "primary_facets": sampled_facets.get("primary_facets", {}),
                 "secondary_facets": sampled_facets.get("secondary_facets", {}),
                 "ignored_categories": sampled_facets.get("ignored_categories", []),
+                "depth_warning": sampled_facets.get("depth_warning"),
+                "identity_depth": sampled_facets.get("identity_depth"),
             }
 
         completed = state.get("completed_drafts", [])
@@ -757,6 +1030,7 @@ class ContentAgencyGraph:
         writing_sample_insights: Optional[str] = None,
         location: Optional[list[str]] = None,
         identity_facets: Optional[dict] = None,
+        trending_signals: Optional[str] = None,
     ) -> list[dict]:
         """Run the content agency workflow for a profile.
 
@@ -775,6 +1049,7 @@ class ContentAgencyGraph:
             writing_sample_insights: Insights extracted from user writing samples
             location: Target markets or physical locations
             identity_facets: Raw identity graph dict for facet sampling
+            trending_signals: External trending topics/news for topic discovery
 
         Returns:
             List of completed draft dicts (up to 3)
@@ -808,6 +1083,7 @@ class ContentAgencyGraph:
             "writing_sample_insights": writing_sample_insights,
             "location": location,
             "identity_facets": identity_facets,
+            "trending_signals": trending_signals,
             "sampled_facets": None,
             "opportunities": None,
             "content_brief": None,

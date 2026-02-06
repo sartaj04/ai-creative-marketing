@@ -10,10 +10,24 @@ import { useProfileStore } from '@/stores/profile-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/components/ui/use-toast';
 import { getErrorMessage } from '@/lib/api/client';
+import { authApi } from '@/lib/api/auth';
+import { useRouter } from 'next/navigation';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('profile');
     const { currentProfile, triggerIngestion } = useProfileStore();
+    const router = useRouter();
     const { user } = useAuthStore();
     const { toast } = useToast();
     const [retraining, setRetraining] = useState(false);
@@ -28,6 +42,18 @@ export default function SettingsPage() {
             toast({ title: 'Failed to trigger retraining', description: getErrorMessage(error), variant: 'destructive' });
         } finally {
             setRetraining(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        try {
+            await authApi.deleteAccount();
+            const { logout } = useAuthStore.getState();
+            logout();
+            toast({ title: 'Account deleted', description: 'Your account has been successfully deleted.' });
+            router.push('/');
+        } catch (error) {
+            toast({ title: 'Failed to delete account', description: getErrorMessage(error), variant: 'destructive' });
         }
     };
 
@@ -133,6 +159,35 @@ export default function SettingsPage() {
                                     <p className="text-sm font-medium text-slate-900">{user?.email || 'Not set'}</p>
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-red-100 bg-red-50/10">
+                        <CardHeader>
+                            <CardTitle className="text-red-600">Danger Zone</CardTitle>
+                            <CardDescription>Irreversible actions for your account.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive">Delete Account</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete your account
+                                            and remove your data from our servers.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-600 hover:bg-red-700">
+                                            Delete Account
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </CardContent>
                     </Card>
                 </TabsContent>

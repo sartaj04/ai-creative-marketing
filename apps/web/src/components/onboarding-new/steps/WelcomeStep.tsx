@@ -1,11 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Linkedin, FileText, ArrowRight } from 'lucide-react';
+import { Linkedin, ArrowRight } from 'lucide-react';
 import { PixoCharacter } from '@/components/auth/PixoCharacter';
 
 interface WelcomeStepProps {
-    onSelectOption: (option: 'linkedin' | 'manual' | 'conversation') => void;
+    onSelectOption: (option: 'linkedin' | 'conversation') => void;
 }
 
 export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
@@ -59,7 +59,7 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
                     <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 group-hover:text-cyan-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </motion.button>
 
-                {/* LinkedIn Import Option */}
+                {/* LinkedIn / Resume Upload Option */}
                 <motion.button
                     variants={itemVariants}
                     whileHover={{ scale: 1.01, borderColor: "var(--cta)" }}
@@ -76,24 +76,6 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
                     </div>
                     <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300 absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </motion.button>
-
-                {/* Manual Form Entry Option */}
-                <motion.button
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.01, borderColor: "var(--cta)" }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => onSelectOption('manual')}
-                    className="group relative flex items-start p-4 sm:p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all text-left"
-                >
-                    <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 text-slate-600 rounded-lg flex items-center justify-center mr-3 sm:mr-4 group-hover:bg-slate-800 group-hover:text-white transition-colors">
-                        <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </div>
-                    <div className="flex-1 pr-8 sm:pr-12">
-                        <h3 className="font-semibold text-sm sm:text-base text-slate-900 group-hover:text-slate-800 transition-colors">Fill Out Forms</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-1">Prefer a structured approach? Answer questions step-by-step through our guided forms.</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300 absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 group-hover:text-slate-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
-                </motion.button>
             </div>
 
             <motion.div variants={itemVariants} className="pt-4 sm:pt-8 border-t border-slate-100 mt-4 sm:mt-8">
@@ -101,7 +83,7 @@ export function WelcomeStep({ onSelectOption }: WelcomeStepProps) {
                     Your data is processed securely and used only to build your personal brand model.
                 </p>
             </motion.div>
-            
+
             {/* Bottom safe area spacer for mobile */}
             <div className="h-4 sm:h-0" aria-hidden="true" />
         </motion.div>

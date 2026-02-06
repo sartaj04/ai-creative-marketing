@@ -11,16 +11,23 @@ import { PixoCharacter } from '@/components/auth/PixoCharacter';
 interface ConversationalOnboardingProps {
     onComplete: () => void;
     onBack?: () => void;
+    /** 'onboarding' = first-time setup, 'refinement' = identity page updates */
+    mode?: 'onboarding' | 'refinement';
 }
 
-// Initial greeting from Pixo
-const INITIAL_MESSAGE: ChatMessage = {
+const ONBOARDING_INITIAL: ChatMessage = {
     role: 'assistant',
     content: "Hey there! I'm Pixo, and I'm excited to help you build your personal brand. Let's start with the basics - what's your current role? What do you do professionally?"
 };
 
-export function ConversationalOnboarding({ onComplete, onBack }: ConversationalOnboardingProps) {
-    const [currentQuestion, setCurrentQuestion] = useState<string>(INITIAL_MESSAGE.content);
+const REFINEMENT_INITIAL: ChatMessage = {
+    role: 'assistant',
+    content: "Hey! I'd love to learn more about you to fill in some gaps in your profile. Tell me something about yourself — what are you passionate about outside of work? Or is there anything about your identity you'd like to update?"
+};
+
+export function ConversationalOnboarding({ onComplete, onBack, mode = 'onboarding' }: ConversationalOnboardingProps) {
+    const initialMessage = mode === 'refinement' ? REFINEMENT_INITIAL : ONBOARDING_INITIAL;
+    const [currentQuestion, setCurrentQuestion] = useState<string>(initialMessage.content);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [extractedData, setExtractedData] = useState<ConversationalExtractedData | null>(null);
@@ -28,7 +35,7 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
     const [isCompleting, setIsCompleting] = useState(false);
     const [voiceEnabled, setVoiceEnabled] = useState(true);
     const [autoListenPending, setAutoListenPending] = useState(false);
-    const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+    const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([initialMessage]);
     
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const hasSpokenInitial = useRef(false);
@@ -67,7 +74,7 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
         if (voiceEnabled && isSpeechSupported && !hasSpokenInitial.current) {
             hasSpokenInitial.current = true;
             setTimeout(() => {
-                speak(INITIAL_MESSAGE.content);
+                speak(initialMessage.content);
             }, 500);
         }
     }, [voiceEnabled, isSpeechSupported, speak]);
@@ -125,7 +132,8 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
             
             const response = await onboardingApi.chat({
                 message,
-                conversation_history: historyForApi.map(m => ({ role: m.role, content: m.content }))
+                conversation_history: historyForApi.map(m => ({ role: m.role, content: m.content })),
+                mode,
             });
 
             const assistantMessage: ChatMessage = { role: 'assistant', content: response.response };
@@ -159,7 +167,9 @@ export function ConversationalOnboarding({ onComplete, onBack }: ConversationalO
         setIsCompleting(true);
         cancelSpeech();
         try {
-            await onboardingApi.complete();
+            if (mode === 'onboarding') {
+                await onboardingApi.complete();
+            }
             onComplete();
         } catch (error) {
             console.error('Completion error:', error);

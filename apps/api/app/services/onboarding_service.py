@@ -169,11 +169,63 @@ class OnboardingService:
 
             await self.db.commit()
 
+            # Attempt career timeline extraction if we have experience/education data
+            suggested_topics: list[str] = []
+            if data and (data.get("experience") or data.get("education") or data.get("career_highlights")):
+                try:
+                    from app.services.timeline_service import TimelineService
+                    from app.models.identity import TimelineEventType
+                    from datetime import datetime as dt
+
+                    timeline_result = await self.llm.extract_career_timeline(data)
+                    if timeline_result and timeline_result.get("events"):
+                        timeline_service = TimelineService(self.db)
+                        timeline = await timeline_service.get_or_create_timeline(graph.id)
+                        timeline.narrative_arc = timeline_result.get("narrative_arc", "")
+
+                        for event_data in timeline_result["events"]:
+                            event_type_map = {
+                                "work": TimelineEventType.WORK,
+                                "education": TimelineEventType.EDUCATION,
+                            }
+                            event_type = event_type_map.get(
+                                event_data.get("type", "other"), TimelineEventType.OTHER
+                            )
+                            start_date = None
+                            end_date = None
+                            try:
+                                if event_data.get("start_date"):
+                                    start_date = dt.strptime(event_data["start_date"], "%Y-%m")
+                            except (ValueError, TypeError) as e:
+                                logger.debug(f"Could not parse start_date '{event_data.get('start_date')}': {e}")
+                            try:
+                                if event_data.get("end_date"):
+                                    end_date = dt.strptime(event_data["end_date"], "%Y-%m")
+                            except (ValueError, TypeError) as e:
+                                logger.debug(f"Could not parse end_date '{event_data.get('end_date')}': {e}")
+
+                            await timeline_service.add_event(
+                                timeline_id=timeline.id,
+                                title=f"{event_data.get('title', '')} at {event_data.get('organization', '')}".strip(" at "),
+                                event_type=event_type,
+                                start_date=start_date,
+                                end_date=end_date,
+                                description=event_data.get("description", ""),
+                                tags=event_data.get("skills_used", []),
+                            )
+
+                        await self.db.commit()
+                        suggested_topics = timeline_result.get("suggested_topics", [])
+                        logger.info(f"Career timeline extracted for profile {profile_id}: {len(timeline_result['events'])} events")
+                except Exception as e:
+                    logger.warning(f"Career timeline extraction failed for profile {profile_id}: {e}")
+
             return {
                 "success": True,
                 "summary": f"Successfully extracted data from {source_type}.",
                 "data": data,
                 "extraction_summary": extraction_summary,
+                "suggested_topics": suggested_topics,
             }
 
         except Exception as e:
@@ -249,7 +301,6 @@ class OnboardingService:
             "target_audience": "target_audience",
             "desired_positioning": "desired_positioning",
             "aspirations": "aspirations",
-            "career_stage": "career_stage",
             "bio_summary": "bio_summary",
         }
 
@@ -264,11 +315,10 @@ class OnboardingService:
             "unique_angles",
             "interests",
             "beliefs",
-            "contrarian_views",
             "content_pillars",
             "narrative_themes",
-            "education",
-            "themes",  # Legacy field for topics/themes
+            "stories",
+            "opinion_statements",
         ]
 
         for field in list_field_mappings:
@@ -284,36 +334,17 @@ class OnboardingService:
 
                 # Handle incoming value
                 if isinstance(value, list):
-                    # For education, replace entirely (structured data)
-                    if field == "education":
-                        setattr(graph, field, value)
-                    else:
-                        # Merge lists, avoiding duplicates
-                        for item in value:
-                            if item and item not in current:
-                                current.append(item)
-                        setattr(graph, field, current)
+                    # Merge lists, avoiding duplicates
+                    for item in value:
+                        if item and item not in current:
+                            current.append(item)
+                    setattr(graph, field, current)
                 elif value:
                     # Single value - add if not present
                     str_value = str(value)
                     if str_value not in current:
                         current.append(str_value)
                     setattr(graph, field, current)
-
-        # Handle top_skills - merge into expertise_keywords (legacy field)
-        # Note: top_skills are already included in expertise_areas from extraction,
-        # so we only add to expertise_keywords to avoid duplication
-        if "top_skills" in data and data["top_skills"]:
-            skills = data["top_skills"]
-            if isinstance(skills, list):
-                current_keywords = getattr(graph, "expertise_keywords", None) or []
-                if not isinstance(current_keywords, list):
-                    current_keywords = []
-                # Merge skills into expertise_keywords only
-                for skill in skills:
-                    if skill and skill not in current_keywords:
-                        current_keywords.append(skill)
-                graph.expertise_keywords = current_keywords
 
         # Note: years_experience is informational and doesn't need to be stored
         # separately or added to career_highlights. It's already captured in career_stage
@@ -460,9 +491,6 @@ class OnboardingService:
             graph.current_role = professional_data.current_role
             graph.industry = professional_data.industry
             
-            if professional_data.years_experience:
-                graph.career_stage = professional_data.years_experience
-            
             if professional_data.expertise_areas:
                 graph.expertise_areas = professional_data.expertise_areas
             
@@ -475,7 +503,6 @@ class OnboardingService:
             # Also update extracted_data for completeness tracking
             extracted_data["current_role"] = professional_data.current_role
             extracted_data["industry"] = professional_data.industry
-            extracted_data["career_stage"] = professional_data.years_experience
             extracted_data["expertise_areas"] = professional_data.expertise_areas
             
             ctx["professional_completed"] = True
@@ -493,14 +520,14 @@ class OnboardingService:
                 extracted_data["aspirations"] = interests_data.aspirations
             
             if interests_data.topics_of_interest:
-                # Add to themes/content_pillars
-                current_themes = graph.themes or []
+                # Add to content_pillars
+                current_pillars = graph.content_pillars or []
                 for topic in interests_data.topics_of_interest:
-                    if topic not in current_themes:
-                        current_themes.append(topic)
-                graph.themes = current_themes
-                extracted_data["themes"] = current_themes
-            
+                    if topic not in current_pillars:
+                        current_pillars.append(topic)
+                graph.content_pillars = current_pillars
+                extracted_data["content_pillars"] = current_pillars
+
             ctx["interests_completed"] = True
             next_step = "voice"
             message = "Interests and aspirations saved successfully"
@@ -551,15 +578,7 @@ class OnboardingService:
             # Save to StyleProfile
             style_profile.tone_sliders = tone_sliders
             style_profile.preferred_hooks = preferred_hooks
-            
-            # Also update tone_markers in IdentityGraph for compatibility
-            graph.tone_markers = {
-                "professional": 1.0 - tone_sliders["formal_casual"] + 0.5,
-                "casual": tone_sliders["formal_casual"] + 0.5,
-                "technical": tone_sliders["technical_simple"],
-                "storytelling": 1.0 - tone_sliders["serious_playful"],
-            }
-            
+
             ctx["voice_completed"] = True
             next_step = "completion"
             message = "Voice preferences saved successfully"

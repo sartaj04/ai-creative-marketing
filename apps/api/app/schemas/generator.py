@@ -13,6 +13,9 @@ class ScratchGenerateRequest(BaseModel):
     key_points: list[str] = Field(default_factory=list, max_length=10)
     goal: str = Field(..., min_length=1, max_length=200)
     template_id: Optional[UUID] = Field(default=None, description="Optional template for structural guidance")
+    use_persona: bool = Field(default=True, description="Include professional identity in generation")
+    feedback: Optional[str] = Field(default=None, max_length=1000, description="User feedback for regeneration")
+    previous_draft_id: Optional[UUID] = Field(default=None, description="ID of previous draft being regenerated")
 
 
 class YouTubeGenerateRequest(BaseModel):
@@ -21,6 +24,9 @@ class YouTubeGenerateRequest(BaseModel):
     profile_id: UUID
     youtube_url: str = Field(..., min_length=1)
     template_id: Optional[UUID] = Field(default=None, description="Optional template for structural guidance")
+    use_persona: bool = Field(default=True, description="Include professional identity in generation")
+    feedback: Optional[str] = Field(default=None, max_length=1000, description="User feedback for regeneration")
+    previous_draft_id: Optional[UUID] = Field(default=None, description="ID of previous draft being regenerated")
 
 
 class ArticleGenerateRequest(BaseModel):
@@ -29,6 +35,9 @@ class ArticleGenerateRequest(BaseModel):
     profile_id: UUID
     article_url: str = Field(..., min_length=1)
     template_id: Optional[UUID] = Field(default=None, description="Optional template for structural guidance")
+    use_persona: bool = Field(default=True, description="Include professional identity in generation")
+    feedback: Optional[str] = Field(default=None, max_length=1000, description="User feedback for regeneration")
+    previous_draft_id: Optional[UUID] = Field(default=None, description="ID of previous draft being regenerated")
 
 
 class FormatGenerateRequest(BaseModel):
@@ -37,6 +46,9 @@ class FormatGenerateRequest(BaseModel):
     profile_id: UUID
     content: str = Field(..., min_length=1, max_length=10000)
     template_id: Optional[UUID] = Field(default=None, description="Optional template for structural guidance")
+    use_persona: bool = Field(default=True, description="Include professional identity in generation")
+    feedback: Optional[str] = Field(default=None, max_length=1000, description="User feedback for regeneration")
+    previous_draft_id: Optional[UUID] = Field(default=None, description="ID of previous draft being regenerated")
 
 
 class GeneratorResponse(BaseModel):

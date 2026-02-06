@@ -11,7 +11,9 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { Loader2, FileText, Upload, Trash2, File, ChevronLeft, ChevronRight, Check, RefreshCw } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, FileText, Upload, Trash2, File, ChevronLeft, ChevronRight, Check, RefreshCw, MessageSquare } from 'lucide-react';
 import { generatorsApi } from '@/lib/api/generators';
 import { draftsApi } from '@/lib/api/drafts';
 import { useProfileStore } from '@/stores/profile-store';
@@ -37,7 +39,11 @@ export function PDFModal({ open, onClose }: PDFModalProps) {
     const [pdfFile, setPdfFile] = useState<File | null>(null);
     const [goal, setGoal] = useState('educate');  // Default for PDFs
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+    const [usePersona, setUsePersona] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRegenerating, setIsRegenerating] = useState(false);
+    const [showFeedbackInput, setShowFeedbackInput] = useState(false);
+    const [regenerationFeedback, setRegenerationFeedback] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const [generatedDraft, setGeneratedDraft] = useState<GeneratedDraft | null>(null);
 
@@ -128,7 +134,7 @@ export function PDFModal({ open, onClose }: PDFModalProps) {
 
         setIsLoading(true);
         try {
-            const response = await generatorsApi.pdf(currentProfile.id, pdfFile, selectedTemplateId);
+            const response = await generatorsApi.pdf(currentProfile.id, pdfFile, selectedTemplateId, usePersona);
             setGeneratedDraft(response);
             setStep('review');
         } catch (error) {
@@ -162,9 +168,31 @@ export function PDFModal({ open, onClose }: PDFModalProps) {
         }
     };
 
-    const handleRegenerate = () => {
-        setGeneratedDraft(null);
-        setStep('template');
+    const handleRegenerate = async (feedback?: string) => {
+        if (!currentProfile || !generatedDraft || !pdfFile) return;
+
+        setIsRegenerating(true);
+        try {
+            const response = await generatorsApi.pdf(
+                currentProfile.id,
+                pdfFile,
+                selectedTemplateId,
+                usePersona,
+                feedback || null,
+                generatedDraft.draft_id,
+            );
+            setGeneratedDraft(response);
+            setShowFeedbackInput(false);
+            setRegenerationFeedback('');
+        } catch (error) {
+            toast({
+                title: 'Failed to regenerate',
+                description: getErrorMessage(error),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsRegenerating(false);
+        }
     };
 
     const resetForm = () => {
@@ -172,7 +200,10 @@ export function PDFModal({ open, onClose }: PDFModalProps) {
         clearFile();
         setGoal('educate');
         setSelectedTemplateId(null);
+        setUsePersona(true);
         setGeneratedDraft(null);
+        setShowFeedbackInput(false);
+        setRegenerationFeedback('');
     };
 
     const handleClose = () => {
@@ -292,6 +323,19 @@ export function PDFModal({ open, onClose }: PDFModalProps) {
                                 disabled={isLoading}
                             />
 
+                            {/* Voice Toggle */}
+                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-700">Write in my voice</p>
+                                    <p className="text-xs text-slate-500">Include your professional identity and expertise</p>
+                                </div>
+                                <Switch
+                                    checked={usePersona}
+                                    onCheckedChange={setUsePersona}
+                                    disabled={isLoading}
+                                />
+                            </div>
+
                             <p className="text-sm text-slate-500">
                                 Upload a PDF document and our AI agents will extract the key insights to create a LinkedIn post.
                             </p>
@@ -310,7 +354,17 @@ export function PDFModal({ open, onClose }: PDFModalProps) {
                     )}
 
                     {step === 'review' && generatedDraft && (
-                        <GeneratorReview draft={generatedDraft} />
+                        <div className="relative">
+                            {isRegenerating && (
+                                <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <Loader2 className="w-5 h-5 animate-spin text-cyan-600" />
+                                        <p className="text-sm text-slate-600">Regenerating your draft...</p>
+                                    </div>
+                                </div>
+                            )}
+                            <GeneratorReview draft={generatedDraft} />
+                        </div>
                     )}
                 </div>
 
@@ -340,23 +394,53 @@ export function PDFModal({ open, onClose }: PDFModalProps) {
                     )}
                     {step === 'review' && (
                         <>
-                            <Button
-                                variant="outline"
-                                onClick={handleRegenerate}
-                                disabled={isLoading}
-                                className="border-slate-300 hover:border-cyan-300"
-                            >
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                Regenerate
-                            </Button>
-                            <Button
-                                onClick={handleApprove}
-                                disabled={isLoading}
-                                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
-                            >
-                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
-                                Approve & Move to Kanban
-                            </Button>
+                            {showFeedbackInput ? (
+                                <div className="flex-1 flex gap-2 items-end">
+                                    <Textarea
+                                        value={regenerationFeedback}
+                                        onChange={(e) => setRegenerationFeedback(e.target.value)}
+                                        placeholder="e.g., Make it more casual, focus on the key takeaway..."
+                                        className="h-10 min-h-[40px] text-sm flex-1"
+                                        disabled={isRegenerating}
+                                    />
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => { setShowFeedbackInput(false); setRegenerationFeedback(''); }}
+                                        disabled={isRegenerating}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleRegenerate(regenerationFeedback)}
+                                        disabled={isRegenerating}
+                                        className="bg-cyan-600 hover:bg-cyan-500"
+                                    >
+                                        {isRegenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                    </Button>
+                                </div>
+                            ) : (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setShowFeedbackInput(true)}
+                                        disabled={isLoading || isRegenerating}
+                                        className="border-slate-300 hover:border-cyan-300"
+                                    >
+                                        <MessageSquare className="w-4 h-4 mr-2" />
+                                        Regenerate
+                                    </Button>
+                                    <Button
+                                        onClick={handleApprove}
+                                        disabled={isLoading || isRegenerating}
+                                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                                    >
+                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                                        Approve & Move to Kanban
+                                    </Button>
+                                </>
+                            )}
                         </>
                     )}
                 </DialogFooter>

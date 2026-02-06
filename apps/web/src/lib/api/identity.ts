@@ -4,6 +4,34 @@ import { apiClient } from './client';
 // Core Identity Types
 // ============================================
 
+export type TimelineEventType = 'education' | 'work' | 'usage' | 'achievement' | 'failure' | 'life_event' | 'pivot' | 'other';
+
+export interface TimelineEvent {
+  id: string;
+  timeline_id: string;
+  title: string;
+  description: string | null;
+  event_type: TimelineEventType;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+  emotional_core: string | null;
+  lessons_learned: string[];
+  tags: string[];
+  source: string | null;
+  created_at: string;
+}
+
+export interface Timeline {
+  id: string;
+  identity_graph_id: string;
+  primary_focus: string | null;
+  narrative_arc: string | null;
+  events: TimelineEvent[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface IdentityGraph {
   id: string;
   profile_id: string;
@@ -15,8 +43,6 @@ export interface IdentityGraph {
   // Professional details
   expertise_areas: string[];
   career_highlights: string[];
-  career_stage: string | null;
-  education: any[];
   bio_summary: string | null;
 
   // Brand Strategy
@@ -29,17 +55,17 @@ export interface IdentityGraph {
   // Personality & Content
   interests: string[];
   beliefs: string[];
-  contrarian_views: string[];
+
+  // Deep Identity
+  stories: any[];
+  opinion_statements: string[];
+  interest_details: Record<string, string>;
 
   // Content Strategy
   content_pillars: string[];
   narrative_themes: string[];
 
-  // Legacy fields
-  themes: string[];
-  expertise_keywords: string[];
-  tone_markers: Record<string, number>;
-  audience_notes: Record<string, any>;
+  // Credibility markers
   authority_angles: string[];
 
   // Metadata
@@ -47,6 +73,9 @@ export interface IdentityGraph {
   version: number;
   last_updated_at: string;
   created_at: string;
+
+  // Relations
+  timeline?: Timeline;
 }
 
 export interface IdentityGraphUpdate {
@@ -57,8 +86,6 @@ export interface IdentityGraphUpdate {
   // Professional details
   expertise_areas?: string[];
   career_highlights?: string[];
-  career_stage?: string;
-  education?: any[];
   bio_summary?: string;
 
   // Brand Strategy
@@ -71,17 +98,17 @@ export interface IdentityGraphUpdate {
   // Personality & Content
   interests?: string[];
   beliefs?: string[];
-  contrarian_views?: string[];
+
+  // Deep Identity
+  stories?: any[];
+  opinion_statements?: string[];
+  interest_details?: Record<string, string>;
 
   // Content Strategy
   content_pillars?: string[];
   narrative_themes?: string[];
 
-  // Legacy fields
-  themes?: string[];
-  expertise_keywords?: string[];
-  tone_markers?: Record<string, number>;
-  audience_notes?: Record<string, any>;
+  // Credibility markers
   authority_angles?: string[];
 }
 
@@ -209,6 +236,20 @@ export const identityApi = {
       `/profiles/${profileId}/identity-universe/regenerate-preview`,
       request
     );
+    return response.data;
+  },
+
+  getTimeline: async (profileId: string): Promise<Timeline> => {
+    const response = await apiClient.get(`/profiles/${profileId}/timeline`);
+    return response.data;
+  },
+
+  updateTimelineEvent: async (
+    profileId: string,
+    eventId: string,
+    data: { title?: string; description?: string; emotional_core?: string; lessons_learned?: string[]; tags?: string[] }
+  ): Promise<TimelineEvent> => {
+    const response = await apiClient.put(`/profiles/${profileId}/timeline/events/${eventId}`, data);
     return response.data;
   },
 };

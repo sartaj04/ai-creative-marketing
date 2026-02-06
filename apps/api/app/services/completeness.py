@@ -33,33 +33,28 @@ IDENTITY_SCHEMA: list[FieldSchema] = [
     # Core region
     FieldSchema("current_role", "Current Role", FIELD_TYPE_STRING, True, "identity_graph"),
     FieldSchema("industry", "Industry", FIELD_TYPE_ENUM, True, "identity_graph"),
-    FieldSchema("career_stage", "Career Stage", FIELD_TYPE_ENUM, False, "identity_graph"),
     FieldSchema("bio_summary", "Bio Summary", FIELD_TYPE_TEXT, False, "identity_graph"),
-    
+
     # Expertise region
     FieldSchema("expertise_areas", "Expertise Areas", FIELD_TYPE_ARRAY_ENUM, True, "identity_graph"),
-    FieldSchema("expertise_keywords", "Expertise Keywords", FIELD_TYPE_ARRAY, False, "identity_graph"),
     FieldSchema("career_highlights", "Career Highlights", FIELD_TYPE_ARRAY, False, "identity_graph"),
-    FieldSchema("education", "Education", FIELD_TYPE_OBJECT_ARRAY, False, "identity_graph"),
-    
+
     # Content region
     FieldSchema("content_pillars", "Content Pillars", FIELD_TYPE_ARRAY_ENUM, True, "identity_graph"),
     FieldSchema("narrative_themes", "Narrative Themes", FIELD_TYPE_ARRAY, False, "identity_graph"),
-    FieldSchema("themes", "Topics", FIELD_TYPE_ARRAY, False, "identity_graph"),
     FieldSchema("preferred_hooks", "Preferred Hook Styles", FIELD_TYPE_ARRAY_ENUM, False, "style_profile"),
-    
+
     # Strategy region
     FieldSchema("target_audience", "Target Audience", FIELD_TYPE_TEXT, True, "identity_graph"),
     FieldSchema("desired_positioning", "Desired Positioning", FIELD_TYPE_TEXT, False, "identity_graph"),
     FieldSchema("goals", "Goals", FIELD_TYPE_TEXT, False, "identity_graph"),
     FieldSchema("aspirations", "Aspirations", FIELD_TYPE_TEXT, False, "identity_graph"),
-    
+
     # Character region
     FieldSchema("interests", "Interests", FIELD_TYPE_ARRAY_ENUM, False, "identity_graph"),
     FieldSchema("beliefs", "Core Beliefs", FIELD_TYPE_ARRAY, False, "identity_graph"),
-    FieldSchema("contrarian_views", "Contrarian Views", FIELD_TYPE_ARRAY, False, "identity_graph"),
     FieldSchema("taboo_list", "Taboo Topics", FIELD_TYPE_ARRAY, False, "style_profile"),
-    
+
     # Voice region
     FieldSchema("unique_angles", "Unique Angles", FIELD_TYPE_ARRAY, False, "identity_graph"),
     FieldSchema("authority_angles", "Authority Angles", FIELD_TYPE_ARRAY, False, "identity_graph"),
@@ -169,26 +164,19 @@ def identity_graph_to_dict(identity_graph) -> dict:
     return {
         "current_role": identity_graph.current_role,
         "industry": identity_graph.industry,
-        "career_stage": identity_graph.career_stage,
         "bio_summary": identity_graph.bio_summary,
         "expertise_areas": identity_graph.expertise_areas,
-        "expertise_keywords": identity_graph.expertise_keywords,
         "career_highlights": identity_graph.career_highlights,
-        "education": identity_graph.education,
         "content_pillars": identity_graph.content_pillars,
         "narrative_themes": identity_graph.narrative_themes,
-        "themes": identity_graph.themes,
         "target_audience": identity_graph.target_audience,
         "desired_positioning": identity_graph.desired_positioning,
         "goals": identity_graph.goals,
         "aspirations": identity_graph.aspirations,
         "interests": identity_graph.interests,
         "beliefs": identity_graph.beliefs,
-        "contrarian_views": identity_graph.contrarian_views,
         "unique_angles": identity_graph.unique_angles,
         "authority_angles": identity_graph.authority_angles,
-        "tone_markers": identity_graph.tone_markers,
-        "audience_notes": identity_graph.audience_notes,
     }
 
 

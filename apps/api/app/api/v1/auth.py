@@ -79,3 +79,10 @@ async def logout(current_user: CurrentUser) -> dict:
 async def get_current_user_info(current_user: CurrentUser) -> UserResponse:
     """Get current user information."""
     return UserResponse.model_validate(current_user)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_current_user(current_user: CurrentUser, db: DBSession) -> None:
+    """Delete current user and all associated data."""
+    await db.delete(current_user)
+    await db.commit()

@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     # Apify (LinkedIn Scraping)
     APIFY_TOKEN: Optional[str] = None
 
+    # YouTube transcript proxy (Cloudflare Worker)
+    YOUTUBE_PROXY_URL: Optional[str] = None
+    YOUTUBE_PROXY_API_KEY: Optional[str] = None
+
     class Config:
 
         env_file = ".env"

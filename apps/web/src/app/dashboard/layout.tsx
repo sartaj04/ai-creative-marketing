@@ -76,6 +76,7 @@ export default function DashboardLayout({
 
                 <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                     <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname === '/dashboard'} />
+                    <NavLink href="/dashboard/identity" icon={User} label="Identity Timeline" active={pathname === '/dashboard/identity'} />
                     <NavLink href="/dashboard/generate" icon={Sparkles} label="Generate Content" active={pathname === '/dashboard/generate'} />
                     <NavLink href="/dashboard/inbox" icon={Layers} label="Review Inbox" active={pathname === '/dashboard/inbox'} badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} />
                     <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Content Pipeline" active={pathname === '/dashboard/drafts'} />

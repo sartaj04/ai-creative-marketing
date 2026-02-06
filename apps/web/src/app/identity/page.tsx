@@ -4,24 +4,27 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, RefreshCw, AlertCircle, Check, X, Sparkles } from 'lucide-react';
+import { ArrowLeft, RefreshCw, AlertCircle, Check, X, Sparkles, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProfileStore } from '@/stores/profile-store';
-import { identityApi, IdentityUniverse, RegenerationPreview } from '@/lib/api/identity';
+import { identityApi, IdentityUniverse, RegenerationPreview, Timeline } from '@/lib/api/identity';
 import IdentityComposition from '@/components/identity-universe/IdentityComposition';
 import PersonalizeAgentCard from '@/components/dashboard/PersonalizeAgentCard';
 import { IdentityLoader } from '@/components/identity-universe/IdentityLoader';
 import { profilesApi } from '@/lib/api/profiles';
 import { getFieldByKey } from '@/lib/schemas/identity-schema';
+import { PixoChatDialog } from '@/components/identity-universe/PixoChatDialog';
 
 export default function IdentityUniversePage() {
     const router = useRouter();
     const { currentProfile } = useProfileStore();
     const [universe, setUniverse] = useState<IdentityUniverse | null>(null);
+    const [timeline, setTimeline] = useState<Timeline | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [regenerating, setRegenerating] = useState(false);
     const [regenerationPreview, setRegenerationPreview] = useState<RegenerationPreview | null>(null);
+    const [pixoChatOpen, setPixoChatOpen] = useState(false);
 
     const loadUniverse = useCallback(async () => {
         if (!currentProfile?.id) return;
@@ -29,8 +32,12 @@ export default function IdentityUniversePage() {
         try {
             setLoading(true);
             setError(null);
-            const data = await identityApi.getIdentityUniverse(currentProfile.id);
+            const [data, timelineData] = await Promise.all([
+                identityApi.getIdentityUniverse(currentProfile.id),
+                identityApi.getTimeline(currentProfile.id).catch(() => null),
+            ]);
             setUniverse(data);
+            setTimeline(timelineData);
         } catch (err) {
             console.error('Failed to load identity universe:', err);
             setError('Failed to load your identity data. Please try again.');
@@ -67,6 +74,30 @@ export default function IdentityUniversePage() {
 
     const handleRejectRegeneration = () => {
         setRegenerationPreview(null);
+    };
+
+    const handleTimelineEventUpdate = async (eventId: string, field: string, value: any) => {
+        if (!currentProfile?.id || !timeline) return;
+
+        // Optimistically update local state
+        setTimeline(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                events: prev.events.map(e =>
+                    e.id === eventId ? { ...e, [field]: value } : e
+                ),
+            };
+        });
+
+        // Persist to backend
+        try {
+            await identityApi.updateTimelineEvent(currentProfile.id, eventId, { [field]: value });
+        } catch (err) {
+            console.error('Failed to update timeline event:', err);
+            // Reload on error
+            loadUniverse();
+        }
     };
 
     const handleFieldUpdate = async (field: string, value: any) => {
@@ -161,6 +192,18 @@ export default function IdentityUniversePage() {
                     )}
                     <Button
                         variant="default"
+                        className={
+                            (universe?.completeness_score ?? 0) < 70
+                                ? "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-md animate-pulse"
+                                : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
+                        }
+                        onClick={() => setPixoChatOpen(true)}
+                    >
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Chat with Pixo
+                    </Button>
+                    <Button
+                        variant="default"
                         className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm"
                         onClick={handleRegenerate}
                         disabled={regenerating}
@@ -200,7 +243,9 @@ export default function IdentityUniversePage() {
                 >
                     <IdentityComposition
                         universe={universe}
+                        timeline={timeline}
                         onFieldUpdate={handleFieldUpdate}
+                        onTimelineEventUpdate={handleTimelineEventUpdate}
                         regenerationPreview={regenerationPreview}
                     />
                 </motion.div>
@@ -212,6 +257,16 @@ export default function IdentityUniversePage() {
                     </div>
                 </div>
             )}
+
+            {/* Pixo Chat Dialog */}
+            <PixoChatDialog
+                open={pixoChatOpen}
+                onOpenChange={setPixoChatOpen}
+                onComplete={() => {
+                    setPixoChatOpen(false);
+                    loadUniverse();
+                }}
+            />
 
             {/* Regeneration Preview Overlay */}
             <AnimatePresence>

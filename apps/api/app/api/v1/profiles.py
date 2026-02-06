@@ -24,6 +24,8 @@ from app.schemas.writing_samples import (
     WritingSampleResponse,
     WritingSamplesListResponse,
 )
+from app.schemas.identity import TimelineResponse
+from app.services.timeline_service import TimelineService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -410,3 +412,50 @@ async def delete_writing_sample(
     await db.commit()
     
     logger.info(f"Deleted writing sample {document_id} for profile {profile_id}")
+
+
+@router.get("/{profile_id}/timeline", response_model=TimelineResponse)
+async def get_profile_timeline(
+    profile_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> TimelineResponse:
+    """Get the timeline for a profile."""
+    # Verify profile ownership
+    result = await db.execute(
+        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+    
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found",
+        )
+    
+    timeline_service = TimelineService(db)
+    timeline = await timeline_service.get_full_timeline(profile_id)
+    
+    if not timeline:
+        # If no timeline exists yet, return empty or create one?
+        # get_full_timeline returns None if not found.
+        # But we probably want to return an empty timeline or create it.
+        # Let's create one via identity graph id.
+        
+        # We need identity graph ID
+        result = await db.execute(
+            select(IdentityGraph).where(IdentityGraph.profile_id == profile_id)
+        )
+        identity_graph = result.scalar_one_or_none()
+        
+        if not identity_graph:
+             raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Identity Graph not found",
+            )
+            
+        timeline = await timeline_service.get_or_create_timeline(identity_graph.id)
+        # Ensure events is loaded/set to avoid MissingGreenlet
+        await db.refresh(timeline, ["events"])
+    
+    return TimelineResponse.model_validate(timeline)

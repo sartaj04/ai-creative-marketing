@@ -56,9 +56,15 @@ It MUST be organized into these specific sections:
 - Who are they talking to?
 - Topics to avoid (taboos) and preferred hook styles.
 
+## 5. CAREER ARC & CONTENT FOCUS
+- If timeline_events exist, use the narrative_arc to understand their career journey as a story.
+- Reference specific career moments (roles, transitions, education) from timeline_events.
+- Note key transitions and growth patterns from emotional_core fields.
+- If primary_focus exists, it tells you what they WANT to write about — respect this and weave it in.
+
 ### Guidelines:
 - Keep it DENSE and ACTIONABLE. Avoid generic fluff.
-- Total length should be efficient (300-400 words) but comprehensive.
+- Total length should be efficient (350-450 words) but comprehensive.
 - Start with: "You are writing as [name]..."
 
 Output ONLY the persona prompt text, no JSON or additional formatting."""
@@ -218,11 +224,14 @@ class PersonaSynthesizerService:
         Returns:
             The synthesized persona prompt string, or None if synthesis failed
         """
-        # Load profile with identity and style
+        # Load profile with identity, style, and timeline
+        from app.models.identity import IdentityGraph as IG, Timeline as TL
         result = await db.execute(
             select(Profile)
             .options(
-                selectinload(Profile.identity_graph),
+                selectinload(Profile.identity_graph)
+                    .selectinload(IG.timeline)
+                    .selectinload(TL.events),
                 selectinload(Profile.style_profile),
             )
             .where(Profile.id == profile_id)
@@ -257,7 +266,27 @@ class PersonaSynthesizerService:
                 data[col.name] = val
             return data
 
-        identity_json = json.dumps(to_dict(identity), indent=2, default=str)
+        identity_data = to_dict(identity)
+        # Include Timeline data if available
+        if hasattr(identity, "timeline") and identity.timeline:
+            tl = identity.timeline
+            identity_data["narrative_arc"] = tl.narrative_arc
+            identity_data["primary_focus"] = tl.primary_focus
+            identity_data["timeline_events"] = [
+                {
+                    "title": e.title,
+                    "description": e.description,
+                    "event_type": e.event_type.value if e.event_type else None,
+                    "start_date": e.start_date.isoformat() if e.start_date else None,
+                    "end_date": e.end_date.isoformat() if e.end_date else None,
+                    "is_current": e.is_current,
+                    "emotional_core": e.emotional_core,
+                    "lessons_learned": e.lessons_learned or [],
+                    "tags": e.tags or [],
+                }
+                for e in (tl.events or [])
+            ]
+        identity_json = json.dumps(identity_data, indent=2, default=str)
         style_json = json.dumps(to_dict(style), indent=2, default=str)
         profile_json = json.dumps({
             "name": profile.name,

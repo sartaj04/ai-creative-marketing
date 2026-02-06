@@ -2,12 +2,123 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func, Text, Boolean, Enum
+from enum import Enum as PyEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+
+class TimelineEventType(str, PyEnum):
+    """Types of timeline events."""
+    EDUCATION = "education"
+    WORK = "work"
+    USAGE = "usage"  # e.g. using a tool/tech
+    ACHIEVEMENT = "achievement"
+    FAILURE = "failure"
+    LIFE_EVENT = "life_event"
+    PIVOT = "pivot"
+    OTHER = "other"
+
+
+class TimelineEvent(Base):
+    """Specific event on the user's timeline."""
+
+    __tablename__ = "timeline_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    timeline_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("timelines.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    
+    # Core Event Data
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    event_type: Mapped[TimelineEventType] = mapped_column(
+        Enum(TimelineEventType, name='timeline_event_type', create_type=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=TimelineEventType.OTHER,
+    )
+    
+    # Temporality
+    start_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_current: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Narrative Depth
+    emotional_core: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Why this matters/How it felt")
+    lessons_learned: Mapped[list] = mapped_column(JSONB, default=list, comment="List of specific lessons")
+    tags: Mapped[list] = mapped_column(JSONB, default=list, comment="Skills or themes involved")
+    
+    # Metadata
+    source: Mapped[str | None] = mapped_column(String, nullable=True, comment="Where this came from (linkedin, chat)")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    # Relationships
+    timeline: Mapped["Timeline"] = relationship("Timeline", back_populates="events")
+
+    def __repr__(self) -> str:
+        return f"<TimelineEvent {self.title}>"
+
+
+class Timeline(Base):
+    """Container for the user's narrative timeline."""
+
+    __tablename__ = "timelines"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    identity_graph_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("identity_graphs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    
+    # High-level Narrative
+    primary_focus: Mapped[str | None] = mapped_column(Text, nullable=True, comment="What the user primarily wants to speak about")
+    narrative_arc: Mapped[str | None] = mapped_column(Text, nullable=True, comment="LLM-synthesized story arc")
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    # Relationships
+    identity_graph: Mapped["IdentityGraph"] = relationship("IdentityGraph", back_populates="timeline")
+    events: Mapped[list["TimelineEvent"]] = relationship(
+        "TimelineEvent",
+        back_populates="timeline",
+        cascade="all, delete-orphan",
+        order_by="desc(TimelineEvent.start_date)",
+    )
+
+    def __repr__(self) -> str:
+        return f"<Timeline for IG {self.identity_graph_id}>"
 
 class IdentityGraph(Base):
     """Unified identity graph model."""
@@ -33,8 +144,6 @@ class IdentityGraph(Base):
     # Professional details
     expertise_areas: Mapped[list] = mapped_column(JSONB, default=list, comment="Main areas of expertise")
     career_highlights: Mapped[list] = mapped_column(JSONB, default=list, comment="Key career achievements")
-    career_stage: Mapped[str | None] = mapped_column(String, nullable=True)
-    education: Mapped[list] = mapped_column(JSONB, default=list, comment="Education history")
     bio_summary: Mapped[str | None] = mapped_column(String, nullable=True, comment="Professional bio summary")
     
     # Brand Strategy
@@ -47,7 +156,20 @@ class IdentityGraph(Base):
     # Personality & Content
     interests: Mapped[list] = mapped_column(JSONB, default=list, comment="Personal interests/hobbies")
     beliefs: Mapped[list] = mapped_column(JSONB, default=list, comment="Core beliefs or contrarian views")
-    contrarian_views: Mapped[list] = mapped_column(JSONB, default=list, comment="Contrarian views (legacy field support)")
+
+    # Deep Identity (auto-extracted from LinkedIn posts)
+    stories: Mapped[list] = mapped_column(
+        JSONB, default=list,
+        comment="Concrete narrative episodes: [{title, narrative, tags, emotional_core, source_post_excerpt}]",
+    )
+    opinion_statements: Mapped[list] = mapped_column(
+        JSONB, default=list,
+        comment="Specific argued positions in full sentences, not labels",
+    )
+    interest_details: Mapped[dict] = mapped_column(
+        JSONB, default=dict,
+        comment="Qualified interest descriptions: {interest_key: specific_description}",
+    )
     
     # Content Strategy
     content_pillars: Mapped[list] = mapped_column(JSONB, default=list, comment="Derived content pillars")
@@ -57,21 +179,8 @@ class IdentityGraph(Base):
     onboarding_context: Mapped[dict] = mapped_column(JSONB, default=dict, comment="Transient state for onboarding conversation")
 
     
-    # Legacy/Existing fields (kept for compatibility if needed, but redefined above where cleaner)
-    themes: Mapped[list] = mapped_column(JSONB, default=list, comment="Main topics/themes the person talks about")
-    expertise_keywords: Mapped[list] = mapped_column(JSONB, default=list, comment="Areas of expertise and skills")
+    # Credibility markers (actively used in generation)
     authority_angles: Mapped[list] = mapped_column(JSONB, default=list, comment="Credibility and authority markers")
-    
-    tone_markers: Mapped[dict] = mapped_column(
-        JSONB,
-        default=dict,
-        comment="Tone characteristics with weights",
-    )
-    audience_notes: Mapped[dict] = mapped_column(
-        JSONB,
-        default=dict,
-        comment="Target audience information",
-    )
 
     completeness_score: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -89,6 +198,12 @@ class IdentityGraph(Base):
 
     # Relationships
     profile: Mapped["Profile"] = relationship("Profile", back_populates="identity_graph")
+    timeline: Mapped["Timeline"] = relationship(
+        "Timeline",
+        back_populates="identity_graph",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<IdentityGraph for profile {self.profile_id}>"

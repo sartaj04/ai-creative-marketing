@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.tasks.persona_synthesizer",
         "app.tasks.content_agency",
         "app.tasks.writing_sample_analyzer",
+        "app.tasks.linkedin_identity_extraction",
     ],
 )
 

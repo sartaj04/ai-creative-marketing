@@ -1,7 +1,10 @@
 """Identity graph and style profile endpoints."""
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -13,6 +16,9 @@ from app.schemas.identity import (
     IdentityGraphUpdate,
     StyleProfileResponse,
     StyleProfileUpdate,
+    TimelineEventResponse,
+    TimelineEventUpdate,
+    TimelineResponse,
 )
 
 router = APIRouter()
@@ -286,8 +292,6 @@ async def get_identity_universe(
         # Professional details
         "expertise_areas": identity.expertise_areas or [],
         "career_highlights": identity.career_highlights or [],
-        "career_stage": identity.career_stage,
-        "education": identity.education or [],
         "bio_summary": identity.bio_summary,
         # Brand Strategy
         "target_audience": identity.target_audience,
@@ -298,15 +302,10 @@ async def get_identity_universe(
         # Personality & Content
         "interests": identity.interests or [],
         "beliefs": identity.beliefs or [],
-        "contrarian_views": identity.contrarian_views or [],
         # Content Strategy
         "content_pillars": identity.content_pillars or [],
         "narrative_themes": identity.narrative_themes or [],
         # Legacy fields (now properly included)
-        "themes": identity.themes or [],
-        "expertise_keywords": identity.expertise_keywords or [],
-        "tone_markers": identity.tone_markers or {},
-        "audience_notes": identity.audience_notes or {},
         "authority_angles": identity.authority_angles or [],
         # Metadata - use calculated completeness
         "completeness_score": completeness.percentage,
@@ -481,3 +480,87 @@ async def preview_regeneration(
         new_persona_prompt=new_persona,
         regeneration_scope=request.scope,
     )
+
+
+# ============================================
+# Timeline Endpoints
+# ============================================
+
+from app.models.identity import Timeline, TimelineEvent
+from app.services.timeline_service import TimelineService
+
+
+@router.get("/profiles/{profile_id}/timeline", response_model=TimelineResponse)
+async def get_timeline(
+    profile_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> TimelineResponse:
+    """Get the career timeline with all events for a profile."""
+    # Verify profile ownership
+    result = await db.execute(
+        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+
+    timeline_service = TimelineService(db)
+    timeline = await timeline_service.get_full_timeline(profile_id)
+
+    if not timeline:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timeline not found")
+
+    return TimelineResponse.model_validate(timeline)
+
+
+@router.put(
+    "/profiles/{profile_id}/timeline/events/{event_id}",
+    response_model=TimelineEventResponse,
+)
+async def update_timeline_event(
+    profile_id: UUID,
+    event_id: UUID,
+    update_data: TimelineEventUpdate,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> TimelineEventResponse:
+    """Update a specific timeline event (e.g. add emotional_core, lessons_learned)."""
+    # Verify profile ownership
+    result = await db.execute(
+        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+
+    # Load the event and verify it belongs to this profile's timeline
+    result = await db.execute(
+        select(TimelineEvent)
+        .join(Timeline, TimelineEvent.timeline_id == Timeline.id)
+        .join(IdentityGraph, Timeline.identity_graph_id == IdentityGraph.id)
+        .where(
+            TimelineEvent.id == event_id,
+            IdentityGraph.profile_id == profile_id,
+        )
+    )
+    event = result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timeline event not found")
+
+    # Update fields
+    data = update_data.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        if value is not None:
+            setattr(event, field, value)
+
+    await db.commit()
+    await db.refresh(event)
+
+    # Trigger persona re-synthesis since timeline data affects persona
+    try:
+        from app.tasks.persona_synthesizer import synthesize_persona_task
+        synthesize_persona_task.delay(str(profile_id))
+    except Exception as e:
+        logger.warning(f"Could not queue persona synthesis task for profile {profile_id}: {e}")
+
+    return TimelineEventResponse.model_validate(event)

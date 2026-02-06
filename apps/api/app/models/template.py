@@ -84,22 +84,6 @@ class Template(Base):
         default="both",
         comment="linkedin, twitter, or both",
     )
-    # Future-proofing for visual content
-    image_template: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="Figma/SVG template reference for images",
-    )
-    carousel_slides: Mapped[list | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="Array of slide templates for carousels",
-    )
-    media_placeholders: Mapped[dict | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="Image/video slots in template",
-    )
     # Length control
     length_flexibility: Mapped[str] = mapped_column(
         String(50),

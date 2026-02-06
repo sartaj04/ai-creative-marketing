@@ -53,6 +53,9 @@ class GeneratorService:
         key_points: list[str],
         goal: str,
         template_id: Optional[UUID] = None,
+        use_persona: bool = True,
+        feedback: Optional[str] = None,
+        previous_draft_id: Optional[UUID] = None,
     ) -> Draft:
         """Generate a draft from scratch based on topic and key points.
 
@@ -62,6 +65,9 @@ class GeneratorService:
             key_points: List of key points to cover
             goal: Goal of the post (thought leadership, engagement, etc.)
             template_id: Optional template for structural guidance
+            use_persona: Whether to include professional identity
+            feedback: User feedback for regeneration
+            previous_draft_id: ID of previous draft being regenerated
 
         Returns:
             Generated Draft
@@ -78,6 +84,9 @@ class GeneratorService:
             source_type="scratch",
             source_data=source_data,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )
 
     async def generate_from_audio(
@@ -86,6 +95,9 @@ class GeneratorService:
         audio_content: bytes,
         filename: str,
         template_id: Optional[UUID] = None,
+        use_persona: bool = True,
+        feedback: Optional[str] = None,
+        previous_draft_id: Optional[UUID] = None,
     ) -> Draft:
         """Generate a draft from audio content.
 
@@ -94,6 +106,9 @@ class GeneratorService:
             audio_content: Audio file bytes
             filename: Original filename
             template_id: Optional template for structural guidance
+            use_persona: Whether to include professional identity
+            feedback: User feedback for regeneration
+            previous_draft_id: ID of previous draft being regenerated
 
         Returns:
             Generated Draft
@@ -104,10 +119,10 @@ class GeneratorService:
                 raise ValueError("Audio file is empty.")
 
             transcript = await transcribe_audio(audio_content, filename)
-            
+
             if not transcript or not transcript.strip():
                 raise ValueError("Audio transcription failed or returned empty text.")
-                
+
         except Exception as e:
             if isinstance(e, ValueError):
                 raise e
@@ -124,6 +139,9 @@ class GeneratorService:
             source_type="audio",
             source_data=source_data,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )
 
     async def generate_from_pdf(
@@ -132,6 +150,9 @@ class GeneratorService:
         pdf_content: bytes,
         filename: str,
         template_id: Optional[UUID] = None,
+        use_persona: bool = True,
+        feedback: Optional[str] = None,
+        previous_draft_id: Optional[UUID] = None,
     ) -> Draft:
         """Generate a draft from PDF content.
 
@@ -189,6 +210,9 @@ Do not lose important context or nuances.
             source_type="pdf",
             source_data=source_data,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )
 
     async def generate_from_youtube(
@@ -196,6 +220,9 @@ Do not lose important context or nuances.
         profile_id: UUID,
         youtube_url: str,
         template_id: Optional[UUID] = None,
+        use_persona: bool = True,
+        feedback: Optional[str] = None,
+        previous_draft_id: Optional[UUID] = None,
     ) -> Draft:
         """Generate a draft from YouTube video transcript.
 
@@ -232,6 +259,9 @@ Do not lose important context or nuances.
             source_type="youtube",
             source_data=source_data,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )
 
     async def generate_from_article(
@@ -239,6 +269,9 @@ Do not lose important context or nuances.
         profile_id: UUID,
         article_url: str,
         template_id: Optional[UUID] = None,
+        use_persona: bool = True,
+        feedback: Optional[str] = None,
+        previous_draft_id: Optional[UUID] = None,
     ) -> Draft:
         """Generate a draft from article content.
 
@@ -278,6 +311,9 @@ Do not lose important context or nuances.
             source_type="article",
             source_data=source_data,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )
 
     async def generate_formatted(
@@ -285,6 +321,9 @@ Do not lose important context or nuances.
         profile_id: UUID,
         content: str,
         template_id: Optional[UUID] = None,
+        use_persona: bool = True,
+        feedback: Optional[str] = None,
+        previous_draft_id: Optional[UUID] = None,
     ) -> Draft:
         """Generate a formatted draft from raw content.
 
@@ -292,6 +331,9 @@ Do not lose important context or nuances.
             profile_id: Profile UUID
             content: Raw text content to format
             template_id: Optional template for structural guidance
+            use_persona: Whether to include professional identity
+            feedback: User feedback for regeneration
+            previous_draft_id: ID of previous draft being regenerated
 
         Returns:
             Generated Draft
@@ -306,4 +348,7 @@ Do not lose important context or nuances.
             source_type="format",
             source_data=source_data,
             template_id=template_id,
+            use_persona=use_persona,
+            feedback=feedback,
+            previous_draft_id=previous_draft_id,
         )

@@ -19,8 +19,6 @@ class IdentityGraphResponse(BaseModel):
     # Professional details
     expertise_areas: list[str] = Field(default_factory=list)
     career_highlights: list[str] = Field(default_factory=list)
-    career_stage: Optional[str] = None
-    education: list[Any] = Field(default_factory=list)
     bio_summary: Optional[str] = None
     
     # Brand Strategy
@@ -33,19 +31,19 @@ class IdentityGraphResponse(BaseModel):
     # Personality & Content
     interests: list[str] = Field(default_factory=list)
     beliefs: list[str] = Field(default_factory=list)
-    contrarian_views: list[str] = Field(default_factory=list)
-    
+
+    # Deep Identity (auto-extracted from LinkedIn posts)
+    stories: list[Any] = Field(default_factory=list)
+    opinion_statements: list[str] = Field(default_factory=list)
+    interest_details: dict[str, str] = Field(default_factory=dict)
+
     # Content Strategy
     content_pillars: list[str] = Field(default_factory=list)
     narrative_themes: list[str] = Field(default_factory=list)
-    
-    # Legacy fields
-    themes: list[str] = Field(default_factory=list)
-    expertise_keywords: list[str] = Field(default_factory=list)
-    tone_markers: dict[str, float] = Field(default_factory=dict)
-    audience_notes: dict[str, Any] = Field(default_factory=dict)
+
+    # Credibility markers
     authority_angles: list[str] = Field(default_factory=list)
-    
+
     # Metadata
     completeness_score: int = 0
     version: int
@@ -66,8 +64,6 @@ class IdentityGraphUpdate(BaseModel):
     # Professional details
     expertise_areas: Optional[list[str]] = None
     career_highlights: Optional[list[str]] = None
-    career_stage: Optional[str] = None
-    education: Optional[list[Any]] = None
     bio_summary: Optional[str] = None
     
     # Brand Strategy
@@ -80,17 +76,17 @@ class IdentityGraphUpdate(BaseModel):
     # Personality & Content
     interests: Optional[list[str]] = None
     beliefs: Optional[list[str]] = None
-    contrarian_views: Optional[list[str]] = None
-    
+
+    # Deep Identity (auto-extracted from LinkedIn posts)
+    stories: Optional[list[Any]] = None
+    opinion_statements: Optional[list[str]] = None
+    interest_details: Optional[dict[str, str]] = None
+
     # Content Strategy
     content_pillars: Optional[list[str]] = None
     narrative_themes: Optional[list[str]] = None
-    
-    # Legacy fields
-    themes: Optional[list[str]] = None
-    expertise_keywords: Optional[list[str]] = None
-    tone_markers: Optional[dict[str, float]] = None
-    audience_notes: Optional[dict[str, Any]] = None
+
+    # Credibility markers
     authority_angles: Optional[list[str]] = None
 
 
@@ -138,3 +134,46 @@ class StyleProfileUpdate(BaseModel):
     format_preferences: Optional[dict[str, float]] = None
     taboo_list: Optional[list[str]] = None
     preferred_hooks: Optional[list[str]] = None
+
+
+class TimelineEventResponse(BaseModel):
+    """Schema for timeline event."""
+    id: UUID
+    timeline_id: UUID
+    title: str
+    description: Optional[str] = None
+    event_type: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_current: bool
+    emotional_core: Optional[str] = None
+    lessons_learned: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    source: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TimelineEventUpdate(BaseModel):
+    """Schema for updating a timeline event (enrichment from identity page)."""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    emotional_core: Optional[str] = None
+    lessons_learned: Optional[list[str]] = None
+    tags: Optional[list[str]] = None
+
+
+class TimelineResponse(BaseModel):
+    """Schema for timeline."""
+    id: UUID
+    identity_graph_id: UUID
+    primary_focus: Optional[str] = None
+    narrative_arc: Optional[str] = None
+    events: list[TimelineEventResponse] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

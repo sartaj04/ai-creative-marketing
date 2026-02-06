@@ -56,11 +56,18 @@ class GenerationState(TypedDict):
 
     # Final output
     final_draft: Optional[dict]
-    
+
     # Review feedback
     review_approved: Optional[bool]
     review_feedback: Optional[dict]
     regeneration_count: int  # Track how many times we've regenerated
+
+    # Persona toggle
+    use_persona: bool  # Whether to include professional identity
+
+    # User feedback for regeneration
+    user_feedback: Optional[str]
+    previous_draft_body: Optional[str]
 
 
 # ============================================================================
@@ -170,15 +177,17 @@ SYNTHESIS_AGENT_PROMPT = """You are the Synthesis Agent. Your job is to create t
 
 {regeneration_feedback}
 
+{user_feedback_section}
+
 Create a post that:
-1. Authentically represents the person's identity (not just their job title)
+1. Authentically represents the writing style provided in the persona context
 2. Matches their communication style and tone
 3. Effectively conveys the key insights from the source material
 4. Uses an appropriate hook that grabs attention
 5. Ends with engagement-driving content
 
 TEMPLATE RULES:
-- If a template structure was provided above, follow it EXACTLY. Fill in the placeholders with relevant content but keep the structure, formatting, and flow of the template intact.
+- If a STRICT VERBATIM MODE template was provided above, your ONLY job is to fill placeholders. Do NOT write freely. Do NOT add text. Do NOT paraphrase. Copy the template character-for-character and replace ONLY the {{placeholder}} markers with relevant content.
 - If NO template was provided, write freely using the guidelines below.
 
 IMPORTANT GUIDELINES:
@@ -259,7 +268,9 @@ Review the post with STRICT quality standards. Check:
    - Is the writing crisp? (No filler, every word counts)
 
 5. TEMPLATE COMPLIANCE:
-   - If a template was provided, does the post follow its EXACT structure?
+   - If a template was provided, compare the generated post against the template CHARACTER BY CHARACTER.
+   - Every non-placeholder word in the template MUST appear exactly in the output, unchanged.
+   - If ANY non-placeholder text has been paraphrased, reworded, or restructured, mark as CRITICAL template compliance failure.
    - Are template placeholders filled with relevant content?
    - If no template was provided, is the structure appropriate for the content?
 
@@ -611,7 +622,10 @@ class MultiAgentGenerator:
         """Extract insights from source material."""
         template_section = ""
         if state.get("template_content"):
-            template_section = f"\nTEMPLATE TO FOLLOW (MUST match this structure EXACTLY):\n{state['template_content']}\n\nYou MUST map the source content to this template's structure. Identify which insights fill which template placeholders."
+            import re as _re
+            placeholders = _re.findall(r'\{(\w+)\}', state["template_content"])
+            placeholder_list = ", ".join([f"{{{p}}}" for p in placeholders])
+            template_section = f"\nTEMPLATE TO FOLLOW (MUST match this structure EXACTLY):\n{state['template_content']}\n\nPLACEHOLDERS FOUND: {placeholder_list}\n\nYou MUST provide a specific 'template_mapping' in your JSON output that maps each placeholder to the specific content that should fill it. For each placeholder, determine the best content from the source material."
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", "You are an expert at extracting valuable insights from content."),
@@ -634,10 +648,36 @@ class MultiAgentGenerator:
 
     def _synthesis_agent(self, state: GenerationState) -> dict:
         """Synthesize all analyses into final draft."""
+        import re as _re
+
         template_section = ""
         if state.get("template_content"):
-            template_section = f"\n=== TEMPLATE (follow this structure EXACTLY, fill placeholders with content) ===\n{state['template_content']}\n\nYou MUST follow this template's exact structure. Fill in the placeholders with relevant content from the analysis. Do NOT deviate from the template format."
-        
+            template_text = state["template_content"]
+            placeholders = _re.findall(r'\{(\w+)\}', template_text)
+            placeholder_list = ", ".join([f"{{{p}}}" for p in placeholders])
+            placeholder_plan = "\n".join([f"   - {{{p}}}: [determine from content analysis]" for p in placeholders])
+
+            template_section = f"""
+=== TEMPLATE (STRICT VERBATIM MODE) ===
+
+TEMPLATE TEXT:
+---
+{template_text}
+---
+
+PLACEHOLDERS FOUND: {placeholder_list}
+
+STRICT INSTRUCTIONS:
+1. Your output body MUST be the EXACT template text above with ONLY the placeholders replaced.
+2. Every word, punctuation mark, line break, and emoji in the template that is NOT a {{placeholder}} must appear EXACTLY as-is in your output.
+3. You are NOT allowed to paraphrase, reword, restructure, add transitions, or change ANY non-placeholder text.
+4. For each placeholder, determine the best content to fill it based on the content analysis:
+{placeholder_plan}
+5. Then, output the template with placeholders literally replaced.
+6. The hook should be the first line of the resulting filled template.
+7. DO NOT add any text before or after the template. The filled template IS the complete post.
+"""
+
         # Include regeneration feedback if this is a regeneration
         regeneration_feedback = ""
         review_feedback = state.get("review_feedback", {})
@@ -646,7 +686,19 @@ class MultiAgentGenerator:
             for issue in review_feedback.get("issues", []):
                 regeneration_feedback += f"- [{issue.get('severity', 'unknown').upper()}] {issue.get('category', 'unknown')}: {issue.get('description', '')}\n"
             regeneration_feedback += "\nPlease regenerate with these concerns addressed.\n"
-        
+
+        # Include user feedback for regeneration
+        user_feedback_section = ""
+        user_feedback = state.get("user_feedback")
+        previous_draft_body = state.get("previous_draft_body")
+        if user_feedback or previous_draft_body:
+            user_feedback_section = "\n=== USER FEEDBACK ON PREVIOUS DRAFT ===\n"
+            if previous_draft_body:
+                user_feedback_section += f"Previous draft (for reference):\n{previous_draft_body[:2000]}\n\n"
+            if user_feedback:
+                user_feedback_section += f"User's feedback: {user_feedback}\n"
+            user_feedback_section += "IMPORTANT: Address the user's feedback specifically. Rewrite the post to incorporate their requested changes while maintaining quality.\n"
+
         # Include length guidance
         length_guidance = ""
         length_decision = state.get("length_decision")
@@ -667,6 +719,7 @@ class MultiAgentGenerator:
             "content_analysis": json.dumps(state.get("content_analysis", {}), indent=2),
             "template_section": template_section,
             "regeneration_feedback": regeneration_feedback,
+            "user_feedback_section": user_feedback_section,
             "length_guidance": length_guidance,
         }
 
@@ -819,6 +872,9 @@ class MultiAgentGenerator:
         source_type: str,
         source_data: dict,
         template_id: Optional[UUID] = None,
+        use_persona: bool = True,
+        feedback: Optional[str] = None,
+        previous_draft_id: Optional[UUID] = None,
     ) -> Draft:
         """Run the multi-agent generation workflow and save the draft.
 
@@ -828,6 +884,9 @@ class MultiAgentGenerator:
             source_type: Type of source (scratch, youtube, article, pdf, audio, format)
             source_data: Source-specific data (topic, transcript, content, etc.)
             template_id: Optional template UUID for structural guidance
+            use_persona: Whether to include professional identity in generation
+            feedback: User feedback for regeneration
+            previous_draft_id: ID of previous draft being regenerated
 
         Returns:
             Created Draft object
@@ -851,7 +910,7 @@ class MultiAgentGenerator:
 
         if not identity:
             raise ValueError("Profile has no identity graph. Please complete onboarding first.")
-        
+
         # Get cached persona prompt (synthesized from identity + style)
         persona_prompt = profile.persona_prompt
         if not persona_prompt:
@@ -862,6 +921,20 @@ class MultiAgentGenerator:
             persona_prompt = await synthesizer.synthesize_persona_prompt(db, profile_id)
             if not persona_prompt:
                 raise ValueError("Failed to generate persona prompt. Please complete onboarding first.")
+
+        # When use_persona is False, build a style-only prompt (preserves writing voice without identity)
+        if not use_persona:
+            persona_prompt = self._build_style_only_prompt(style)
+
+        # Load previous draft body if regenerating with feedback
+        previous_draft_body = None
+        if previous_draft_id:
+            prev_result = await db.execute(
+                select(Draft).where(Draft.id == previous_draft_id)
+            )
+            prev_draft = prev_result.scalar_one_or_none()
+            if prev_draft:
+                previous_draft_body = prev_draft.body
 
         # Load template if provided
         template_content = None
@@ -930,6 +1003,9 @@ class MultiAgentGenerator:
             "review_approved": None,
             "review_feedback": None,
             "regeneration_count": 0,
+            "use_persona": use_persona,
+            "user_feedback": feedback,
+            "previous_draft_body": previous_draft_body,
         }
 
         # Run the graph
@@ -990,6 +1066,55 @@ class MultiAgentGenerator:
 
         logger.info(f"Generated draft {draft.id} using multi-agent system")
         return draft
+
+    def _build_style_only_prompt(self, style) -> str:
+        """Build a style-only persona prompt that preserves writing voice without identity details.
+
+        Used when use_persona=False. Keeps HOW the user writes but strips WHO they are
+        (career, role, expertise, stories, authority angles).
+        """
+        parts = [
+            "You are writing a LinkedIn post. Match the following writing style exactly, "
+            "but do NOT reference any specific professional identity, career, role, or personal background.\n"
+        ]
+
+        if style:
+            tone_sliders = style.tone_sliders or {}
+            tone_desc = get_tone_description(tone_sliders)
+            parts.append(f"## TONE & VOICE\nWrite with a {tone_desc} tone.")
+            parts.append(
+                f"Tone sliders: formal/casual={tone_sliders.get('formal_casual', 0.5)}, "
+                f"technical/simple={tone_sliders.get('technical_simple', 0.5)}, "
+                f"serious/playful={tone_sliders.get('serious_playful', 0.5)}, "
+                f"humble/confident={tone_sliders.get('humble_confident', 0.5)}"
+            )
+
+            if style.preferred_hooks:
+                parts.append(f"\n## PREFERRED HOOK STYLES\n{', '.join(style.preferred_hooks)}")
+
+            if style.taboo_list:
+                parts.append(f"\n## TOPICS TO AVOID\n{', '.join(style.taboo_list)}")
+
+            if style.writing_sample_insights:
+                parts.append(f"\n## WRITING PATTERNS (from actual posts)\n{style.writing_sample_insights}")
+
+            if style.detected_patterns:
+                try:
+                    from app.services.writing_sample_analyzer import WritingSampleAnalyzer
+                    analyzer = WritingSampleAnalyzer()
+                    patterns_text = analyzer.format_insights_for_persona(style.detected_patterns)
+                    parts.append(f"\n## DETECTED STYLE PATTERNS\n{patterns_text}")
+                except Exception:
+                    pass
+
+        parts.append(
+            "\n## IMPORTANT CONSTRAINT\n"
+            "Do NOT mention any specific professional role, company, industry expertise, "
+            "career history, or personal stories. Write as a knowledgeable person sharing "
+            "insights on the topic, without anchoring to any particular professional identity."
+        )
+
+        return "\n".join(parts)
 
     def _prepare_source_content(self, source_type: str, source_data: dict) -> str:
         """Prepare source content string based on type."""

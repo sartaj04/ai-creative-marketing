@@ -15,24 +15,36 @@ export interface ScratchRequest {
   key_points: string[];
   goal: string;
   template_id?: string | null;
+  use_persona?: boolean;
+  feedback?: string | null;
+  previous_draft_id?: string | null;
 }
 
 export interface YouTubeRequest {
   profile_id: string;
   youtube_url: string;
   template_id?: string | null;
+  use_persona?: boolean;
+  feedback?: string | null;
+  previous_draft_id?: string | null;
 }
 
 export interface ArticleRequest {
   profile_id: string;
   article_url: string;
   template_id?: string | null;
+  use_persona?: boolean;
+  feedback?: string | null;
+  previous_draft_id?: string | null;
 }
 
 export interface FormatRequest {
   profile_id: string;
   content: string;
   template_id?: string | null;
+  use_persona?: boolean;
+  feedback?: string | null;
+  previous_draft_id?: string | null;
 }
 
 // Template Recommendation Types
@@ -85,12 +97,26 @@ export const generatorsApi = {
   /**
    * Generate a draft from an audio file
    */
-  audio: async (profileId: string, file: File, templateId?: string | null): Promise<GeneratorResponse> => {
+  audio: async (
+    profileId: string,
+    file: File,
+    templateId?: string | null,
+    usePersona: boolean = true,
+    feedback?: string | null,
+    previousDraftId?: string | null,
+  ): Promise<GeneratorResponse> => {
     const formData = new FormData();
     formData.append('profile_id', profileId);
     formData.append('file', file);
     if (templateId) {
       formData.append('template_id', templateId);
+    }
+    formData.append('use_persona', String(usePersona));
+    if (feedback) {
+      formData.append('feedback', feedback);
+    }
+    if (previousDraftId) {
+      formData.append('previous_draft_id', previousDraftId);
     }
 
     const response = await apiClient.post('/generators/audio', formData, {
@@ -104,12 +130,26 @@ export const generatorsApi = {
   /**
    * Generate a draft from a PDF file
    */
-  pdf: async (profileId: string, file: File, templateId?: string | null): Promise<GeneratorResponse> => {
+  pdf: async (
+    profileId: string,
+    file: File,
+    templateId?: string | null,
+    usePersona: boolean = true,
+    feedback?: string | null,
+    previousDraftId?: string | null,
+  ): Promise<GeneratorResponse> => {
     const formData = new FormData();
     formData.append('profile_id', profileId);
     formData.append('file', file);
     if (templateId) {
       formData.append('template_id', templateId);
+    }
+    formData.append('use_persona', String(usePersona));
+    if (feedback) {
+      formData.append('feedback', feedback);
+    }
+    if (previousDraftId) {
+      formData.append('previous_draft_id', previousDraftId);
     }
 
     const response = await apiClient.post('/generators/pdf', formData, {
