@@ -165,12 +165,10 @@ export function TemplateEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogClose onClose={() => onOpenChange(false)} />
-      <DialogHeader>
-        <DialogTitle>{isEditing ? 'Edit Template' : 'Create Template'}</DialogTitle>
-      </DialogHeader>
-
       <DialogContent className="space-y-4 max-h-[70vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? 'Edit Template' : 'Create Template'}</DialogTitle>
+        </DialogHeader>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
@@ -312,16 +310,15 @@ export function TemplateEditor({
             placeholder="e.g., professional, authoritative, casual"
           />
         </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading ? 'Saving...' : isEditing ? 'Update' : 'Create'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={isLoading}>
-          {isLoading ? 'Saving...' : isEditing ? 'Update' : 'Create'}
-        </Button>
-      </DialogFooter>
     </Dialog>
   );
 }

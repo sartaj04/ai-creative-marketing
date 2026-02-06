@@ -25,30 +25,38 @@ interface ScheduleModalProps {
 }
 
 const suggestedTimes = [
-  { label: 'Tomorrow 9 AM', getDate: () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(9, 0, 0, 0);
-    return d;
-  }},
-  { label: 'Tomorrow 12 PM', getDate: () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(12, 0, 0, 0);
-    return d;
-  }},
-  { label: 'Tomorrow 5 PM', getDate: () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(17, 0, 0, 0);
-    return d;
-  }},
-  { label: 'Next Week', getDate: () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    d.setHours(9, 0, 0, 0);
-    return d;
-  }},
+  {
+    label: 'Tomorrow 9 AM', getDate: () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(9, 0, 0, 0);
+      return d;
+    }
+  },
+  {
+    label: 'Tomorrow 12 PM', getDate: () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(12, 0, 0, 0);
+      return d;
+    }
+  },
+  {
+    label: 'Tomorrow 5 PM', getDate: () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(17, 0, 0, 0);
+      return d;
+    }
+  },
+  {
+    label: 'Next Week', getDate: () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      d.setHours(9, 0, 0, 0);
+      return d;
+    }
+  },
 ];
 
 export function ScheduleModal({
@@ -110,12 +118,10 @@ export function ScheduleModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogClose onClose={() => onOpenChange(false)} />
-      <DialogHeader>
-        <DialogTitle>Schedule Draft</DialogTitle>
-      </DialogHeader>
-
       <DialogContent className="space-y-4">
+        <DialogHeader>
+          <DialogTitle>Schedule Draft</DialogTitle>
+        </DialogHeader>
         <div className="rounded-lg bg-muted p-3">
           <p className="font-medium line-clamp-2">{draft.hook}</p>
           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{draft.body}</p>
@@ -192,16 +198,15 @@ export function ScheduleModal({
             </div>
           </div>
         </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSchedule} disabled={isLoading || !selectedDate}>
+            {isLoading ? 'Scheduling...' : 'Schedule'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Cancel
-        </Button>
-        <Button onClick={handleSchedule} disabled={isLoading || !selectedDate}>
-          {isLoading ? 'Scheduling...' : 'Schedule'}
-        </Button>
-      </DialogFooter>
     </Dialog>
   );
 }

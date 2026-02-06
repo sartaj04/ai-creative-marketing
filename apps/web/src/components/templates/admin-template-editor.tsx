@@ -227,15 +227,13 @@ export function AdminTemplateEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogClose onClose={() => onOpenChange(false)} />
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-blue-600" />
-          {isEditing ? 'Edit System Template' : 'Create System Template'}
-        </DialogTitle>
-      </DialogHeader>
-
       <DialogContent className="space-y-4 max-h-[70vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-blue-600" />
+            {isEditing ? 'Edit System Template' : 'Create System Template'}
+          </DialogTitle>
+        </DialogHeader>
         {/* Step 1: Paste Content */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -435,28 +433,27 @@ Here's why this matters:
             </div>
           </>
         )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={isLoading || !content.trim()}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : isEditing ? (
+              'Update System Template'
+            ) : (
+              'Create System Template'
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={isLoading || !content.trim()}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : isEditing ? (
-            'Update System Template'
-          ) : (
-            'Create System Template'
-          )}
-        </Button>
-      </DialogFooter>
     </Dialog>
   );
 }

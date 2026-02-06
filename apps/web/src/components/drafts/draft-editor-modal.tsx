@@ -74,12 +74,11 @@ export function DraftEditorModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogClose onClose={() => onOpenChange(false)} />
-      <DialogHeader>
-        <DialogTitle>Edit Draft</DialogTitle>
-      </DialogHeader>
-
       <DialogContent className="space-y-4">
+        <DialogHeader>
+          <DialogTitle>Edit Draft</DialogTitle>
+        </DialogHeader>
+
         <div className="flex items-center gap-2 mb-4">
           {draft.topic && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -119,16 +118,16 @@ export function DraftEditorModal({
           <p>Confidence: {Math.round(draft.confidence * 100)}%</p>
           <p>Created: {new Date(draft.created_at).toLocaleString()}</p>
         </div>
-      </DialogContent>
 
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={isLoading}>
-          {isLoading ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </DialogFooter>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }
