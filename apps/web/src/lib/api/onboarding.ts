@@ -102,6 +102,7 @@ export interface LinkedInURLResponse {
     posts_scraping_queued: boolean;
     career_timeline_extracted: boolean;
     suggested_topics: string[];
+    error?: string;
 }
 
 export interface ContentFocusRequest {

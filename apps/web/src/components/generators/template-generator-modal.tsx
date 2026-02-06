@@ -184,7 +184,7 @@ export function TemplateGeneratorModal({ open, onClose, templateCategory, catego
     };
 
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()} className="sm:max-w-2xl">
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
             <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">

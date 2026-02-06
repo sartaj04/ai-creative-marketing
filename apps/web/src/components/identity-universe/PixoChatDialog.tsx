@@ -1,6 +1,6 @@
 'use client';
 
-import { Dialog } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ConversationalOnboarding } from '@/components/onboarding-new/ConversationalOnboarding';
 
 interface PixoChatDialogProps {
@@ -20,14 +20,16 @@ export function PixoChatDialog({ open, onOpenChange, onComplete }: PixoChatDialo
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange} className="max-w-none w-screen h-screen m-0 p-0 rounded-none">
-            <div className="w-full h-full">
-                <ConversationalOnboarding
-                    onComplete={handleComplete}
-                    onBack={handleBack}
-                    mode="refinement"
-                />
-            </div>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-none w-screen h-screen m-0 p-0 rounded-none border-0 translate-x-0 translate-y-0 left-0 top-0 data-[state=open]:slide-in-from-bottom-0 sm:rounded-none">
+                <div className="w-full h-full">
+                    <ConversationalOnboarding
+                        onComplete={handleComplete}
+                        onBack={handleBack}
+                        mode="refinement"
+                    />
+                </div>
+            </DialogContent>
         </Dialog>
     );
 }

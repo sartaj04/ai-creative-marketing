@@ -161,8 +161,8 @@ export function ArticleModal({ open, onClose }: ArticleModalProps) {
     };
 
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()} className="sm:max-w-5xl">
-            <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
+            <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col sm:max-w-5xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         {(step === 'template' || step === 'review') && (
