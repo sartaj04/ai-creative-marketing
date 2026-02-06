@@ -129,8 +129,8 @@ export default function PersonalizeAgentCard({ profileId, writingSamplesCount = 
                         setPosts(['', '', '']);
                         setVisiblePostsCount(3);
                     }
-                }} className="max-w-6xl w-full">
-                    <DialogContent className="max-h-[90vh] overflow-y-auto">
+                }} >
+                    <DialogContent className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -168,7 +168,7 @@ export default function PersonalizeAgentCard({ profileId, writingSamplesCount = 
                                     />
                                 </div>
                             ))}
-                            
+
                             {visiblePostsCount < 5 && (
                                 <Button
                                     type="button"
@@ -282,8 +282,8 @@ export default function PersonalizeAgentCard({ profileId, writingSamplesCount = 
                     setPosts(['', '', '']);
                     setVisiblePostsCount(3);
                 }
-            }} className="max-w-6xl w-full">
-                <DialogContent className="max-h-[90vh] overflow-y-auto">
+            }} >
+                <DialogContent className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -321,7 +321,7 @@ export default function PersonalizeAgentCard({ profileId, writingSamplesCount = 
                                 />
                             </div>
                         ))}
-                        
+
                         {visiblePostsCount < 5 && (
                             <Button
                                 type="button"
