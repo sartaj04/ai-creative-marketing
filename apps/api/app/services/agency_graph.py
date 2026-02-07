@@ -355,7 +355,19 @@ class ContentAgencyGraph:
                 for field in fields:
                     val = identity_facets.get(field)
                     if isinstance(val, list) and val:
-                        values.extend(val[:3])
+                        # Handle complex objects like timeline events (dicts)
+                        for item in val[:3]:
+                            if isinstance(item, dict):
+                                if "title" in item:
+                                    values.append(str(item["title"]))
+                                elif "narrative" in item:
+                                    values.append(str(item["narrative"])[:100] + "...")
+                                else:
+                                    values.append(str(item))
+                            elif isinstance(item, str):
+                                values.append(item)
+                            else:
+                                values.append(str(item))
                     elif isinstance(val, str) and val:
                         values.append(val)
                 if values:
