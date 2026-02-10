@@ -238,6 +238,53 @@ class ContentAgencyService:
 
         logger.info(f"Running Content Agency for profile {profile_id} (platform: {platform_intent}, location: {location})")
 
+        # Fetch a template for content structure guidance
+        template_content = None
+        template_meta = None
+        try:
+            from app.models.template import Template, ContributionStatus
+            from sqlalchemy import or_
+
+            # Query for active templates accessible to this user
+            tmpl_query = select(Template).where(
+                Template.is_active == True,
+                or_(
+                    Template.is_system == True,
+                    Template.created_by == profile.user_id,
+                    Template.contribution_status == ContributionStatus.APPROVED,
+                ),
+            )
+
+            # Filter by platform if specific
+            if platform_intent and platform_intent != "generic":
+                platform_map = {"linkedin": "linkedin", "x": "twitter", "twitter": "twitter"}
+                mapped = platform_map.get(platform_intent)
+                if mapped:
+                    tmpl_query = tmpl_query.where(
+                        or_(Template.platform == mapped, Template.platform == "both")
+                    )
+
+            # Get a random template to add variety
+            from sqlalchemy.sql.expression import func as sql_func
+            tmpl_query = tmpl_query.order_by(sql_func.random()).limit(1)
+            tmpl_result = await self.db.execute(tmpl_query)
+            selected_template = tmpl_result.scalar_one_or_none()
+
+            if selected_template:
+                template_content = selected_template.content
+                template_meta = {
+                    "category": selected_template.category.value if selected_template.category else None,
+                    "length_flexibility": selected_template.length_flexibility or "flexible",
+                    "min_length": selected_template.min_length,
+                    "max_length": selected_template.max_length,
+                }
+                logger.info(
+                    f"Selected template '{selected_template.name}' "
+                    f"(category: {template_meta['category']}) for profile {profile_id}"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to fetch template for profile {profile_id}: {e}")
+
         # Run the agency workflow
         try:
             draft_data = await self.agency.run(
@@ -248,6 +295,8 @@ class ContentAgencyService:
                 taboo_list=taboo_list,
                 tone_sliders=tone_sliders,
                 preferred_hooks=preferred_hooks,
+                template=template_content,
+                template_meta=template_meta,
                 platform_intent=platform_intent,
                 historical_uniqueness=historical_uniqueness,
                 writing_sample_insights=writing_sample_insights,

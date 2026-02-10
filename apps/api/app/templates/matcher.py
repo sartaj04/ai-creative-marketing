@@ -162,5 +162,13 @@ class TemplateMatcher:
             return TemplateCategory.LESSONS
         if any(x in topic_lower for x in ["vs", "versus", "compare", "difference"]):
             return TemplateCategory.COMPARISON
+        if any(x in topic_lower for x in ["announce", "launch", "release", "introducing", "update", "news"]):
+            return TemplateCategory.ANNOUNCEMENT
+        if any(x in topic_lower for x in ["case study", "case_study", "example", "success story", "client", "result"]):
+            return TemplateCategory.CASE_STUDY
+        if any(x in topic_lower for x in ["question", "ask", "wonder", "curious", "what if", "why do"]):
+            return TemplateCategory.QUESTION
+        if any(x in topic_lower for x in ["list", "things", "reasons", "ways", "tools", "resources"]):
+            return TemplateCategory.LISTICLE
 
         return TemplateCategory.LISTICLE  # Default

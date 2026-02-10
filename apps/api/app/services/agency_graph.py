@@ -559,17 +559,23 @@ class ContentAgencyGraph:
                     if end > start:
                         writing_patterns = persona[start:end]
 
-            # Determine optimal length (run async method in sync context)
-            decision = asyncio.run(strategist.determine_optimal_length(
-                topic=brief.get("selected_topic", ""),
-                template_category=template_meta.get("category"),
-                template_flexibility=template_meta.get("length_flexibility", "flexible"),
-                template_min=template_meta.get("min_length"),
-                template_max=template_meta.get("max_length"),
-                brief_description=brief.get("content_angle", ""),
-                user_length_patterns=writing_patterns,
-                content_mode=brief.get("content_mode"),
-            ))
+            # Determine optimal length (run async method in sync thread context)
+            # We're inside asyncio.to_thread(), so no event loop is running here.
+            # Create a new event loop for this thread to safely call async code.
+            loop = asyncio.new_event_loop()
+            try:
+                decision = loop.run_until_complete(strategist.determine_optimal_length(
+                    topic=brief.get("selected_topic", ""),
+                    template_category=template_meta.get("category"),
+                    template_flexibility=template_meta.get("length_flexibility", "flexible"),
+                    template_min=template_meta.get("min_length"),
+                    template_max=template_meta.get("max_length"),
+                    brief_description=brief.get("content_angle", ""),
+                    user_length_patterns=writing_patterns,
+                    content_mode=brief.get("content_mode"),
+                ))
+            finally:
+                loop.close()
 
             logger.info(
                 f"Length decision: {decision['target_min_words']}-{decision['target_max_words']} words. "

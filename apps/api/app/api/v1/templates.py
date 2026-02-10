@@ -1,5 +1,4 @@
 """Template endpoints."""
-import re
 from typing import Optional
 from uuid import UUID
 
@@ -27,25 +26,6 @@ from app.schemas.template import (
 from app.templates.analyzer import analyze_and_enrich_template, extract_variables
 
 router = APIRouter()
-
-
-def _extract_variables(content: str) -> dict:
-    """Extract {variable} placeholders from template content."""
-    pattern = r"\{([^}]+)\}"
-    matches = re.findall(pattern, content)
-
-    variables = {}
-    for i, var in enumerate(matches):
-        var_name = var.strip()
-        # First variable is typically primary (the main topic)
-        is_primary = i == 0 or var_name.lower() in ["topic", "subject", "main_topic"]
-        variables[var_name] = {
-            "name": var_name,
-            "is_primary": is_primary,
-            "order": i,
-        }
-
-    return variables
 
 
 async def _get_template_with_stats(template: Template, db: DBSession) -> dict:
@@ -124,7 +104,7 @@ async def create_template(
     User templates are private by default (only visible to the creator).
     """
     # Extract variables from content
-    variables = _extract_variables(template_data.content)
+    variables = extract_variables(template_data.content)
 
     template = Template(
         name=template_data.name,
@@ -137,9 +117,6 @@ async def create_template(
         use_cases=template_data.use_cases,
         tone_fit=template_data.tone_fit,
         platform=template_data.platform,
-        image_template=template_data.image_template,
-        carousel_slides=template_data.carousel_slides,
-        media_placeholders=template_data.media_placeholders,
         created_by=current_user.id,
         is_system=False,  # User templates are not system templates
     )
@@ -321,7 +298,7 @@ async def update_template(
 
     # Re-extract variables if content changed
     if "content" in update_data:
-        update_data["variables"] = _extract_variables(update_data["content"])
+        update_data["variables"] = extract_variables(update_data["content"])
 
     for field, value in update_data.items():
         setattr(template, field, value)
@@ -418,9 +395,6 @@ async def duplicate_template(
         use_cases=template.use_cases.copy() if template.use_cases else [],
         tone_fit=template.tone_fit.copy() if template.tone_fit else [],
         platform=template.platform,
-        image_template=template.image_template,
-        carousel_slides=template.carousel_slides.copy() if template.carousel_slides else None,
-        media_placeholders=template.media_placeholders.copy() if template.media_placeholders else None,
         created_by=current_user.id,
         is_system=False,  # Duplicates are always user templates
     )
