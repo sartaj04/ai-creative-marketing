@@ -25,6 +25,7 @@ const categories: { value: TemplateCategory | 'all'; label: string }[] = [
   { value: 'comparison', label: 'Comparison' },
   { value: 'announcement', label: 'Announcement' },
   { value: 'case_study', label: 'Case Study' },
+  { value: 'common_mistakes', label: 'Common Mistakes' },
 ];
 
 const formats: { value: DraftFormat | 'all'; label: string }[] = [
@@ -42,7 +43,7 @@ export default function TemplatesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-  
+
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<TemplateCategory | 'all'>('all');

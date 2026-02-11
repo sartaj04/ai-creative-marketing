@@ -42,6 +42,7 @@ const categoryLabels: Record<TemplateCategory, string> = {
   comparison: 'Comparison',
   announcement: 'Announcement',
   case_study: 'Case Study',
+  common_mistakes: 'Common Mistakes',
 };
 
 const categoryColors: Record<TemplateCategory, string> = {
@@ -56,6 +57,7 @@ const categoryColors: Record<TemplateCategory, string> = {
   comparison: 'bg-cyan-100 text-cyan-700',
   announcement: 'bg-lime-100 text-lime-700',
   case_study: 'bg-slate-100 text-slate-700',
+  common_mistakes: 'bg-rose-100 text-rose-700',
 };
 
 // Helper to get ownership badge info

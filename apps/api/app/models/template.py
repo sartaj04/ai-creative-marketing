@@ -24,6 +24,7 @@ class TemplateCategory(str, PyEnum):
     COMPARISON = "comparison"
     ANNOUNCEMENT = "announcement"
     CASE_STUDY = "case_study"
+    COMMON_MISTAKES = "common_mistakes"
 
 
 class ContributionStatus(str, PyEnum):

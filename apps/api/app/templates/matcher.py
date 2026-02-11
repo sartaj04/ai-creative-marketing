@@ -158,6 +158,8 @@ class TemplateMatcher:
             return TemplateCategory.FRAMEWORK
         if any(x in topic_lower for x in ["unpopular", "controversial", "hot take"]):
             return TemplateCategory.CONTRARIAN
+        if any(x in topic_lower for x in ["mistake", "error", "avoid", "trap", "fallacy", "wrong", "fail"]):
+            return TemplateCategory.COMMON_MISTAKES
         if any(x in topic_lower for x in ["lesson", "mistake", "failure"]):
             return TemplateCategory.LESSONS
         if any(x in topic_lower for x in ["vs", "versus", "compare", "difference"]):

@@ -148,6 +148,7 @@ Analyze the template and provide the following in JSON format:
    - "comparison" (X vs Y format)
    - "announcement" (news, updates)
    - "case_study" (detailed examples)
+   - "common_mistakes" (pitfalls to avoid)
 
 2. "tags": Array of 3-6 relevant topic tags. MUST choose from this exact list (use lowercase):
    {', '.join(sorted(ALLOWED_TAGS))}

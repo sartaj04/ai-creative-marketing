@@ -18,6 +18,7 @@ class GoalMapper:
                 TemplateCategory.CONTRARIAN,
                 TemplateCategory.MYTH_BUSTER,
                 TemplateCategory.LESSONS,
+                TemplateCategory.COMMON_MISTAKES,
             ],
             "use_cases": [
                 "building thought leadership",
@@ -62,6 +63,7 @@ class GoalMapper:
                 TemplateCategory.FRAMEWORK,
                 TemplateCategory.LESSONS,
                 TemplateCategory.LISTICLE,
+                TemplateCategory.COMMON_MISTAKES,
             ],
             "use_cases": [
                 "educational content about best practices",

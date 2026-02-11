@@ -12,7 +12,8 @@ export type TemplateCategory =
   | 'question'
   | 'comparison'
   | 'announcement'
-  | 'case_study';
+  | 'case_study'
+  | 'common_mistakes';
 
 export type ContributionStatus = 'none' | 'pending' | 'approved' | 'rejected';
 

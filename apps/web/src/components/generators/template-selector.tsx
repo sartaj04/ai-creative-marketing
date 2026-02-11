@@ -43,7 +43,7 @@ export function TemplateSelector({
     const COMMON_TAGS = [
         // Categories
         'myth_buster', 'story', 'framework', 'tips', 'contrarian',
-        'lessons', 'listicle', 'question', 'comparison', 'announcement', 'case_study',
+        'lessons', 'listicle', 'question', 'comparison', 'announcement', 'case_study', 'common_mistakes',
         // Popular Tags
         'ai', 'marketing', 'leadership', 'productivity', 'career',
         'sales', 'strategy', 'personal-branding', 'linkedin'

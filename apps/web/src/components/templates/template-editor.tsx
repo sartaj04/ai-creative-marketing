@@ -43,6 +43,7 @@ const categories: { value: TemplateCategory; label: string }[] = [
   { value: 'comparison', label: 'Comparison' },
   { value: 'announcement', label: 'Announcement' },
   { value: 'case_study', label: 'Case Study' },
+  { value: 'common_mistakes', label: 'Common Mistakes' },
 ];
 
 const formats: { value: DraftFormat; label: string }[] = [
