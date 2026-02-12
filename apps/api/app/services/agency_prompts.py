@@ -456,17 +456,19 @@ def compute_authority_constraints(identity_dict: dict) -> dict:
 # Scout Agent - Research & Discovery
 # ============================================================================
 
-SCOUT_AGENT_SYSTEM = """You are a content research specialist. Your job is to find compelling content opportunities that draw from the SPECIFIC identity facets provided — not the person's full identity.
+SCOUT_AGENT_SYSTEM = """You are a creative content discovery specialist. Your job is NOT to find "relevant" topics. Your job is to find topics that make this person think "I never would have posted about that, but now I HAVE to."
 
-You MUST find a diverse mix of opportunities. NOT all should be professional thought leadership."""
+Think like a creative director, not a content calendar. Find the unexpected connections, the surprising angles, the topics that would genuinely surprise even the person themselves.
 
-SCOUT_AGENT_PROMPT = """Find 3-5 content opportunities for this person.
+You MUST find a diverse mix of opportunities across different topic domains. NOT all should be professional thought leadership."""
+
+SCOUT_AGENT_PROMPT = """Discover 5 surprising, unexpected content opportunities for this person.
 
 === PERSONA (reference context) ===
 {persona_prompt}
 
 === IDENTITY FACETS FOR THIS BATCH ===
-These are the specific parts of their identity to draw from. Focus here, not the full persona.
+These are specific parts of their identity. Use these as SEEDS for creative collision, not as topic boundaries.
 {identity_facets}
 
 === PLATFORM INTENT ===
@@ -475,13 +477,13 @@ These are the specific parts of their identity to draw from. Focus here, not the
 
 === TARGET LOCATION / MARKET ===
 {location}
-(Prioritize content relevant to this region/culture if specified. If Global, aim for universal appeal.)
+(Weave in regional/cultural angles if specified. If Global, aim for universal human experiences.)
 
 === LEARNED PREFERENCES ===
 What topics and formats they've previously liked/disliked:
 {learned_preferences}
 
-=== EXISTING TOPICS (avoid duplicates) ===
+=== EXISTING TOPICS (DO NOT repeat these) ===
 {existing_topics}
 
 === CONTENT FOCUS (user's declared topics of interest) ===
@@ -489,39 +491,62 @@ What topics and formats they've previously liked/disliked:
 
 === TRENDING TOPICS & INDUSTRY SIGNALS (optional external context) ===
 {trending_signals}
-If trending signals are provided, consider incorporating 1-2 that align with the person's expertise and interests. Don't force trends that don't fit.
+If trending signals are provided, consider 1-2 that connect to this person's world in a NON-OBVIOUS way. Don't force trends that don't fit.
 
-=== INSTRUCTIONS ===
-VARIETY REQUIREMENTS — your 3-5 opportunities MUST include:
-1. At least TWO topics from their NON-PROFESSIONAL identity (hobbies, beliefs, personal life, observations, philosophical questions, creative interests). These should be about things they CARE about that have nothing to do with their job title.
-2. At least one topic where they would be LEARNING or UNCERTAIN (not expert-mode)
-3. At most ONE topic that is purely professional/industry expertise
+=== CREATIVE COLLISION TECHNIQUES (use at least 3 different ones across your 5 topics) ===
 
-ANTI-PATTERN: Do NOT generate 4 professional topics and 1 hobby topic. The split should lean PERSONAL. People are more than their job. A post about a hiking trip that changed how you think about patience is more interesting than another "5 things I learned about AI."
+1. CROSS-DOMAIN TRANSFER: What does their expertise reveal about something completely unrelated? A chef's view on team management. An engineer's take on parenting. A marketer's observation about dating apps. The more surprising the connection, the better.
 
-Do NOT default to "thought leadership" for every opportunity. Include opportunities that are:
-personal, observational, questioning, reflective, confessional, humorous, or skeptical.
+2. MICRO-OBSERVATIONS: What tiny, specific thing would THIS person notice that others wouldn't? Not "leadership lessons" but "why my barista remembers my order but my CRM can't." Real, small, hyper-specific moments from everyday life.
 
-For each opportunity, suggest a content_mode and authority_posture from these options:
+3. CONTRARIAN INSTINCT: What does everyone in their field believe that this person might secretly disagree with? What popular advice would they push back on? What "best practice" has actually hurt them?
+
+4. EMOTIONAL ARCHAEOLOGY: What raw, unpolished formative experience shaped how they think today? Not the TED-talk version. The version they'd tell a close friend at 11 PM. A failure, an embarrassment, a moment of doubt.
+
+5. CULTURAL CONNECTOR: Connect a current cultural moment (movie, meme, news event, viral trend, local happening) to something in their world in a way that feels fresh and unexpected.
+
+6. PHILOSOPHICAL WANDERING: A bigger question they probably think about but never post about. Purpose, identity, what success actually means to THEM, what they'd do differently, what scares them about their industry.
+
+7. SENSORY MEMORY: A place, a smell, a sound, a season that connects to a professional or personal insight. "The sound of my first office printer" → something about the pace of work changing.
+
+=== TOPIC REQUIREMENTS (STRICT) ===
+Your 5 opportunities MUST satisfy ALL of these:
+1. At least 1 WILDCARD — so unexpected it would surprise even the person. Something they'd read and think "damn, that IS me but I never saw it that way."
+2. At least 2 from NON-PROFESSIONAL domains (personal, philosophical, creative, observational). These should have NOTHING to do with their job title.
+3. At least 1 where they'd be LEARNING, UNCERTAIN, or QUESTIONING (not expert-mode).
+4. At most 1 straightforward professional/industry expertise topic.
+5. Each topic MUST have a different topic_domain (use all different ones from: technical, personal, industry, philosophical, creative, professional).
+6. Topics must be HYPER-SPECIFIC. Not "leadership" but "why I stopped giving feedback sandwiches after a disastrous 1:1 last year."
+
+=== BANNED PATTERNS (instant disqualification) ===
+- "X lessons from Y" / "X things I learned about Y"
+- "Why [trend] matters" / "The future of [industry]"
+- "How to [generic skill]" / "A guide to [anything]"
+- Any topic that could appear on 1000 other profiles in their industry
+- Generic thought leadership that could be written by anyone with their job title
+- Topics that are just their job description rephrased as content
+
+=== ANTI-PATTERNS ===
+- Do NOT generate 4 professional topics and 1 personal topic. Lean PERSONAL and SURPRISING.
+- Do NOT default to "thought leadership" mode. Include topics that are: confessional, humorous, skeptical, nostalgic, questioning, or simply observational.
+- People are more than their job. A post about why they can't stop rearranging their desk is more interesting than another post about AI trends.
+
+For each opportunity, suggest a content_mode and authority_posture:
 - content_mode: builder, learner, narrator, observer, explainer, skeptic, advisor
 - authority_posture: curious, uncertain, peer_level, experienced, reflective, decisive
-
-For each opportunity, provide:
-- A specific topic (not too broad)
-- A unique angle that fits their brand
-- Why it's relevant now
-- Suggested content_mode and authority_posture
-- Relevance score (0.0-1.0)
 
 Return ONLY valid JSON array:
 [
   {{
-    "topic": "Specific topic title",
-    "angle": "Their unique take or perspective",
-    "why_now": "Why this is timely or relevant",
-    "content_mode": "one of: builder, learner, narrator, observer, explainer, skeptic, advisor",
-    "authority_posture": "one of: curious, uncertain, peer_level, experienced, reflective, decisive",
-    "relevance_score": 0.85
+    "topic": "Hyper-specific topic (not a generic category)",
+    "angle": "The surprising, non-obvious angle — what makes this THEIR take",
+    "why_now": "Why this is timely or emotionally resonant right now",
+    "topic_domain": "technical|personal|industry|philosophical|creative|professional",
+    "content_mode": "builder|learner|narrator|observer|explainer|skeptic|advisor",
+    "authority_posture": "curious|uncertain|peer_level|experienced|reflective|decisive",
+    "creative_technique": "Which collision technique you used (cross_domain|micro_observation|contrarian|emotional_archaeology|cultural_connector|philosophical|sensory_memory)",
+    "relevance_score": 0.85,
+    "surprise_factor": "Why this topic would genuinely surprise the person"
   }}
 ]"""
 
@@ -698,10 +723,18 @@ Tone: {tone_guidance}
 {location}
 (Use appropriate spelling - US/UK - and cultural references for this location.)
 
-=== LENGTH GUIDANCE ===
+=== LENGTH GUIDANCE (NON-NEGOTIABLE) ===
 Target: {target_length}
 Reasoning: {length_reasoning}
 Structure: {structure_suggestion}
+
+LENGTH ENFORCEMENT:
+- Your post MUST fall within the target range above. Count your words mentally before outputting.
+- If target is under 50 words: write VERY SHORT. 2-3 lines. A single punchy observation or question. Stop immediately.
+- If target is 50-120 words: write SHORT. 3-5 lines max. Stop when the point is made. Do NOT pad.
+- If target is 120-250 words: write MEDIUM. One key insight with enough context.
+- If target is over 250 words: write LONG. Multi-paragraph with depth, texture, and multiple beats.
+- Do NOT default to medium. A 40-word observation can outperform a 200-word essay.
 
 === IDENTITY CONTEXT FOR THIS DRAFT ===
 Role: {current_role}, {industry}

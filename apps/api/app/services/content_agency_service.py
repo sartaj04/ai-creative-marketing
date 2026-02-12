@@ -194,6 +194,7 @@ class ContentAgencyService:
             "used_emotional_tones": [],
             "used_topic_domains": [],
             "used_identity_categories": [],
+            "used_length_categories": [],
         }
         if profile.drafts:
             for draft in profile.drafts:
@@ -218,6 +219,17 @@ class ContentAgencyService:
                 if draft.identity_facets_used:
                     for cat in draft.identity_facets_used.get("primary_facets", {}).keys():
                         historical_uniqueness["used_identity_categories"].append(cat)
+                # Classify historical draft lengths for cross-session length diversity
+                if hasattr(draft, 'body') and draft.body:
+                    wc = len(draft.body.split())
+                    if wc <= 50:
+                        historical_uniqueness["used_length_categories"].append("very_short")
+                    elif wc <= 120:
+                        historical_uniqueness["used_length_categories"].append("short")
+                    elif wc <= 300:
+                        historical_uniqueness["used_length_categories"].append("medium")
+                    else:
+                        historical_uniqueness["used_length_categories"].append("long")
 
         existing_topics = existing_topics[-20:]  # Keep recent 20
         # Keep recent 30 of each style for diversity without over-constraining.

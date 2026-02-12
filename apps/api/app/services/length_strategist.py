@@ -63,7 +63,9 @@ Return ONLY valid JSON:
   "target_max_words": 180,
   "reasoning": "This topic is a simple observation. A short, punchy post (under 200 words) will stand out more than a padded medium-length post.",
   "structure_suggestion": "Short hook + single key insight + question."
-}}"""
+}}
+
+{length_hint}"""
 
 
 class LengthStrategistService:
@@ -84,6 +86,7 @@ class LengthStrategistService:
         user_length_patterns: Optional[str] = None,
         variance_factor: float = 0.15,  # +/- 15% random variance
         content_mode: Optional[str] = None,
+        length_hint: Optional[str] = None,
     ) -> Dict[str, any]:
         """
         Determine optimal content length for given topic and constraints.
@@ -98,6 +101,8 @@ class LengthStrategistService:
             user_length_patterns: User's typical length distribution
             variance_factor: Random variance to add to result (0.0 - 0.5)
             content_mode: Content mode (observer, learner, narrator, etc.)
+            length_hint: Optional hint to nudge toward a specific length category
+                         (e.g. "PREFER SHORT" or "PREFER LONG") for cross-draft diversity
 
         Returns:
             Dict with:
@@ -117,6 +122,9 @@ class LengthStrategistService:
             mode = content_mode or "general"
 
             # Create prompt
+            # Format length hint
+            hint = length_hint or "No length preference — optimize freely for the topic and content mode."
+
             prompt = LENGTH_STRATEGIST_PROMPT.format(
                 topic=topic,
                 template_category=template_category or "general",
@@ -126,6 +134,7 @@ class LengthStrategistService:
                 user_length_patterns=user_patterns,
                 brief=brief,
                 content_mode=mode,
+                length_hint=hint,
             )
 
             logger.info(

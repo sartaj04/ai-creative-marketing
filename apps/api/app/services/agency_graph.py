@@ -413,8 +413,12 @@ class ContentAgencyGraph:
             if not isinstance(opportunities, list):
                 opportunities = [opportunities]
 
-            # Sort by relevance score
-            opportunities.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
+            # Shuffle opportunities to prevent relevance-sort bias
+            # Sequential index picking (0,1,2) by Strategist would always select
+            # the "most relevant" (usually professional) topics first. Shuffling
+            # ensures each batch has genuine variety in topic order.
+            import random as _rand
+            _rand.shuffle(opportunities)
 
             logger.info(f"Scout found {len(opportunities)} opportunities")
             return {"opportunities": opportunities}
@@ -447,6 +451,7 @@ class ContentAgencyGraph:
             "used_emotional_tones": [],
             "used_topic_domains": [],
             "used_identity_categories": [],
+            "used_length_categories": [],
         })
 
         # Sample identity facets for THIS specific draft
@@ -559,6 +564,40 @@ class ContentAgencyGraph:
                     if end > start:
                         writing_patterns = persona[start:end]
 
+            # Enforce length diversity across drafts in this batch
+            # Only look at within-batch lengths (not historical) so each batch has variety
+            completed_drafts = state.get("completed_drafts", [])
+            batch_lengths = []
+            for d in completed_drafts:
+                wc = len(d.get("body", "").split()) if d.get("body") else 150
+                if wc <= 50:
+                    batch_lengths.append("very_short")
+                elif wc <= 120:
+                    batch_lengths.append("short")
+                elif wc <= 300:
+                    batch_lengths.append("medium")
+                else:
+                    batch_lengths.append("long")
+
+            # Find categories NOT yet used in this batch and pick one randomly
+            all_categories = ["very_short", "short", "medium", "long"]
+            unused = [c for c in all_categories if c not in batch_lengths]
+
+            length_hints = {
+                "very_short": "PREFER a VERY SHORT post (30-50 words) for this draft. A single punchy observation. 2-3 lines max. Stop immediately.",
+                "short": "PREFER a SHORT post (60-120 words) for this draft. Short, punchy posts are powerful.",
+                "medium": "PREFER a MEDIUM post (150-250 words) for this draft. Enough room for one key insight with context.",
+                "long": "PREFER a LONG, detailed post (300-600 words) for this draft. Go deep with multiple beats.",
+            }
+
+            if unused and len(completed_drafts) < 3:
+                import random as _len_rand
+                chosen = _len_rand.choice(unused)
+                length_hint = length_hints[chosen]
+                logger.info(f"Length hint for draft {len(completed_drafts)+1}: {chosen} (unused in batch: {unused})")
+            else:
+                length_hint = None
+
             # Determine optimal length (run async method in sync thread context)
             # We're inside asyncio.to_thread(), so no event loop is running here.
             # Create a new event loop for this thread to safely call async code.
@@ -573,6 +612,7 @@ class ContentAgencyGraph:
                     brief_description=brief.get("content_angle", ""),
                     user_length_patterns=writing_patterns,
                     content_mode=brief.get("content_mode"),
+                    length_hint=length_hint,
                 ))
             finally:
                 loop.close()
@@ -978,6 +1018,17 @@ class ContentAgencyGraph:
             "identity_facets_used": identity_facets_used,
         })
 
+        # Classify length for diversity tracking
+        word_count = len(draft.get("body", "").split())
+        if word_count <= 50:
+            length_category = "very_short"
+        elif word_count <= 120:
+            length_category = "short"
+        elif word_count <= 300:
+            length_category = "medium"
+        else:
+            length_category = "long"
+
         # Update uniqueness context for diversity enforcement
         uniqueness_ctx = state.get("uniqueness_context", {
             "used_hook_styles": [],
@@ -988,7 +1039,12 @@ class ContentAgencyGraph:
             "used_emotional_tones": [],
             "used_topic_domains": [],
             "used_identity_categories": [],
+            "used_length_categories": [],
         })
+
+        # Ensure used_length_categories exists (may be missing from historical data)
+        if "used_length_categories" not in uniqueness_ctx:
+            uniqueness_ctx["used_length_categories"] = []
 
         # Track all dimensions
         if hook_style:
@@ -1005,6 +1061,8 @@ class ContentAgencyGraph:
             uniqueness_ctx["used_emotional_tones"].append(emotional_tone)
         if topic_domain:
             uniqueness_ctx["used_topic_domains"].append(topic_domain)
+        # Track length category for cross-draft diversity
+        uniqueness_ctx["used_length_categories"].append(length_category)
         # Track identity categories used
         if sampled_facets:
             for cat in sampled_facets.get("primary_facets", {}).keys():
@@ -1012,7 +1070,8 @@ class ContentAgencyGraph:
 
         logger.info(
             f"Saved draft {len(completed)}/3: {draft.get('topic', 'Unknown')[:50]} "
-            f"(mode={content_mode}, posture={authority_posture}, tone={emotional_tone})"
+            f"(mode={content_mode}, posture={authority_posture}, tone={emotional_tone}, "
+            f"length={length_category}/{word_count}w)"
         )
 
         return {
@@ -1082,6 +1141,7 @@ class ContentAgencyGraph:
             "used_emotional_tones": [],
             "used_topic_domains": [],
             "used_identity_categories": [],
+            "used_length_categories": [],
         }
         if historical_uniqueness:
             for key in default_uniqueness:

@@ -214,6 +214,12 @@ Write like you're texting a smart friend or posting a quick thought. Not like yo
 12. CURRENT YEAR IS 2026.
 13. Include at least one concrete, lived example (a specific time, place, mistake, or observation).
 14. If appropriate, add 2-4 high-impact hashtags at the end (industry-specific or trending, NOT generic like #success #motivation).
+15. LENGTH IS NON-NEGOTIABLE. Your post MUST fall within the target length range provided below. Count your words mentally before outputting.
+    - If target is under 50 words: write a VERY SHORT post. 2-3 lines. A single punchy thought. Stop immediately.
+    - If target is 50-120 words: write a SHORT punchy post. 3-5 lines max. Stop when you've made the point.
+    - If target is 120-250 words: write a MEDIUM post. Enough room for one key insight.
+    - If target is 250-500 words: write a LONG detailed post. Multi-paragraph with depth and texture.
+    - Do NOT default to medium. A 40-word observation can be more powerful than a padded 200-word post.
 
 Output the final post as JSON:
 {{
@@ -534,6 +540,19 @@ class MultiAgentGenerator:
             topic = content.get("main_message", "General Content")
             brief = f"Main message: {content.get('main_message')}. Insights: {', '.join(content.get('key_insights', [])[:3])}"
             
+            # Infer content mode from content analysis for mode-aware length ranges
+            # (observer→short, narrator→long, etc.)
+            suggested_structure = content.get("suggested_structure", "")
+            potential_angles = content.get("potential_angles", [])
+            # Simple heuristic: if analysis suggests storytelling → narrator, if short observation → observer
+            content_mode = None
+            if any(kw in str(suggested_structure).lower() for kw in ["story", "narrative", "personal", "experience"]):
+                content_mode = "narrator"
+            elif any(kw in str(suggested_structure).lower() for kw in ["observation", "quick", "short", "brief"]):
+                content_mode = "observer"
+            elif any(kw in str(suggested_structure).lower() for kw in ["how", "step", "framework", "guide"]):
+                content_mode = "explainer"
+            
             # Determine optimal length (sync wrapper for async call)
             decision = asyncio.run(strategist.determine_optimal_length(
                 topic=topic,
@@ -542,9 +561,8 @@ class MultiAgentGenerator:
                 template_min=template_meta.get("min_length"),
                 template_max=template_meta.get("max_length"),
                 brief_description=brief,
-                # Note: We don't have direct access to user patterns here without extra queries,
-                # but the variance introduction in LengthStrategistService helps uniqueness anyway.
-                user_length_patterns=None, 
+                user_length_patterns=None,
+                content_mode=content_mode,
             ))
             
             logger.info(
