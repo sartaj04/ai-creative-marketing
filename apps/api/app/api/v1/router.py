@@ -1,7 +1,7 @@
 """Main API v1 router."""
 from fastapi import APIRouter
 
-from app.api.v1 import auth, profiles, identity, drafts, templates, analytics, rss, onboarding, generators
+from app.api.v1 import auth, profiles, identity, drafts, templates, analytics, rss, onboarding, generators, members
 
 api_router = APIRouter()
 
@@ -15,4 +15,5 @@ api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytic
 api_router.include_router(rss.router, tags=["RSS Feeds"])
 api_router.include_router(onboarding.router, prefix="/onboarding", tags=["Onboarding"])
 api_router.include_router(generators.router, tags=["Generators"])
+api_router.include_router(members.router, tags=["Members & Invitations"])
 

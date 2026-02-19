@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import case, func, select
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, get_profile_with_access
 from app.models.draft import Draft, DraftAction, DraftEvent, DraftStatus
 from app.models.profile import Profile
 from app.schemas.analytics import (
@@ -40,15 +40,7 @@ async def get_analytics_summary(
     period: str = Query("30d", pattern="^(7d|30d|90d)$"),
 ) -> AnalyticsSummary:
     """Get analytics summary for a profile."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    await get_profile_with_access(profile_id, current_user, db)
 
     period_start, period_end = get_period_dates(period)
 
@@ -99,15 +91,7 @@ async def get_topic_analytics(
     period: str = Query("30d", pattern="^(7d|30d|90d)$"),
 ) -> TopicAnalytics:
     """Get topic performance analytics."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    await get_profile_with_access(profile_id, current_user, db)
 
     period_start, period_end = get_period_dates(period)
 
@@ -153,15 +137,7 @@ async def get_format_analytics(
     period: str = Query("30d", pattern="^(7d|30d|90d)$"),
 ) -> FormatAnalytics:
     """Get format performance analytics."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    await get_profile_with_access(profile_id, current_user, db)
 
     period_start, period_end = get_period_dates(period)
 

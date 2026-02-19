@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
 from app.models.profile import Profile, ProfileSource, ProfileType
+from app.models.profile_member import ProfileMember, MemberRole, MemberStatus
 from app.models.identity import IdentityGraph, StyleProfile
 from app.models.user import User
 from app.models.document import ExtractedDocument, SourceType
@@ -103,7 +104,16 @@ async def get_or_create_user_profile(user_id, db, user_name: str = None):
         # Create default style profile
         style_profile = StyleProfile(profile_id=profile.id)
         db.add(style_profile)
-        
+
+        # Create OWNER membership
+        membership = ProfileMember(
+            profile_id=profile.id,
+            user_id=user_id,
+            role=MemberRole.OWNER,
+            status=MemberStatus.ACCEPTED,
+        )
+        db.add(membership)
+
         await db.commit()
         await db.refresh(profile)
     

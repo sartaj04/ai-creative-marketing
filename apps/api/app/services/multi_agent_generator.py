@@ -18,8 +18,6 @@ from google.oauth2 import service_account
 from langchain_aws import ChatBedrockConverse
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-# Use ChatGoogleGenerativeAI which supports Vertex AI with service account credentials
-# When project and credentials are provided, it automatically uses Vertex AI backend
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, StateGraph, START
 from sqlalchemy import select

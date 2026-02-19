@@ -12,6 +12,7 @@ class ProfileSourceCreate(BaseModel):
     """Schema for creating profile sources."""
 
     linkedin_url: Optional[str] = None
+    website_url: Optional[str] = None
 
 
 class ProfileSourceResponse(BaseModel):
@@ -20,11 +21,20 @@ class ProfileSourceResponse(BaseModel):
     id: UUID
     profile_id: UUID
     linkedin_url: Optional[str] = None
+    website_url: Optional[str] = None
+    resume_path: Optional[str] = None
     last_synced_at: Optional[datetime] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class SourceUpdateRequest(BaseModel):
+    """Schema for updating profile sources."""
+
+    linkedin_url: Optional[str] = None
+    website_url: Optional[str] = None
 
 
 class ProfileCreate(BaseModel):
@@ -60,6 +70,7 @@ class ProfileResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     sources: Optional[ProfileSourceResponse] = None
+    role: Optional[str] = None
 
     class Config:
         from_attributes = True

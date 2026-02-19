@@ -174,9 +174,9 @@ export function LinkedInURLStep({ onSubmit, onSkip, onUploadResume, onChatWithPi
                     )}
                 </AnimatePresence>
 
-                {/* Footer */}
-                <p className="text-xs text-slate-400 text-center">
-                    Your data is processed securely and used only to build your personal brand model.
+                {/* Consent & Footer */}
+                <p className="text-xs text-slate-400 text-center leading-relaxed">
+                    By clicking Continue, you confirm that this profile belongs to you and that you have given permission to retrieve its publicly available details. Your data is processed securely and used only to build your personal brand model.
                 </p>
             </motion.div>
         </div>

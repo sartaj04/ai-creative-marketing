@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { DeepenIdentityModal } from '@/components/identity/DeepenIdentityModal';
+import { TimelineEventEditDialog } from '@/components/identity/TimelineEventEditDialog';
 import { useProfileStore } from '@/stores/profile-store';
-import { identityApi, Timeline } from '@/lib/api/identity';
+import { identityApi, Timeline, TimelineEvent } from '@/lib/api/identity';
 import { TimelineVisualizer } from '@/components/identity/TimelineVisualizer';
-import { Button } from '@/components/ui/button';
-import { MessageSquarePlus, Sparkles } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function IdentityPage() {
     const { currentProfile } = useProfileStore();
     const [timeline, setTimeline] = useState<Timeline | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
     const { toast } = useToast();
 
     const loadTimeline = async () => {
@@ -65,23 +65,27 @@ export default function IdentityPage() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900">Identity Timeline</h1>
                     <p className="text-slate-500 mt-1">
-                        Your professional journey and key moments that shape your narrative.
+                        Your professional journey and key moments that shape your narrative. Click any event to edit it.
                     </p>
                 </div>
-                <div className="flex gap-3">
-                    <DeepenIdentityModal onComplete={handleDeepenComplete} />
-                    <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
-                        <Sparkles className="w-4 h-4" />
-                        Generate Content from Timeline
-                    </Button>
-                </div>
+                <DeepenIdentityModal onComplete={handleDeepenComplete} />
             </div>
 
             {timeline && (
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 min-h-[600px]">
-                    <TimelineVisualizer events={timeline.events || []} />
+                    <TimelineVisualizer
+                        events={timeline.events || []}
+                        onEventClick={(event) => setEditingEvent(event)}
+                    />
                 </div>
             )}
+
+            <TimelineEventEditDialog
+                event={editingEvent}
+                profileId={currentProfile.id}
+                onOpenChange={(open) => { if (!open) setEditingEvent(null); }}
+                onSaved={loadTimeline}
+            />
         </div>
     );
 }

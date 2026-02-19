@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, get_profile_with_access, get_user_profile_ids
 from app.models.draft import AgentType, Draft, DraftAction, DraftEvent, DraftStatus, Schedule
 from app.models.profile import Profile
 from app.models.template import TemplateUsage
@@ -33,11 +33,8 @@ async def list_drafts(
     offset: int = Query(0, ge=0),
 ) -> DraftListResponse:
     """List drafts with optional filters."""
-    # Get user's profile IDs
-    profile_result = await db.execute(
-        select(Profile.id).where(Profile.user_id == current_user.id)
-    )
-    user_profile_ids = [p for p in profile_result.scalars().all()]
+    # Get profile IDs the user has access to (via membership)
+    user_profile_ids = await get_user_profile_ids(current_user, db)
 
     if not user_profile_ids:
         return DraftListResponse(drafts=[], total=0, limit=limit, offset=offset)
@@ -85,9 +82,7 @@ async def get_draft(
 ) -> DraftResponse:
     """Get a specific draft."""
     result = await db.execute(
-        select(Draft)
-        .options(selectinload(Draft.profile))
-        .where(Draft.id == draft_id)
+        select(Draft).where(Draft.id == draft_id)
     )
     draft = result.scalar_one_or_none()
 
@@ -97,12 +92,8 @@ async def get_draft(
             detail="Draft not found",
         )
 
-    # Verify ownership
-    if draft.profile.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+    # Verify access via membership
+    await get_profile_with_access(draft.profile_id, current_user, db)
 
     return DraftResponse.model_validate(draft)
 
@@ -128,11 +119,8 @@ async def perform_draft_action(
             detail="Draft not found",
         )
 
-    if draft.profile.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+    # Verify access via membership
+    await get_profile_with_access(draft.profile_id, current_user, db)
 
     # Store previous state for edit tracking
     previous_state = None
@@ -178,7 +166,7 @@ async def perform_draft_action(
     if action_data.action in [DraftAction.APPROVE, DraftAction.REJECT, DraftAction.EDIT]:
         profile = draft.profile
         profile.feedback_count_since_last_learn = (profile.feedback_count_since_last_learn or 0) + 1
-        
+
         # Trigger learning when threshold reached
         if profile.feedback_count_since_last_learn >= 10:
             from app.tasks.persona_synthesizer import synthesize_persona_with_feedback_task
@@ -200,9 +188,7 @@ async def schedule_draft(
 ) -> ScheduleResponse:
     """Schedule a draft for publishing."""
     result = await db.execute(
-        select(Draft)
-        .options(selectinload(Draft.profile))
-        .where(Draft.id == draft_id)
+        select(Draft).where(Draft.id == draft_id)
     )
     draft = result.scalar_one_or_none()
 
@@ -212,11 +198,8 @@ async def schedule_draft(
             detail="Draft not found",
         )
 
-    if draft.profile.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+    # Verify access via membership
+    await get_profile_with_access(draft.profile_id, current_user, db)
 
     if draft.status not in [DraftStatus.APPROVED, DraftStatus.SCHEDULED]:
         raise HTTPException(
@@ -259,9 +242,7 @@ async def update_draft_status(
 ) -> DraftResponse:
     """Update draft status."""
     result = await db.execute(
-        select(Draft)
-        .options(selectinload(Draft.profile))
-        .where(Draft.id == draft_id)
+        select(Draft).where(Draft.id == draft_id)
     )
     draft = result.scalar_one_or_none()
 
@@ -271,11 +252,8 @@ async def update_draft_status(
             detail="Draft not found",
         )
 
-    if draft.profile.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+    # Verify access via membership
+    await get_profile_with_access(draft.profile_id, current_user, db)
 
     draft.status = status_data.status
 

@@ -1,6 +1,7 @@
 """Database models."""
 from app.models.user import User
 from app.models.profile import Profile, ProfileSource
+from app.models.profile_member import ProfileMember, MemberRole, MemberStatus
 from app.models.identity import IdentityGraph, StyleProfile
 from app.models.document import ExtractedDocument
 from app.models.opportunity import Opportunity
@@ -12,6 +13,9 @@ __all__ = [
     "User",
     "Profile",
     "ProfileSource",
+    "ProfileMember",
+    "MemberRole",
+    "MemberStatus",
     "IdentityGraph",
     "StyleProfile",
     "ExtractedDocument",

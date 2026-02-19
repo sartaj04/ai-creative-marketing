@@ -6,10 +6,13 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import async_session_maker
 from app.core.security import decode_access_token
 from app.models.user import User
+from app.models.profile import Profile
+from app.models.profile_member import ProfileMember, MemberRole, MemberStatus
 
 # Security scheme
 security = HTTPBearer()
@@ -83,3 +86,58 @@ async def get_admin_user(
 
 
 AdminUser = Annotated[User, Depends(get_admin_user)]
+
+
+async def get_profile_with_access(
+    profile_id: UUID,
+    current_user: User,
+    db: AsyncSession,
+    require_owner: bool = False,
+) -> tuple[Profile, ProfileMember]:
+    """Verify the current user has access to the profile via membership.
+
+    Returns the (Profile, ProfileMember) tuple.
+    Raises 404 if no profile or no accepted membership.
+    Raises 403 if require_owner=True and role is not OWNER.
+    """
+    result = await db.execute(
+        select(Profile, ProfileMember)
+        .join(ProfileMember, ProfileMember.profile_id == Profile.id)
+        .where(
+            Profile.id == profile_id,
+            ProfileMember.user_id == current_user.id,
+            ProfileMember.status == MemberStatus.ACCEPTED,
+        )
+        .options(selectinload(Profile.sources))
+    )
+    row = result.first()
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found",
+        )
+
+    profile, membership = row.tuple()
+
+    if require_owner and membership.role != MemberRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owner access required",
+        )
+
+    return profile, membership
+
+
+async def get_user_profile_ids(
+    current_user: User,
+    db: AsyncSession,
+) -> list[UUID]:
+    """Get all profile IDs the current user has accepted membership for."""
+    result = await db.execute(
+        select(ProfileMember.profile_id).where(
+            ProfileMember.user_id == current_user.id,
+            ProfileMember.status == MemberStatus.ACCEPTED,
+        )
+    )
+    return list(result.scalars().all())

@@ -8,7 +8,7 @@ from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, get_profile_with_access
 from app.models.profile import Profile, ProfileSource
 
 router = APIRouter()
@@ -43,19 +43,7 @@ async def connect_rss_feed(
     db: DBSession,
 ) -> dict:
     """Connect an RSS feed to a profile."""
-    # Get profile with sources
-    result = await db.execute(
-        select(Profile)
-        .options(selectinload(Profile.sources))
-        .where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    profile, _ = await get_profile_with_access(profile_id, current_user, db)
 
     # Get or create sources
     if not profile.sources:
@@ -88,18 +76,7 @@ async def list_rss_feeds(
     db: DBSession,
 ) -> RSSFeedListResponse:
     """List RSS feeds for a profile."""
-    result = await db.execute(
-        select(Profile)
-        .options(selectinload(Profile.sources))
-        .where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    profile, _ = await get_profile_with_access(profile_id, current_user, db)
 
     feeds = []
     if profile.sources and profile.sources.rss_urls:
@@ -120,18 +97,7 @@ async def remove_rss_feed(
     # Decode URL
     decoded_url = unquote(feed_url)
 
-    result = await db.execute(
-        select(Profile)
-        .options(selectinload(Profile.sources))
-        .where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    profile, _ = await get_profile_with_access(profile_id, current_user, db)
 
     if not profile.sources or not profile.sources.rss_urls:
         raise HTTPException(

@@ -8,7 +8,7 @@ from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.api.deps import CurrentUser, DBSession, get_profile_with_access
 from app.models.identity import StyleProfile
 from app.models.profile import Profile
 from app.models.template import Template, TemplateCategory, TemplateUsage
@@ -46,6 +46,8 @@ def _draft_to_response(draft) -> GeneratorResponse:
 
 @router.get("/templates/recommend", response_model=TemplateRecommendationsResponse)
 async def recommend_templates(
+    current_user: CurrentUser,
+    db: DBSession,
     profile_id: UUID = Query(..., description="Profile UUID"),
     source_type: str = Query(..., description="Source type: scratch, youtube, article, pdf, audio, format"),
     topic_hint: Optional[str] = Query(None, description="Optional topic hint for better recommendations"),
@@ -53,11 +55,13 @@ async def recommend_templates(
     search: Optional[str] = Query(None, description="Search query for template name/description"),
     tags: Optional[str] = Query(None, description="Comma-separated tags to filter by"),
     limit: int = Query(5, ge=1, le=200, description="Number of templates to return"),
-    db: AsyncSession = Depends(get_db),
 ) -> TemplateRecommendationsResponse:
     """Get recommended templates based on profile, source type, goal, topic, search, and tags."""
     try:
-        # Load profile...
+        # Verify access
+        await get_profile_with_access(profile_id, current_user, db)
+
+        # Load profile with style
         profile_result = await db.execute(
             select(Profile)
             .options(selectinload(Profile.style_profile))
@@ -68,7 +72,7 @@ async def recommend_templates(
             raise ValueError("Profile not found or inactive")
 
         style_profile = profile.style_profile
-        
+
         # Use GoalMapper... (keeping existing logic)
         if goal:
             goal_mapping = GoalMapper.get_all_mappings_for_goal(goal)
@@ -94,12 +98,12 @@ async def recommend_templates(
             Template.is_active == True,
             Template.is_system == True,  # Focus on system templates for now
         )
-        
+
         # Apply Search Filter
         if search:
             search_term = f"%{search}%"
             query = query.where(
-                (Template.name.ilike(search_term)) | 
+                (Template.name.ilike(search_term)) |
                 (Template.description.ilike(search_term))
             )
 
@@ -117,7 +121,7 @@ async def recommend_templates(
         scored_templates = []
         for template in all_templates:
             score = 0.0
-            
+
             # 1. Category match (25% weight)
             if template.category in preferred_categories:
                 category_index = preferred_categories.index(template.category)
@@ -125,7 +129,7 @@ async def recommend_templates(
                 score += category_score * 0.25
             else:
                 score += 0.1 * 0.25  # Small score for non-preferred categories
-            
+
             # 2. Goal/Use case match (30% weight) - match template use_cases with goal's preferred use cases
             if goal and preferred_use_cases and template.use_cases:
                 # Check for exact or partial matches in use cases
@@ -138,7 +142,7 @@ async def recommend_templates(
                         if pref_uc_lower == template_uc_lower or pref_uc_lower in template_uc_lower:
                             use_case_matches += 1
                             break
-                
+
                 if use_case_matches > 0:
                     # Score based on how many use cases match (normalized by preferred count)
                     use_case_score = min(use_case_matches / max(len(preferred_use_cases), 1), 1.0)
@@ -148,13 +152,13 @@ async def recommend_templates(
             elif not goal:
                 # For non-goal modes, give neutral score
                 score += 0.15 * 0.3
-            
+
             # 3. Goal Tags match (20% weight) - match template tags with goal's preferred tags
             if goal and preferred_tags and template.tags:
                 # Check for tag matches
                 tag_matches = sum(
                     1 for tag in template.tags
-                    if any(pref_tag.lower() in str(tag).lower() or str(tag).lower() in pref_tag.lower() 
+                    if any(pref_tag.lower() in str(tag).lower() or str(tag).lower() in pref_tag.lower()
                            for pref_tag in preferred_tags)
                 )
                 if tag_matches > 0:
@@ -164,7 +168,7 @@ async def recommend_templates(
                     score += 0.05 * 0.2
             else:
                 score += 0.1 * 0.2
-            
+
             # 4. Topic/Tags match (10% weight) - if topic_hint provided, match with template tags
             if topic_hint and template.tags:
                 topic_lower = topic_hint.lower()
@@ -179,7 +183,7 @@ async def recommend_templates(
                     score += 0.05 * 0.10
             else:
                 score += 0.1 * 0.10
-            
+
             # 5. Tone fit (10% weight) - match template tone_fit with user's style
             if style_profile and template.tone_fit:
                 tone_sliders = style_profile.tone_sliders or {}
@@ -196,14 +200,14 @@ async def recommend_templates(
                         tone_match = True
                     elif "simple" in tone_lower and tone_sliders.get("technical_simple", 0.5) < 0.4:
                         tone_match = True
-                
+
                 if tone_match:
                     score += 1.0 * 0.10
                 else:
                     score += 0.3 * 0.10  # Partial score if no explicit match
             else:
                 score += 0.5 * 0.10  # Neutral score if no tone data
-            
+
             # 6. Historical performance (5% weight) - usage and approval rate
             usage_query = select(
                 func.count(TemplateUsage.id).label("total"),
@@ -216,22 +220,22 @@ async def recommend_templates(
             )
             usage_result = await db.execute(usage_query)
             usage_stats = usage_result.first()
-            
+
             if usage_stats and usage_stats.total and usage_stats.total > 0:
                 approval_rate = (usage_stats.approved or 0) / usage_stats.total
                 score += approval_rate * 0.05
             else:
                 # For templates never used by this profile, give neutral score
                 score += 0.5 * 0.05
-            
+
             # Normalize score to 0-1 range
             score = min(max(score, 0.0), 1.0)
-            
+
             scored_templates.append((template, score))
-        
+
         # Sort by score descending
         scored_templates.sort(key=lambda x: x[1], reverse=True)
-        
+
         # Get usage counts for top templates
         top_template_ids = [t[0].id for t in scored_templates[:limit]]
         usage_counts_query = select(
@@ -241,10 +245,10 @@ async def recommend_templates(
             TemplateUsage.template_id.in_(top_template_ids),
             TemplateUsage.profile_id == profile_id,
         ).group_by(TemplateUsage.template_id)
-        
+
         usage_counts_result = await db.execute(usage_counts_query)
         usage_counts = {row.template_id: row.count for row in usage_counts_result}
-        
+
         # Build recommendations
         recommendations = []
         for template, match_score in scored_templates[:limit]:
@@ -280,20 +284,12 @@ async def recommend_templates(
 @router.post("/scratch", response_model=GeneratorResponse)
 async def generate_from_scratch(
     request: ScratchGenerateRequest,
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    db: DBSession,
 ) -> GeneratorResponse:
-    """Generate a draft from scratch based on topic and key points.
-
-    Uses a multi-agent system with Identity, Style, Content, and Synthesis agents
-    to create content that matches the user's voice and expertise.
-
-    Args:
-        request: Contains profile_id, topic, key_points, goal, and optional template_id
-
-    Returns:
-        Generated draft with hook, body, topic, and confidence
-    """
+    """Generate a draft from scratch based on topic and key points."""
     try:
+        await get_profile_with_access(request.profile_id, current_user, db)
         service = GeneratorService(db)
         draft = await service.generate_from_scratch(
             profile_id=request.profile_id,
@@ -315,28 +311,19 @@ async def generate_from_scratch(
 
 @router.post("/audio", response_model=GeneratorResponse)
 async def generate_from_audio(
+    current_user: CurrentUser,
+    db: DBSession,
     profile_id: Annotated[UUID, Form()],
     file: UploadFile = File(...),
     template_id: Annotated[Optional[UUID], Form()] = None,
     use_persona: Annotated[bool, Form()] = True,
     feedback: Annotated[Optional[str], Form()] = None,
     previous_draft_id: Annotated[Optional[UUID], Form()] = None,
-    db: AsyncSession = Depends(get_db),
 ) -> GeneratorResponse:
-    """Generate a draft from audio content.
-
-    Upload an audio file (mp3, wav, m4a, ogg, webm, flac) to transcribe and generate a post.
-    Uses a multi-agent system for content creation.
-
-    Args:
-        profile_id: Profile UUID
-        file: Audio file to transcribe
-        template_id: Optional template for structural guidance
-
-    Returns:
-        Generated draft with hook, body, topic, and confidence
-    """
+    """Generate a draft from audio content."""
     try:
+        await get_profile_with_access(profile_id, current_user, db)
+
         if not file.filename:
             raise ValueError("No file provided")
 
@@ -364,28 +351,19 @@ async def generate_from_audio(
 
 @router.post("/pdf", response_model=GeneratorResponse)
 async def generate_from_pdf(
+    current_user: CurrentUser,
+    db: DBSession,
     profile_id: Annotated[UUID, Form()],
     file: UploadFile = File(...),
     template_id: Annotated[Optional[UUID], Form()] = None,
     use_persona: Annotated[bool, Form()] = True,
     feedback: Annotated[Optional[str], Form()] = None,
     previous_draft_id: Annotated[Optional[UUID], Form()] = None,
-    db: AsyncSession = Depends(get_db),
 ) -> GeneratorResponse:
-    """Generate a draft from PDF content.
-
-    Upload a PDF file to extract text and generate a post based on its contents.
-    Uses a multi-agent system for content creation.
-
-    Args:
-        profile_id: Profile UUID
-        file: PDF file to process
-        template_id: Optional template for structural guidance
-
-    Returns:
-        Generated draft with hook, body, topic, and confidence
-    """
+    """Generate a draft from PDF content."""
     try:
+        await get_profile_with_access(profile_id, current_user, db)
+
         if not file.filename:
             raise ValueError("No file provided")
 
@@ -420,20 +398,12 @@ async def generate_from_pdf(
 @router.post("/youtube", response_model=GeneratorResponse)
 async def generate_from_youtube(
     request: YouTubeGenerateRequest,
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    db: DBSession,
 ) -> GeneratorResponse:
-    """Generate a draft from a YouTube video transcript.
-
-    Provide a YouTube URL to extract the transcript and generate a post.
-    Uses a multi-agent system for content creation.
-
-    Args:
-        request: Contains profile_id, youtube_url, and optional template_id
-
-    Returns:
-        Generated draft with hook, body, topic, and confidence
-    """
+    """Generate a draft from a YouTube video transcript."""
     try:
+        await get_profile_with_access(request.profile_id, current_user, db)
         service = GeneratorService(db)
         draft = await service.generate_from_youtube(
             profile_id=request.profile_id,
@@ -454,20 +424,12 @@ async def generate_from_youtube(
 @router.post("/article", response_model=GeneratorResponse)
 async def generate_from_article(
     request: ArticleGenerateRequest,
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    db: DBSession,
 ) -> GeneratorResponse:
-    """Generate a draft from an article URL.
-
-    Provide an article URL to scrape and generate a post based on its content.
-    Uses a multi-agent system for content creation.
-
-    Args:
-        request: Contains profile_id, article_url, and optional template_id
-
-    Returns:
-        Generated draft with hook, body, topic, and confidence
-    """
+    """Generate a draft from an article URL."""
     try:
+        await get_profile_with_access(request.profile_id, current_user, db)
         service = GeneratorService(db)
         draft = await service.generate_from_article(
             profile_id=request.profile_id,
@@ -488,20 +450,12 @@ async def generate_from_article(
 @router.post("/format", response_model=GeneratorResponse)
 async def generate_formatted(
     request: FormatGenerateRequest,
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    db: DBSession,
 ) -> GeneratorResponse:
-    """Generate a formatted draft from raw content.
-
-    Provide raw text content to reformat into a professional LinkedIn post.
-    Uses a multi-agent system for content creation.
-
-    Args:
-        request: Contains profile_id, content, and optional template_id
-
-    Returns:
-        Generated draft with hook, body, topic, and confidence
-    """
+    """Generate a formatted draft from raw content."""
     try:
+        await get_profile_with_access(request.profile_id, current_user, db)
         service = GeneratorService(db)
         draft = await service.generate_formatted(
             profile_id=request.profile_id,
@@ -525,32 +479,19 @@ async def generate_formatted(
 
 @router.post("/agency/run")
 async def trigger_content_agency(
+    current_user: CurrentUser,
+    db: DBSession,
     profile_id: UUID = Query(..., description="Profile UUID to run agency for"),
 ) -> dict:
-    """Manually trigger the Content Agency for a profile.
-    
-    The Content Agency is a multi-agent system that autonomously:
-    1. Discovers content opportunities (Scout Agent)
-    2. Selects best topics and creates briefs (Strategist Agent)
-    3. Writes initial drafts (Writer Agent)
-    4. Refines and polishes content (Editor Agent)
-    5. Validates brand voice and quality (QA Agent)
-    
-    This triggers the agency as a background task and returns immediately.
-    
-    Args:
-        profile_id: Profile UUID to run the agency for
-        
-    Returns:
-        Task ID for tracking the background job
-    """
+    """Manually trigger the Content Agency for a profile."""
+    await get_profile_with_access(profile_id, current_user, db)
+
     from app.tasks.content_agency import run_content_agency_task
-    
+
     task = run_content_agency_task.delay(str(profile_id))
-    
+
     return {
         "message": "Content Agency triggered successfully",
         "task_id": task.id,
         "profile_id": str(profile_id),
     }
-

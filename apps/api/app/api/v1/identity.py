@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, get_profile_with_access
 from app.models.profile import Profile
 from app.models.identity import IdentityGraph, StyleProfile
 from app.schemas.identity import (
@@ -31,15 +31,7 @@ async def get_identity_graph(
     db: DBSession,
 ) -> IdentityGraphResponse:
     """Get identity graph for a profile."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    await get_profile_with_access(profile_id, current_user, db)
 
     result = await db.execute(
         select(IdentityGraph).where(IdentityGraph.profile_id == profile_id)
@@ -52,6 +44,28 @@ async def get_identity_graph(
             detail="Identity graph not found",
         )
 
+    # Calculate completeness score using the new calculator
+    from app.services.completeness import (
+        calculate_completeness,
+        identity_graph_to_dict,
+        style_profile_to_dict,
+    )
+
+    # Load style profile for completeness calculation
+    style_stmt = select(StyleProfile).where(StyleProfile.profile_id == profile_id)
+    style_result = await db.execute(style_stmt)
+    style_profile = style_result.scalar_one_or_none()
+
+    identity_data = identity_graph_to_dict(identity_graph)
+    style_data = style_profile_to_dict(style_profile)
+    completeness = calculate_completeness(identity_data, style_data)
+
+    # Update stored completeness_score to keep DB in sync (optional but good for caching)
+    if identity_graph.completeness_score != completeness.percentage:
+        identity_graph.completeness_score = completeness.percentage
+        await db.commit()
+        await db.refresh(identity_graph)
+
     return IdentityGraphResponse.model_validate(identity_graph)
 
 
@@ -63,15 +77,7 @@ async def update_identity_graph(
     db: DBSession,
 ) -> IdentityGraphResponse:
     """Update identity graph for a profile."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    await get_profile_with_access(profile_id, current_user, db)
 
     result = await db.execute(
         select(IdentityGraph).where(IdentityGraph.profile_id == profile_id)
@@ -96,16 +102,16 @@ async def update_identity_graph(
         style_profile_to_dict,
     )
     from sqlalchemy import select as sql_select
-    
+
     # Load style profile for completeness calculation
     style_stmt = sql_select(StyleProfile).where(StyleProfile.profile_id == profile_id)
     style_result = await db.execute(style_stmt)
     style_profile = style_result.scalar_one_or_none()
-    
+
     identity_data = identity_graph_to_dict(identity_graph)
     style_data = style_profile_to_dict(style_profile)
     completeness = calculate_completeness(identity_data, style_data)
-    
+
     # Update stored completeness_score to keep DB in sync
     identity_graph.completeness_score = completeness.percentage
 
@@ -129,15 +135,7 @@ async def get_style_profile(
     db: DBSession,
 ) -> StyleProfileResponse:
     """Get style profile for a profile."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    await get_profile_with_access(profile_id, current_user, db)
 
     result = await db.execute(
         select(StyleProfile).where(StyleProfile.profile_id == profile_id)
@@ -161,15 +159,7 @@ async def update_style_profile(
     db: DBSession,
 ) -> StyleProfileResponse:
     """Update style profile for a profile."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+    await get_profile_with_access(profile_id, current_user, db)
 
     result = await db.execute(
         select(StyleProfile).where(StyleProfile.profile_id == profile_id)
@@ -194,17 +184,17 @@ async def update_style_profile(
         identity_graph_to_dict,
         style_profile_to_dict,
     )
-    
+
     # Load identity graph for completeness calculation
     identity_stmt = select(IdentityGraph).where(IdentityGraph.profile_id == profile_id)
     identity_result = await db.execute(identity_stmt)
     identity_graph = identity_result.scalar_one_or_none()
-    
+
     if identity_graph:
         identity_data = identity_graph_to_dict(identity_graph)
         style_data = style_profile_to_dict(style_profile)
         completeness = calculate_completeness(identity_data, style_data)
-        
+
         # Update stored completeness_score to keep DB in sync
         identity_graph.completeness_score = completeness.percentage
         await db.flush()  # Flush identity_graph update
@@ -250,7 +240,10 @@ async def get_identity_universe(
         identity_graph_to_dict,
         style_profile_to_dict,
     )
-    
+
+    # Verify access
+    await get_profile_with_access(profile_id, current_user, db)
+
     # Load profile with all related data
     result = await db.execute(
         select(Profile)
@@ -258,7 +251,7 @@ async def get_identity_universe(
             selectinload(Profile.identity_graph),
             selectinload(Profile.style_profile),
         )
-        .where(Profile.id == profile_id, Profile.user_id == current_user.id)
+        .where(Profile.id == profile_id)
     )
     profile = result.scalar_one_or_none()
 
@@ -369,6 +362,9 @@ async def preview_regeneration(
     Generate a preview of identity regeneration without persisting.
     Returns proposed changes that can be selectively accepted.
     """
+    # Verify access
+    await get_profile_with_access(profile_id, current_user, db)
+
     # Load profile with identity
     result = await db.execute(
         select(Profile)
@@ -376,7 +372,7 @@ async def preview_regeneration(
             selectinload(Profile.identity_graph),
             selectinload(Profile.style_profile),
         )
-        .where(Profile.id == profile_id, Profile.user_id == current_user.id)
+        .where(Profile.id == profile_id)
     )
     profile = result.scalar_one_or_none()
 
@@ -396,19 +392,16 @@ async def preview_regeneration(
     # For now, just use persona synthesizer to generate a new persona prompt as preview
     # Full regeneration of identity fields would require more complex AI processing
     from app.services.persona_synthesizer import PersonaSynthesizerService
-    
+
     synthesizer = PersonaSynthesizerService()
-    
+
     changes: list[RegenerationField] = []
     new_persona = None
-    
+
     if request.scope == "full" or (request.fields_to_regenerate and "persona_prompt" in request.fields_to_regenerate):
         # Generate new persona prompt preview (don't save)
-        # We'll call the LLM but not persist
-        # For preview, build the prompt the same way as synthesis, but return instead of saving
-        
         style = profile.style_profile
-        
+
         # Prepare JSON data for preview
         import json
         from uuid import UUID
@@ -434,17 +427,16 @@ async def preview_regeneration(
             "location": profile.location,
             "learned_preferences": profile.learned_preferences
         }, indent=2, default=str)
-        
+
         # Include writing sample insights if available
         writing_sample_insights = "No writing samples analyzed yet."
         if style and style.writing_sample_insights:
-            # Simple text fallback for preview if complex analyzer isn't needed or available easily here
             writing_sample_insights = style.writing_sample_insights
 
         # Generate new persona
         from app.services.persona_synthesizer import PERSONA_SYNTHESIS_PROMPT
         from app.llm.gemini import GeminiProvider
-        
+
         llm = GeminiProvider()
         prompt = PERSONA_SYNTHESIS_PROMPT.format(
             identity_json=identity_json,
@@ -452,7 +444,7 @@ async def preview_regeneration(
             profile_json=profile_json,
             writing_sample_insights=writing_sample_insights,
         )
-        
+
         try:
             new_persona = await llm.generate(
                 prompt=prompt,
@@ -461,7 +453,7 @@ async def preview_regeneration(
                 max_tokens=4000,
             )
             new_persona = new_persona.strip()
-            
+
             if new_persona and new_persona != profile.persona_prompt:
                 changes.append(RegenerationField(
                     field_name="persona_prompt",
@@ -497,12 +489,7 @@ async def get_timeline(
     db: DBSession,
 ) -> TimelineResponse:
     """Get the career timeline with all events for a profile."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+    await get_profile_with_access(profile_id, current_user, db)
 
     timeline_service = TimelineService(db)
     timeline = await timeline_service.get_full_timeline(profile_id)
@@ -525,12 +512,7 @@ async def update_timeline_event(
     db: DBSession,
 ) -> TimelineEventResponse:
     """Update a specific timeline event (e.g. add emotional_core, lessons_learned)."""
-    # Verify profile ownership
-    result = await db.execute(
-        select(Profile).where(Profile.id == profile_id, Profile.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+    await get_profile_with_access(profile_id, current_user, db)
 
     # Load the event and verify it belongs to this profile's timeline
     result = await db.execute(

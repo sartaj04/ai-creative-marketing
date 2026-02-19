@@ -1,13 +1,36 @@
 """Authentication endpoints."""
+import logging
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.api.deps import CurrentUser, DBSession
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models.user import User
+from app.models.profile_member import ProfileMember, MemberStatus
 from app.schemas.auth import Token, UserCreate, UserLogin, UserResponse
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+
+async def _claim_pending_invitations(user_id, email: str, db) -> None:
+    """Link pending invitations sent to this email to the user.
+
+    Does NOT auto-accept — user must explicitly accept each invitation.
+    """
+    try:
+        await db.execute(
+            update(ProfileMember)
+            .where(
+                ProfileMember.invited_email == email.lower(),
+                ProfileMember.status == MemberStatus.PENDING,
+                ProfileMember.user_id.is_(None),
+            )
+            .values(user_id=user_id)
+        )
+    except Exception as e:
+        logger.warning(f"Failed to claim invitations for {email}: {e}")
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -30,6 +53,10 @@ async def register(user_data: UserCreate, db: DBSession) -> Token:
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    # Claim any pending invitations sent to this email
+    await _claim_pending_invitations(user.id, user.email, db)
+    await db.commit()
 
     # Generate token
     access_token = create_access_token(subject=str(user.id))
@@ -58,6 +85,10 @@ async def login(login_data: UserLogin, db: DBSession) -> Token:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
         )
+
+    # Claim any pending invitations sent to this email
+    await _claim_pending_invitations(user.id, user.email, db)
+    await db.commit()
 
     access_token = create_access_token(subject=str(user.id))
 

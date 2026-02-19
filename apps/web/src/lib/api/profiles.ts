@@ -26,6 +26,7 @@ export interface Profile {
   created_at: string;
   updated_at: string;
   sources: ProfileSource | null;
+  role?: 'owner' | 'member';
 }
 
 export interface CreateProfileRequest {
@@ -75,6 +76,20 @@ export const profilesApi = {
 
   triggerIngestion: async (id: string): Promise<{ message: string; task_id: string }> => {
     const response = await apiClient.post(`/profiles/${id}/ingest`);
+    return response.data;
+  },
+
+  updateSources: async (id: string, data: { linkedin_url?: string; website_url?: string }): Promise<ProfileSource> => {
+    const response = await apiClient.put(`/profiles/${id}/sources`, data);
+    return response.data;
+  },
+
+  uploadResume: async (id: string, file: File): Promise<{ success: boolean; message: string; filename: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(`/profiles/${id}/sources/upload-resume`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };

@@ -6,7 +6,8 @@ import {
     FileText,
     Sparkles,
     ChevronRight,
-    Layers
+    Layers,
+    User,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { onboardingApi } from '@/lib/api/onboarding';
@@ -80,7 +81,7 @@ export default function DashboardPage() {
             {/* Content DNA & Completeness Combined */}
             {dashboardData && (
                 <motion.div variants={itemVariants}>
-                    <Link href="/identity">
+                    <Link href="/dashboard/identity">
                         <Card className="border-slate-200 overflow-hidden cursor-pointer group hover:shadow-lg hover:border-cyan-300 transition-all">
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between mb-4">
@@ -121,7 +122,20 @@ export default function DashboardPage() {
             {/* Quick Actions */}
             <motion.div variants={itemVariants}>
                 <h2 className="text-xl font-semibold text-slate-900 mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Link href="/dashboard/identity" className="block">
+                        <Card className="border-slate-200 hover:border-cyan-300 hover:shadow-md transition-all cursor-pointer">
+                            <CardContent className="p-6 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
+                                    <User className="w-5 h-5 text-indigo-600" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-900">Identity Timeline</p>
+                                    <p className="text-sm text-slate-500">View your professional journey</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
                     <Link href="/dashboard/generate" className="block">
                         <Card className="border-slate-200 hover:border-cyan-300 hover:shadow-md transition-all cursor-pointer">
                             <CardContent className="p-6 flex items-center gap-4">

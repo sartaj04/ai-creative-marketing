@@ -125,6 +125,11 @@ class Profile(Base):
         back_populates="profile",
         cascade="all, delete-orphan",
     )
+    members: Mapped[list["ProfileMember"]] = relationship(
+        "ProfileMember",
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Profile {self.name}>"
@@ -147,6 +152,8 @@ class ProfileSource(Base):
         unique=True,
     )
     linkedin_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    website_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    resume_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

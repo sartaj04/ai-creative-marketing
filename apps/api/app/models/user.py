@@ -46,6 +46,12 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    memberships: Mapped[list["ProfileMember"]] = relationship(
+        "ProfileMember",
+        foreign_keys="[ProfileMember.user_id]",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"
