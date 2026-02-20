@@ -137,7 +137,15 @@ class Draft(Base):
     )
     topic_domain: Mapped[str | None] = mapped_column(
         String(50), nullable=True,
-        comment="Topic domain: technical, personal, industry, philosophical, creative, professional",
+        comment="Topic domain: technical, personal, industry, philosophical, creative, professional, news",
+    )
+    is_news_driven: Mapped[bool | None] = mapped_column(
+        nullable=True, default=False,
+        comment="Whether this draft was inspired by a trending news signal",
+    )
+    news_source: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+        comment="Source news metadata: {headline, source_url, category}",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

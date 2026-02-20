@@ -130,7 +130,6 @@ export default function DashboardLayout({
                 <aside className="fixed left-0 top-14 bottom-0 w-60 bg-white border-r border-border/60 z-20 hidden md:flex flex-col">
                     <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                         <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname === '/dashboard'} />
-                        <NavLink href="/dashboard/identity" icon={User} label="Identity Timeline" active={pathname === '/dashboard/identity'} />
                         <NavLink href="/dashboard/generate" icon={Sparkles} label="Generate Content" active={pathname === '/dashboard/generate'} />
                         <NavLink href="/dashboard/inbox" icon={Layers} label="Review Inbox" active={pathname === '/dashboard/inbox'} badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} />
                         <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Content Pipeline" active={pathname === '/dashboard/drafts'} />

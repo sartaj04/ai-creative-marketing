@@ -489,9 +489,18 @@ What topics and formats they've previously liked/disliked:
 === CONTENT FOCUS (user's declared topics of interest) ===
 {content_focus}
 
-=== TRENDING TOPICS & INDUSTRY SIGNALS (optional external context) ===
+=== TRENDING SIGNALS & REAL-TIME NEWS (USE THESE — NOT OPTIONAL) ===
 {trending_signals}
-If trending signals are provided, consider 1-2 that connect to this person's world in a NON-OBVIOUS way. Don't force trends that don't fit.
+
+These are REAL news items from the last 24-48 hours, personalized to this person's expertise and interests.
+You MUST use at least 1-2 of these signals as PRIMARY INSPIRATION for your topics. These become the "news-reactive" posts.
+
+A news-reactive post is NOT a summary of the news. It is THIS PERSON'S unique take, analysis, prediction, or contrarian view ON the news. Examples:
+- "$200B in AI investment pledges in India" → An Indian AI engineer's take on what this actually means for small AI labs
+- "Sarvam releases 30B and 105B models" → Why frugal AI models built for edge devices matter more than benchmark-crushing giants
+- "Gemini 3.1 Pro drops" → A builder's honest comparison of when to use Gemini vs Claude vs GPT for different tasks
+
+The user wants to see posts about CURRENT EVENTS in their inbox — ideally BEFORE they see it on LinkedIn themselves.
 
 === CREATIVE COLLISION TECHNIQUES (use at least 3 different ones across your 5 topics) ===
 
@@ -509,14 +518,17 @@ If trending signals are provided, consider 1-2 that connect to this person's wor
 
 7. SENSORY MEMORY: A place, a smell, a sound, a season that connects to a professional or personal insight. "The sound of my first office printer" → something about the pace of work changing.
 
+8. NEWS_REACTOR: Take a SPECIFIC breaking news item from the trending signals and write the take that ONLY this person can write. Not a rewrite of the headline. Their unique angle, informed by their expertise, beliefs, and experiences. An AI engineer reacting to a new model release differently than a VC or a journalist would. A marketer seeing a product launch through the lens of brand positioning, not features.
+
 === TOPIC REQUIREMENTS (STRICT) ===
 Your 5 opportunities MUST satisfy ALL of these:
-1. At least 1 WILDCARD — so unexpected it would surprise even the person. Something they'd read and think "damn, that IS me but I never saw it that way."
-2. At least 2 from NON-PROFESSIONAL domains (personal, philosophical, creative, observational). These should have NOTHING to do with their job title.
-3. At least 1 where they'd be LEARNING, UNCERTAIN, or QUESTIONING (not expert-mode).
-4. At most 1 straightforward professional/industry expertise topic.
-5. Each topic MUST have a different topic_domain (use all different ones from: technical, personal, industry, philosophical, creative, professional).
-6. Topics must be HYPER-SPECIFIC. Not "leadership" but "why I stopped giving feedback sandwiches after a disastrous 1:1 last year."
+1. At least 1-2 must be NEWS-REACTIVE (is_news_driven: true) — directly inspired by a specific trending signal. Tag it with the source headline and URL. The post should react to, analyze, or provide this person's unique take on an actual current event. This is the highest-priority requirement.
+2. At least 1 WILDCARD — so unexpected it would surprise even the person. Something they'd read and think "damn, that IS me but I never saw it that way."
+3. At least 1 from NON-PROFESSIONAL domains (personal, philosophical, creative, observational). These should have NOTHING to do with their job title.
+4. At least 1 where they'd be LEARNING, UNCERTAIN, or QUESTIONING (not expert-mode).
+5. At most 1 straightforward professional/industry expertise topic (that is NOT news-driven).
+6. Each topic MUST have a different topic_domain (use all different ones from: technical, personal, industry, philosophical, creative, professional, news).
+7. Topics must be HYPER-SPECIFIC. Not "leadership" but "why I stopped giving feedback sandwiches after a disastrous 1:1 last year."
 
 === BANNED PATTERNS (instant disqualification) ===
 - "X lessons from Y" / "X things I learned about Y"
@@ -525,11 +537,13 @@ Your 5 opportunities MUST satisfy ALL of these:
 - Any topic that could appear on 1000 other profiles in their industry
 - Generic thought leadership that could be written by anyone with their job title
 - Topics that are just their job description rephrased as content
+- Simply summarizing a news article without a personal angle
 
 === ANTI-PATTERNS ===
 - Do NOT generate 4 professional topics and 1 personal topic. Lean PERSONAL and SURPRISING.
 - Do NOT default to "thought leadership" mode. Include topics that are: confessional, humorous, skeptical, nostalgic, questioning, or simply observational.
 - People are more than their job. A post about why they can't stop rearranging their desk is more interesting than another post about AI trends.
+- For news-reactive posts: Do NOT just summarize the news. The value is in THIS person's UNIQUE TAKE on the news.
 
 For each opportunity, suggest a content_mode and authority_posture:
 - content_mode: builder, learner, narrator, observer, explainer, skeptic, advisor
@@ -541,14 +555,26 @@ Return ONLY valid JSON array:
     "topic": "Hyper-specific topic (not a generic category)",
     "angle": "The surprising, non-obvious angle — what makes this THEIR take",
     "why_now": "Why this is timely or emotionally resonant right now",
-    "topic_domain": "technical|personal|industry|philosophical|creative|professional",
+    "topic_domain": "technical|personal|industry|philosophical|creative|professional|news",
     "content_mode": "builder|learner|narrator|observer|explainer|skeptic|advisor",
     "authority_posture": "curious|uncertain|peer_level|experienced|reflective|decisive",
-    "creative_technique": "Which collision technique you used (cross_domain|micro_observation|contrarian|emotional_archaeology|cultural_connector|philosophical|sensory_memory)",
+    "creative_technique": "Which collision technique you used (cross_domain|micro_observation|contrarian|emotional_archaeology|cultural_connector|philosophical|sensory_memory|news_reactor)",
     "relevance_score": 0.85,
-    "surprise_factor": "Why this topic would genuinely surprise the person"
+    "surprise_factor": "Why this topic would genuinely surprise the person",
+    "is_news_driven": false,
+    "news_source": null
   }}
-]"""
+]
+
+IMPORTANT: For news-reactive topics, set is_news_driven to true and news_source to an object:
+  {{
+    "is_news_driven": true,
+    "news_source": {{
+      "headline": "The specific news headline that inspired this topic",
+      "source_url": "URL of the source article",
+      "category": "BREAKING|INVESTMENT|POLICY|TREND|PRODUCT|RESEARCH"
+    }}
+  }}"""
 
 
 # ============================================================================

@@ -171,12 +171,20 @@ class ContentAgencyService:
             # Extract personalization signals from identity/timeline
             industry = identity_dict.get("industry", "General")
             primary_focus = identity_dict.get("primary_focus", "")
-            
-            # Fetch signals
+
+            # Extract richer identity data for deeper news personalization
+            expertise_areas = identity_dict.get("expertise_areas", [])
+            interests = identity_dict.get("interests", [])
+            content_pillars = identity_dict.get("content_pillars", [])
+
+            # Fetch signals with full identity context
             trending_service = TrendingSignalsService()
             trending_signals = await trending_service.get_trending_signals(
                 industry=industry,
-                primary_focus=primary_focus
+                primary_focus=primary_focus,
+                expertise_areas=expertise_areas,
+                interests=interests,
+                content_pillars=content_pillars,
             )
             logger.info(f"Injected trending signals for profile {profile_id}")
         except Exception as e:
@@ -349,6 +357,9 @@ class ContentAgencyService:
                     emotional_tone=data.get("emotional_tone"),
                     identity_facets_used=data.get("identity_facets_used"),
                     topic_domain=data.get("topic_domain"),
+                    # News metadata
+                    is_news_driven=data.get("is_news_driven", False),
+                    news_source=data.get("news_source"),
                 )
                 self.db.add(draft)
                 created_drafts.append(draft)

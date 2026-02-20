@@ -17,6 +17,7 @@ import { Loader2, X } from 'lucide-react';
 import { identityApi, type TimelineEvent } from '@/lib/api/identity';
 import { useToast } from '@/components/ui/use-toast';
 import { getErrorMessage } from '@/lib/api/client';
+import { DeepenIdentityModal } from '@/components/identity/DeepenIdentityModal';
 
 interface TimelineEventEditDialogProps {
     event: TimelineEvent | null;
@@ -85,9 +86,20 @@ export function TimelineEventEditDialog({ event, profileId, onOpenChange, onSave
         <Dialog open={!!event} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Edit Timeline Event</DialogTitle>
+                    <div className="flex items-center justify-between">
+                        <DialogTitle>{event?.id ? 'Edit Timeline Event' : 'Add Timeline Event'}</DialogTitle>
+                    </div>
                 </DialogHeader>
                 <div className="space-y-4">
+                    {!event?.id && (
+                        <div className="bg-cyan-50/50 border border-cyan-100 rounded-xl p-4 flex items-start gap-3">
+                            <div className="flex-1 space-y-1">
+                                <h4 className="text-sm font-medium text-cyan-900">Want Pixo to do this for you?</h4>
+                                <p className="text-xs text-cyan-700 leading-relaxed">Chat with Pixo about your experiences and let AI automatically extract the event details, emotional core, and lessons learned.</p>
+                            </div>
+                            <DeepenIdentityModal onComplete={() => { onSaved(); onOpenChange(false); }} />
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <Label>Title</Label>
                         <Input value={title} onChange={(e) => setTitle(e.target.value)} />

@@ -14,6 +14,7 @@ import { IdentityLoader } from '@/components/identity-universe/IdentityLoader';
 import { profilesApi } from '@/lib/api/profiles';
 import { getFieldByKey } from '@/lib/schemas/identity-schema';
 import { PixoChatDialog } from '@/components/identity-universe/PixoChatDialog';
+import { User } from 'lucide-react';
 
 export default function IdentityUniversePage() {
     const router = useRouter();
@@ -169,52 +170,66 @@ export default function IdentityUniversePage() {
     return (
         <div className="relative min-h-screen w-full overflow-hidden bg-slate-50">
             {/* Top Bar */}
-            <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between pointer-events-none">
-                <div className="pointer-events-auto">
+            <header className="absolute top-0 left-0 right-0 z-50 px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 pointer-events-none">
+                <div className="flex items-center gap-1 pointer-events-auto bg-white/80 backdrop-blur-md p-1 px-1.5 rounded-xl border border-slate-200/60 shadow-sm w-max">
                     <Link href="/dashboard">
-                        <Button variant="ghost" className="text-slate-500 hover:text-slate-900 hover:bg-slate-100">
-                            <ArrowLeft className="w-5 h-5 mr-2" />
-                            Back to Dashboard
+                        <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg px-3 font-medium h-8">
+                            <ArrowLeft className="w-4 h-4 mr-1.5" />
+                            Dashboard
                         </Button>
                     </Link>
                 </div>
 
-                <div className="flex items-center gap-3 pointer-events-auto">
-                    <div className="text-sm text-slate-500 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-200">
-                        Completeness: <span className="text-cyan-600 font-semibold">{universe?.completeness_score ?? 0}%</span>
+                <div className="flex items-center gap-2 md:gap-3 pointer-events-auto flex-wrap justify-end">
+                    <div className="flex items-center bg-white/80 backdrop-blur-md rounded-xl border border-slate-200/60 shadow-sm overflow-hidden h-10">
+                        <Link href="/dashboard/identity" className="h-full">
+                            <Button variant="ghost" size="sm" className="text-slate-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-none px-4 font-medium h-full border-r border-slate-200/60 transition-colors">
+                                <User className="w-4 h-4 mr-1.5" />
+                                View Timeline
+                            </Button>
+                        </Link>
+                        <div className="px-4 text-sm text-slate-500 font-medium flex items-center h-full">
+                            Completeness:
+                            <span className="ml-1.5 text-cyan-600 font-bold">{universe?.completeness_score ?? 0}%</span>
+                        </div>
                     </div>
-                    {currentProfile?.id && (
-                        <PersonalizeAgentCard
-                            profileId={currentProfile.id}
-                            writingSamplesCount={universe?.style_profile?.writing_samples_count}
-                            compact
-                        />
-                    )}
-                    <Button
-                        variant="default"
-                        className={
-                            (universe?.completeness_score ?? 0) < 70
-                                ? "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-md animate-pulse"
-                                : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
-                        }
-                        onClick={() => setPixoChatOpen(true)}
-                    >
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        Chat with Pixo
-                    </Button>
-                    <Button
-                        variant="default"
-                        className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm"
-                        onClick={handleRegenerate}
-                        disabled={regenerating}
-                    >
-                        {regenerating ? (
-                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                            <Sparkles className="w-4 h-4 mr-2" />
+
+                    <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md p-1 rounded-xl border border-slate-200/60 shadow-sm">
+                        {currentProfile?.id && (
+                            <PersonalizeAgentCard
+                                profileId={currentProfile.id}
+                                writingSamplesCount={universe?.style_profile?.writing_samples_count}
+                                compact
+                            />
                         )}
-                        Regenerate Identity
-                    </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className={
+                                (universe?.completeness_score ?? 0) < 70
+                                    ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg px-3 font-medium h-8"
+                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg px-3 font-medium h-8"
+                            }
+                            onClick={() => setPixoChatOpen(true)}
+                        >
+                            <MessageCircle className="w-4 h-4 mr-1.5" />
+                            Chat with Pixo
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="default"
+                            className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-4 shadow-sm font-medium h-8"
+                            onClick={handleRegenerate}
+                            disabled={regenerating}
+                        >
+                            {regenerating ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Sparkles className="w-4 h-4 mr-1.5 text-white" />
+                            )}
+                            {regenerating ? 'Regenerating...' : 'Regenerate'}
+                        </Button>
+                    </div>
                 </div>
             </header>
 

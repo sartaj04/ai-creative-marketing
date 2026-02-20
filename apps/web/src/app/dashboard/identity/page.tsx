@@ -7,6 +7,9 @@ import { useProfileStore } from '@/stores/profile-store';
 import { identityApi, Timeline, TimelineEvent } from '@/lib/api/identity';
 import { TimelineVisualizer } from '@/components/identity/TimelineVisualizer';
 import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Plus, Sparkles, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function IdentityPage() {
     const { currentProfile } = useProfileStore();
@@ -36,7 +39,7 @@ export default function IdentityPage() {
 
     useEffect(() => {
         loadTimeline();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentProfile?.id]);
 
     const handleDeepenComplete = () => {
@@ -68,7 +71,20 @@ export default function IdentityPage() {
                         Your professional journey and key moments that shape your narrative. Click any event to edit it.
                     </p>
                 </div>
-                <DeepenIdentityModal onComplete={handleDeepenComplete} />
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <Link href="/identity">
+                        <Button variant="outline" className="gap-2 border-cyan-200 hover:bg-cyan-50 text-cyan-700 font-medium">
+                            <Sparkles className="w-4 h-4 text-cyan-500" />
+                            Identity Universe
+                        </Button>
+                    </Link>
+                    <div className="h-4 w-px bg-slate-200 mx-1 hidden sm:block" />
+                    <Button variant="outline" className="gap-2 bg-white font-medium text-slate-700 shadow-sm border-slate-200" onClick={() => setEditingEvent({ id: '', title: '', description: '', event_type: 'custom' } as unknown as TimelineEvent)}>
+                        <Plus className="w-4 h-4 text-slate-400" />
+                        Add Event
+                    </Button>
+                    <DeepenIdentityModal onComplete={handleDeepenComplete} />
+                </div>
             </div>
 
             {timeline && (

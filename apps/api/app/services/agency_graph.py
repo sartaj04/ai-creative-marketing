@@ -525,6 +525,12 @@ class ContentAgencyGraph:
                 f"mode: {brief.get('content_mode')}, posture: {brief.get('authority_posture')}, "
                 f"tone: {brief.get('emotional_tone')})"
             )
+
+            # Inject news metadata from the Scout's opportunity directly
+            # (don't rely on the LLM to pass these through)
+            brief["is_news_driven"] = selected_opportunity.get("is_news_driven", False)
+            brief["news_source"] = selected_opportunity.get("news_source")
+
             return {
                 "content_brief": brief,
                 "sampled_facets": sampled,
@@ -988,6 +994,10 @@ class ContentAgencyGraph:
         emotional_tone = brief.get("emotional_tone")
         topic_domain = brief.get("topic_domain")
 
+        # Extract news metadata from the selected opportunity
+        is_news_driven = brief.get("is_news_driven", False)
+        news_source = brief.get("news_source")
+
         # Build identity_facets_used from sampled facets
         identity_facets_used = None
         if sampled_facets:
@@ -1016,6 +1026,9 @@ class ContentAgencyGraph:
             "emotional_tone": emotional_tone,
             "topic_domain": topic_domain,
             "identity_facets_used": identity_facets_used,
+            # News metadata
+            "is_news_driven": is_news_driven,
+            "news_source": news_source,
         })
 
         # Classify length for diversity tracking
