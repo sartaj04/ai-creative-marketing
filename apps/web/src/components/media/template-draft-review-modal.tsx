@@ -73,12 +73,27 @@ export function TemplateDraftReviewModal({
     // Reset everything when draft changes
     useEffect(() => {
         if (open && draft) {
+            const globalSchema = draft.variables_schema || {};
+            const cleanSlides = (draft.slides || []).map(slide => {
+                const cleanSchema = { ...slide.variable_schema };
+                const cleanDefaults = { ...slide.default_values };
+
+                Object.keys(cleanSchema).forEach(k => {
+                    if (!globalSchema[k]) delete cleanSchema[k];
+                });
+                Object.keys(cleanDefaults).forEach(k => {
+                    if (!globalSchema[k]) delete cleanDefaults[k];
+                });
+
+                return { ...slide, variable_schema: cleanSchema, default_values: cleanDefaults };
+            });
+
             setLocalValues({ ...(draft.default_values || {}) });
             setDeletedVariables(new Set());
             setDeletedSlides(new Set());
             setActiveSlideIdx(0);
             setEditedHtmlTemplate(draft.html_template || '');
-            setEditedSlides(draft.slides ? [...draft.slides] : []);
+            setEditedSlides(cleanSlides);
         } else {
             setLocalValues({});
             setDeletedVariables(new Set());
@@ -126,19 +141,47 @@ export function TemplateDraftReviewModal({
             if (deletedVariables.has(key)) {
                 delete newSchema[key];
                 delete newDefaults[key];
-                return;
-            }
-            const match = key.match(/_slide(\d+)$/i);
-            if (match) {
-                const slideNum = parseInt(match[1], 10);
-                if (deletedSlides.has(slideNum - 1)) {
-                    delete newSchema[key];
-                    delete newDefaults[key];
-                }
             }
         });
 
-        const filteredSlides = editedSlides.filter((_, idx) => !deletedSlides.has(idx));
+        const filteredSlides = editedSlides
+            .filter((_, idx) => !deletedSlides.has(idx))
+            .map(slide => {
+                const newSlideSchema = { ...slide.variable_schema };
+                const newSlideDefaults = { ...slide.default_values };
+
+                Object.keys(newSlideSchema).forEach(key => {
+                    if (deletedVariables.has(key) || !newSchema[key]) {
+                        delete newSlideSchema[key];
+                    }
+                });
+                Object.keys(newSlideDefaults).forEach(key => {
+                    if (deletedVariables.has(key) || !newSchema[key]) {
+                        delete newSlideDefaults[key];
+                    }
+                });
+
+                return {
+                    ...slide,
+                    variable_schema: newSlideSchema,
+                    default_values: newSlideDefaults,
+                };
+            });
+
+        if (isCarousel) {
+            const allUsedSlideKeys = new Set<string>();
+            filteredSlides.forEach(s => {
+                const matches = Array.from(s.html_structure.matchAll(/\{\{\s*([^}]+)\s*\}\}/g)).map(m => m[1].trim());
+                matches.forEach(m => allUsedSlideKeys.add(m));
+            });
+
+            Object.keys(newSchema).forEach(key => {
+                if (/_slide\d+$/i.test(key) && !allUsedSlideKeys.has(key)) {
+                    delete newSchema[key];
+                    delete newDefaults[key];
+                }
+            });
+        }
 
         onSave({
             ...draft,
@@ -175,9 +218,12 @@ export function TemplateDraftReviewModal({
     if (isCarousel) {
         globalVariables = sortedVariables.filter(([key]) => !/_slide\d+$/i.test(key));
         if (visibleSlides[activeSlideIdx]) {
-            const originalIdx = visibleSlides[activeSlideIdx].originalIndex;
+            const currentSlide = visibleSlides[activeSlideIdx].slide;
+            const matches = Array.from(currentSlide.html_structure.matchAll(/\{\{\s*([^}]+)\s*\}\}/g)).map(m => m[1].trim());
+            const usedKeys = new Set(matches);
+
             currentSlideVariables = sortedVariables.filter(([key]) =>
-                new RegExp(`_slide${originalIdx + 1}$`, 'i').test(key)
+                usedKeys.has(key) && !globalVariables.some(([gk]) => gk === key)
             );
         }
     }

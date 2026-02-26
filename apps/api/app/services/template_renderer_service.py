@@ -1,5 +1,6 @@
 """Template renderer service — renders HTML/CSS templates to PNG images via Playwright."""
 import logging
+import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,9 @@ class TemplateRendererService:
         for key, value in variables.items():
             placeholder = "{{" + key + "}}"
             result = result.replace(placeholder, str(value) if value is not None else "")
+            
+        # Strip any remaining unreplaced placeholders
+        result = re.sub(r'\{\{[^}]+\}\}', '', result)
         return result
 
     def _inject_brand_css(self, html: str, brand: dict) -> str:

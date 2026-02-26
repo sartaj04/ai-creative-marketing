@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession, get_user_profile_ids
@@ -20,6 +20,7 @@ from app.schemas.visual_template import (
 )
 from app.services.template_renderer_service import get_template_renderer
 from app.services.storage_service import get_storage_service
+from app.services.unsplash_service import get_unsplash_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -179,7 +180,9 @@ async def update_visual_template(
 ):
     """Update a custom visual template (user-created only)."""
     result = await db.execute(
-        select(VisualTemplate).where(VisualTemplate.id == template_id)
+        select(VisualTemplate)
+        .options(selectinload(VisualTemplate.slides))
+        .where(VisualTemplate.id == template_id)
     )
     template = result.scalar_one_or_none()
     if not template:
@@ -200,12 +203,27 @@ async def update_visual_template(
         )
 
     # Apply updates
-    update_data = request.model_dump(exclude_unset=True)
+    update_data = request.model_dump(exclude_unset=True, exclude={"slides"})
     for field, value in update_data.items():
         setattr(template, field, value)
 
+    # Re-sync slides if provided
+    if request.slides is not None:
+        await db.execute(delete(SlideTemplate).where(SlideTemplate.visual_template_id == template.id))
+        
+        for i, slide_data in enumerate(request.slides):
+            slide = SlideTemplate(
+                visual_template_id=template.id,
+                html_structure=slide_data.html_structure,
+                variable_schema=slide_data.variable_schema,
+                default_values=slide_data.default_values,
+                order=i + 1,
+            )
+            db.add(slide)
+
     await db.commit()
     await db.refresh(template)
+    await db.refresh(template, attribute_names=["slides"])
 
     return VisualTemplateResponse.model_validate(template)
 
@@ -219,7 +237,9 @@ async def preview_visual_template(
 ):
     """Render a preview of a template with custom variables. Returns PNG image URL."""
     result = await db.execute(
-        select(VisualTemplate).where(VisualTemplate.id == template_id)
+        select(VisualTemplate)
+        .options(selectinload(VisualTemplate.slides))
+        .where(VisualTemplate.id == template_id)
     )
     template = result.scalar_one_or_none()
     if not template:
@@ -237,23 +257,110 @@ async def preview_visual_template(
     # Render preview
     renderer = await get_template_renderer()
     dimensions = template.dimensions or {"width": 1080, "height": 1080}
-    png_bytes = await renderer.render_template(
-        html_template=template.html_template,
-        variables=request.variables,
-        width=dimensions.get("width", 1080),
-        height=dimensions.get("height", 1080),
-        brand_overrides=request.brand_overrides,
-    )
-
-    # Upload preview to S3 with ephemeral key
     storage = get_storage_service()
-    url, key = await storage.upload_image(
-        file_bytes=png_bytes,
-        content_type="image/png",
-        prefix=f"previews/{current_user.id}",
-    )
 
-    return {"preview_url": url, "storage_key": key}
+    if template.type == "carousel" and template.slides:
+        slides_html = [slide.html_structure for slide in template.slides]
+        # Pass the full variables dict to each slide; the {{key}} replacement matches exactly
+        slides_variables = [request.variables] * len(template.slides)
+        
+        png_bytes_list = await renderer.render_carousel(
+            slides_html=slides_html,
+            slides_variables=slides_variables,
+            width=dimensions.get("width", 1080),
+            height=dimensions.get("height", 1350),
+            brand_overrides=request.brand_overrides,
+        )
+
+        preview_urls = []
+        for i, png_bytes in enumerate(png_bytes_list):
+            url, key = await storage.upload_image(
+                file_bytes=png_bytes,
+                content_type="image/png",
+                prefix=f"previews/{current_user.id}/slide_{i+1}",
+            )
+            preview_urls.append(storage.generate_presigned_url(key))
+
+        pdf_url = None
+        pdf_download_url = None
+        try:
+            from PIL import Image
+            import io
+            images = [Image.open(io.BytesIO(b)).convert("RGB") for b in png_bytes_list]
+            if images:
+                pdf_bytes_io = io.BytesIO()
+                images[0].save(pdf_bytes_io, format='PDF', save_all=True, append_images=images[1:], resolution=100.0)
+                url, key = await storage.upload_image(
+                    file_bytes=pdf_bytes_io.getvalue(),
+                    content_type="application/pdf",
+                    prefix=f"previews/{current_user.id}/carousel",
+                )
+                pdf_url = storage.generate_presigned_url(key)
+                # Generate a forced-download url to bypass frontend CORS fetch issues
+                pdf_download_url = storage.generate_presigned_url(
+                    key, 
+                    force_download=True, 
+                    filename=f"{template.name or 'template'}.pdf"
+                )
+        except Exception as e:
+            logger.error(f"Failed to generate PDF: {e}")
+
+        zip_download_url = None
+        try:
+            import zipfile
+            import io
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w") as zf:
+                for idx, png_b in enumerate(png_bytes_list):
+                    zf.writestr(f"slide_{idx+1}.png", png_b)
+            url, key = await storage.upload_image(
+                file_bytes=zip_buffer.getvalue(),
+                content_type="application/zip",
+                prefix=f"previews/{current_user.id}/carousel_zip",
+            )
+            zip_download_url = storage.generate_presigned_url(
+                key,
+                force_download=True,
+                filename=f"{template.name or 'template'}_images.zip"
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate ZIP: {e}")
+
+        return {
+            "preview_url": preview_urls[0] if preview_urls else None,
+            "preview_urls": preview_urls,
+            "pdf_url": pdf_url,
+            "pdf_download_url": pdf_download_url,
+            "zip_download_url": zip_download_url,
+            "download_url": None
+        }
+
+    else:
+        png_bytes = await renderer.render_template(
+            html_template=template.html_template,
+            variables=request.variables,
+            width=dimensions.get("width", 1080),
+            height=dimensions.get("height", 1080),
+            brand_overrides=request.brand_overrides,
+        )
+
+        url, key = await storage.upload_image(
+            file_bytes=png_bytes,
+            content_type="image/png",
+            prefix=f"previews/{current_user.id}",
+        )
+        presigned_url = storage.generate_presigned_url(key)
+        download_url = storage.generate_presigned_url(
+            key, 
+            force_download=True, 
+            filename=f"{template.name or 'template'}.png"
+        )
+
+        return {
+            "preview_url": presigned_url, 
+            "download_url": download_url,
+            "storage_key": key
+        }
 
 
 @router.post("/generate", response_model=VisualTemplateDraft, status_code=status.HTTP_200_OK)
@@ -434,7 +541,7 @@ async def delete_visual_template(
     current_user: CurrentUser,
     db: DBSession,
 ):
-    """Delete a custom visual template."""
+    """Delete a custom template."""
     result = await db.execute(
         select(VisualTemplate).where(VisualTemplate.id == template_id)
     )
@@ -445,16 +552,49 @@ async def delete_visual_template(
             detail="Visual template not found",
         )
 
-    if template.is_system and not current_user.is_admin:
+    # Only creator (or system admin) can delete
+    if template.is_system or template.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot delete system templates",
-        )
-    if template.created_by != current_user.id and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Can only delete your own templates",
+            detail="Cannot delete system templates or templates you didn't create",
         )
 
     await db.delete(template)
     await db.commit()
+
+
+# ── Generic Image Endpoints for Template Editor ───────────────────────
+
+@router.get("/unsplash/search", response_model=list[dict])
+async def search_unsplash(
+    query: str = Query(..., min_length=1),
+    current_user: CurrentUser = None,
+):
+    """Search Unsplash stock photos for use in template variable placeholders."""
+    unsplash = get_unsplash_service()
+    return await unsplash.search_photos(query, per_page=12)
+
+
+@router.post("/upload-image", response_model=dict)
+async def upload_template_image(
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+):
+    """Upload a custom image to be used as a template variable placeholder."""
+    allowed_types = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}",
+        )
+        
+    file_bytes = await file.read()
+    storage = get_storage_service()
+    url, key = await storage.upload_image(
+        file_bytes=file_bytes,
+        content_type=file.content_type or "image/png",
+        prefix=f"template-uploads/{current_user.id}",
+    )
+    
+    presigned_url = storage.generate_presigned_url(key)
+    return {"url": presigned_url, "key": key}

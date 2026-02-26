@@ -26,14 +26,29 @@ export interface TemplatePreviewProps {
     onSlideChange?: (index: number) => void;
 }
 
-function substituteVariables(html: string, values: Record<string, string>): string {
+function substituteVariables(html: string, values: Record<string, string>, slideIndex?: number): string {
     let result = html;
-    Object.entries(values).forEach(([key, value]) => {
-        result = result.replace(
-            new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g'),
-            String(value ?? ''),
-        );
+
+    // Replace slide-specific variables first (e.g., if rendering slide 2, prefer slide_2_headline over generic headline)
+    const matches = result.match(/\{\{([^}]+)\}\}/g) || [];
+    const uniqueKeys = Array.from(new Set(matches.map(m => m.replace(/[{{}}]/g, '').trim())));
+
+    uniqueKeys.forEach(key => {
+        // 1. Try slide-specific exact match if we are in a carousel context
+        let val = typeof slideIndex === 'number' ? values[`slide_${slideIndex + 1}_${key}`] : undefined;
+        // 2. Try generic match (for global variables or unstructured slide arrays)
+        if (val === undefined) {
+            val = values[key];
+        }
+
+        if (val !== undefined) {
+            result = result.replace(
+                new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g'),
+                String(val),
+            );
+        }
     });
+
     // Clear unreplaced placeholders
     return result.replace(/\{\{[^}]+\}\}/g, '');
 }
@@ -91,15 +106,15 @@ export function TemplatePreview({
             if (!slide?.html_structure) return null;
             // Spread original slide defaults FIRST, then OVERRIDE with live user edits
             const values = { ...slide.default_values, ...defaultValues };
-            return substituteVariables(slide.html_structure, values);
+            return substituteVariables(slide.html_structure, values, currentSlideIndex);
         }
 
         if (htmlTemplate) {
-            return substituteVariables(htmlTemplate, defaultValues);
+            return substituteVariables(htmlTemplate, defaultValues, type === 'carousel' ? currentSlideIndex : undefined);
         }
 
         return null;
-    }, [htmlTemplate, slides, currentSlideIndex, defaultValues]);
+    }, [htmlTemplate, slides, currentSlideIndex, defaultValues, type]);
 
     const totalSlides = slides && slides.length > 0
         ? slides.length

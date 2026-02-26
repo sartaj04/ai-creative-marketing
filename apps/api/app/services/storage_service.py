@@ -149,19 +149,31 @@ class StorageService:
             logger.error(f"Batch delete failed: {e}")
             return 0
 
-    def generate_presigned_url(self, key: str, expiry: int = 3600) -> str:
+    def generate_presigned_url(self, key: str, expiry: int = 3600, force_download: bool = False, filename: Optional[str] = None) -> str:
         """Generate a presigned URL for temporary access.
 
         Args:
             key: S3 object key
             expiry: URL expiry in seconds (default 1 hour)
+            force_download: Whether to force the browser to download the file instead of displaying it inline
+            filename: Override the downloaded filename (only if force_download=True)
 
         Returns:
             Presigned URL string
         """
+        params = {"Bucket": self.bucket, "Key": key}
+        
+        if force_download:
+            disposition = "attachment" 
+            if filename:
+                # Basic sanitization
+                safe_filename = filename.replace('"', '\\"')
+                disposition = f'attachment; filename="{safe_filename}"'
+            params["ResponseContentDisposition"] = disposition
+
         return self.client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": self.bucket, "Key": key},
+            Params=params,
             ExpiresIn=expiry,
         )
 

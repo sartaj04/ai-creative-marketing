@@ -131,11 +131,11 @@ export default function DashboardLayout({
                     <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                         <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname === '/dashboard'} />
                         <NavLink href="/dashboard/generate" icon={Sparkles} label="Generate Content" active={pathname === '/dashboard/generate'} />
-                        <NavLink href="/dashboard/images" icon={ImageIcon} label="Images" active={pathname === '/dashboard/images'} />
-                        <NavLink href="/dashboard/carousel" icon={LayoutGrid} label="Carousel Maker" active={pathname === '/dashboard/carousel'} />
                         <NavLink href="/dashboard/inbox" icon={Layers} label="Review Inbox" active={pathname === '/dashboard/inbox'} badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} />
                         <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Content Pipeline" active={pathname === '/dashboard/drafts'} />
                         <NavLink href="/dashboard/analytics" icon={BarChart2} label="Content Analytics" active={pathname === '/dashboard/analytics'} />
+                        <NavLink href="/dashboard/images" icon={ImageIcon} label="Image Templates" active={pathname === '/dashboard/images'} />
+                        <NavLink href="/dashboard/carousel" icon={LayoutGrid} label="Carousel Templates" active={pathname === '/dashboard/carousel'} />
                         <NavLink href="/dashboard/settings" icon={Settings} label="Settings" active={pathname === '/dashboard/settings'} />
                         {user && user.is_admin === true && (
                             <NavLink href="/dashboard/templates" icon={FileText} label="Content Templates" active={pathname === '/dashboard/templates'} />
@@ -176,11 +176,11 @@ export default function DashboardLayout({
                     <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                         <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
                         <NavLink href="/dashboard/generate" icon={Sparkles} label="Generate Content" active={pathname === '/dashboard/generate'} onClick={() => setMobileMenuOpen(false)} />
-                        <NavLink href="/dashboard/images" icon={ImageIcon} label="Images" active={pathname === '/dashboard/images'} onClick={() => setMobileMenuOpen(false)} />
-                        <NavLink href="/dashboard/carousel" icon={LayoutGrid} label="Carousel Maker" active={pathname === '/dashboard/carousel'} onClick={() => setMobileMenuOpen(false)} />
                         <NavLink href="/dashboard/inbox" icon={Layers} label="Review Inbox" active={pathname === '/dashboard/inbox'} badge={inboxCount !== null && inboxCount > 0 ? String(inboxCount) : undefined} onClick={() => setMobileMenuOpen(false)} />
                         <NavLink href="/dashboard/drafts" icon={PlusCircle} label="Content Pipeline" active={pathname === '/dashboard/drafts'} onClick={() => setMobileMenuOpen(false)} />
                         <NavLink href="/dashboard/analytics" icon={BarChart2} label="Content Analytics" active={pathname === '/dashboard/analytics'} onClick={() => setMobileMenuOpen(false)} />
+                        <NavLink href="/dashboard/images" icon={ImageIcon} label="Image Templates" active={pathname === '/dashboard/images'} onClick={() => setMobileMenuOpen(false)} />
+                        <NavLink href="/dashboard/carousel" icon={LayoutGrid} label="Carousel Templates" active={pathname === '/dashboard/carousel'} onClick={() => setMobileMenuOpen(false)} />
                         <NavLink href="/dashboard/settings" icon={Settings} label="Settings" active={pathname === '/dashboard/settings'} onClick={() => setMobileMenuOpen(false)} />
                         {user && user.is_admin === true && (
                             <NavLink href="/dashboard/templates" icon={FileText} label="Content Templates" active={pathname === '/dashboard/templates'} onClick={() => setMobileMenuOpen(false)} />

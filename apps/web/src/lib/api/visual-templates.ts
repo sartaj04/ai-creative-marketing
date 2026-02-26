@@ -3,7 +3,7 @@ import { apiClient } from './client';
 // ── Slide types ───────────────────────────────────────────────────────
 
 export interface VariableFieldSchema {
-    type: 'text' | 'textarea' | 'image' | 'color' | 'font' | 'number' | 'select';
+    type: 'text' | 'textarea' | 'image' | 'color' | 'font' | 'number' | 'select' | 'array';
     label?: string;           // Human-readable display name e.g. "Heading Font Size"
     section?: string;         // "Typography" | "Colors" | "Content" | "Layout" | "Images"
     description: string;
@@ -18,6 +18,10 @@ export interface VariableFieldSchema {
     options?: string[] | null;
     // General
     placeholder?: string | null;
+    // Array-specific
+    itemSchema?: {
+        type: 'text' | 'textarea' | 'image';
+    };
 }
 
 export interface SlideTemplateCreate {
@@ -141,9 +145,9 @@ export const visualTemplatesApi = {
     preview: async (id: string, data: {
         variables: Record<string, string>;
         brand_overrides?: Record<string, string> | null;
-    }): Promise<{ preview_url: string; storage_key: string }> => {
+    }): Promise<{ preview_url: string; preview_urls?: string[]; pdf_url?: string; download_url?: string; pdf_download_url?: string; zip_download_url?: string; storage_key: string }> => {
         const response = await apiClient.post(`/visual-templates/${id}/preview`, data);
-        return response.data as { preview_url: string; storage_key: string };
+        return response.data;
     },
 
     /**
@@ -174,4 +178,38 @@ export const visualTemplatesApi = {
     delete: async (id: string): Promise<void> => {
         await apiClient.delete(`/visual-templates/${id}`);
     },
+
+    // ── Generic Image Endpoints for Template Editor ───────────────────────
+
+    /**
+     * Search Unsplash for stock photos to use as template placeholders.
+     */
+    searchUnsplash: async (query: string): Promise<{
+        id: string;
+        url_regular: string;
+        url_small: string;
+        url_thumb: string;
+        alt: string;
+        photographer: string;
+        photographer_url: string;
+    }[]> => {
+        const response = await apiClient.get('/visual-templates/unsplash/search', {
+            params: { query }
+        });
+        return response.data;
+    },
+
+    /**
+     * Upload a custom image to be used as a template variable placeholder.
+     */
+    uploadImage: async (file: File): Promise<{ url: string; key: string }> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await apiClient.post('/visual-templates/upload-image', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    }
 };

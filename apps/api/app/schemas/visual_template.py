@@ -161,6 +161,7 @@ class VisualTemplateUpdateRequest(BaseModel):
     variables_schema: Optional[dict[str, Any]] = None
     slide_count: Optional[int] = None
     slides_schema: Optional[dict[str, Any]] = None
+    slides: Optional[list[SlideTemplateCreate]] = None
     default_values: Optional[dict[str, Any]] = None
     tags: Optional[list[str]] = None
     platform: Optional[str] = None
