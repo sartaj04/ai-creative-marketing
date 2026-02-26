@@ -1,4 +1,5 @@
 """Draft endpoints."""
+import logging
 from typing import Optional
 from uuid import UUID
 
@@ -8,16 +9,20 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession, get_profile_with_access, get_user_profile_ids
 from app.models.draft import AgentType, Draft, DraftAction, DraftEvent, DraftStatus, Schedule
+from app.models.draft_slide import DraftSlide
 from app.models.profile import Profile
 from app.models.template import TemplateUsage
 from app.schemas.draft import (
     DraftActionRequest,
+    DraftGenerateRequest,
     DraftListResponse,
     DraftResponse,
     DraftScheduleRequest,
     DraftStatusUpdate,
     ScheduleResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -63,6 +68,7 @@ async def list_drafts(
 
     # Get paginated results
     query = query.order_by(Draft.created_at.desc()).offset(offset).limit(limit)
+    query = query.options(selectinload(Draft.media_assets), selectinload(Draft.slides))
     result = await db.execute(query)
     drafts = result.scalars().all()
 
@@ -82,7 +88,9 @@ async def get_draft(
 ) -> DraftResponse:
     """Get a specific draft."""
     result = await db.execute(
-        select(Draft).where(Draft.id == draft_id)
+        select(Draft)
+        .options(selectinload(Draft.media_assets), selectinload(Draft.slides))
+        .where(Draft.id == draft_id)
     )
     draft = result.scalar_one_or_none()
 
@@ -108,7 +116,7 @@ async def perform_draft_action(
     """Perform action on draft (approve, reject, edit)."""
     result = await db.execute(
         select(Draft)
-        .options(selectinload(Draft.profile))
+        .options(selectinload(Draft.profile), selectinload(Draft.media_assets))
         .where(Draft.id == draft_id)
     )
     draft = result.scalar_one_or_none()
@@ -175,6 +183,7 @@ async def perform_draft_action(
 
     await db.commit()
     await db.refresh(draft)
+    await db.refresh(draft, attribute_names=['media_assets', 'slides'])
 
     return DraftResponse.model_validate(draft)
 
@@ -242,7 +251,9 @@ async def update_draft_status(
 ) -> DraftResponse:
     """Update draft status."""
     result = await db.execute(
-        select(Draft).where(Draft.id == draft_id)
+        select(Draft)
+        .options(selectinload(Draft.media_assets), selectinload(Draft.slides))
+        .where(Draft.id == draft_id)
     )
     draft = result.scalar_one_or_none()
 
@@ -259,5 +270,51 @@ async def update_draft_status(
 
     await db.commit()
     await db.refresh(draft)
+    await db.refresh(draft, attribute_names=['media_assets', 'slides'])
+
+    return DraftResponse.model_validate(draft)
+
+
+@router.post("/generate", response_model=DraftResponse, status_code=status.HTTP_201_CREATED)
+async def generate_draft_from_template(
+    request: DraftGenerateRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> DraftResponse:
+    """Generate a new Draft by filling a saved VisualTemplate with LLM-generated content.
+
+    Mode 2 (deterministic):
+    - Reads template HTML from DB (no layout generation, no vision analysis)
+    - Calls LLM once to fill {{variable}} values for each slide
+    - Renders via Playwright and uploads PNGs to S3
+    - Persists Draft + DraftSlide + MediaAsset records
+
+    For carousel templates, the template must have SlideTemplate records (created
+    when an admin approved and saved the template via POST /visual-templates).
+    """
+    # Verify the requesting user has access to the profile
+    await get_profile_with_access(request.profile_id, current_user, db)
+
+    from app.services.draft_generation_service import DraftGenerationService
+
+    service = DraftGenerationService(db=db)
+
+    try:
+        draft = await service.run(
+            template_id=request.template_id,
+            profile_id=request.profile_id,
+            brand_context=request.brand_context,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Draft generation from template failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Draft generation failed: {str(e)}",
+        )
 
     return DraftResponse.model_validate(draft)

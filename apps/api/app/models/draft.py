@@ -79,6 +79,12 @@ class Draft(Base):
         ForeignKey("templates.id", ondelete="SET NULL"),
         nullable=True,
     )
+    visual_template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("visual_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="The VisualTemplate used to generate this draft's layout",
+    )
     status: Mapped[DraftStatus] = mapped_column(
         Enum(DraftStatus, name='draft_status', create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=DraftStatus.INBOX,
@@ -174,6 +180,18 @@ class Draft(Base):
         "Schedule",
         back_populates="draft",
         cascade="all, delete-orphan",
+    )
+    media_assets: Mapped[list["MediaAsset"]] = relationship(
+        "MediaAsset",
+        back_populates="draft",
+        cascade="all, delete-orphan",
+        order_by="MediaAsset.slide_index",
+    )
+    slides: Mapped[list["DraftSlide"]] = relationship(
+        "DraftSlide",
+        back_populates="draft",
+        cascade="all, delete-orphan",
+        order_by="DraftSlide.order",
     )
 
     def __repr__(self) -> str:

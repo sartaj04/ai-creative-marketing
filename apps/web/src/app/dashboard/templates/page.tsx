@@ -92,23 +92,21 @@ export default function TemplatesPage() {
   };
 
   const handleDelete = async (template: Template) => {
-    if (!confirm(`Are you sure you want to ${template.is_active ? 'deactivate' : 'activate'} this template?`)) {
+    if (!confirm(`Are you sure you want to permanently delete "${template.name}"? This cannot be undone.`)) {
       return;
     }
 
     try {
-      await templatesApi.update(template.id, {
-        is_active: !template.is_active,
-      });
+      await templatesApi.delete(template.id);
       toast({
-        title: template.is_active ? 'Template deactivated' : 'Template activated',
-        description: `Template "${template.name}" has been ${template.is_active ? 'deactivated' : 'activated'}.`,
+        title: 'Template deleted',
+        description: `Template "${template.name}" has been permanently removed.`,
       });
       loadTemplates();
     } catch (error) {
       toast({
-        title: 'Failed to update template',
-        description: 'Could not update template. Please try again.',
+        title: 'Failed to delete template',
+        description: 'Could not delete template. Please try again.',
         variant: 'destructive',
       });
     }

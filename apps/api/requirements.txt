@@ -51,6 +51,7 @@ aiobotocore[boto3]>=2.15.0
 # Document Extraction
 apify-client
 pypdf
+pymupdf
 python-docx
 
 # Content Extraction
@@ -64,3 +65,5 @@ aiofiles
 # Testing
 pytest
 pytest-asyncio
+Pillow
+dirtyjson

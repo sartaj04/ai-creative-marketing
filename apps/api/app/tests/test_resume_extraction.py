@@ -35,8 +35,8 @@ class TestResumeTextExtraction:
         with patch.object(
             self.parser, "_extract_text_from_pdf", return_value="Sample resume text"
         ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='{"current_role": "Engineer"}'
+            self.parser.llm.extract_resume_structured = AsyncMock(
+                return_value={"current_role": "Engineer"}
             )
 
             # Create a temp file to test with
@@ -61,8 +61,8 @@ class TestResumeTextExtraction:
         with patch.object(
             self.parser, "_extract_text_from_pdf", return_value="Sample resume text"
         ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='{"current_role": "Engineer"}'
+            self.parser.llm.extract_resume_structured = AsyncMock(
+                return_value={"current_role": "Engineer"}
             )
 
             with tempfile.NamedTemporaryFile(
@@ -86,8 +86,8 @@ class TestResumeTextExtraction:
         with patch.object(
             self.parser, "_extract_text_from_docx", return_value="Sample resume text"
         ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='{"current_role": "Engineer"}'
+            self.parser.llm.extract_resume_structured = AsyncMock(
+                return_value={"current_role": "Engineer"}
             )
 
             with tempfile.NamedTemporaryFile(
@@ -110,8 +110,8 @@ class TestResumeTextExtraction:
         with patch.object(
             self.parser, "_extract_text_from_docx", return_value="Sample resume text"
         ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='{"current_role": "Engineer"}'
+            self.parser.llm.extract_resume_structured = AsyncMock(
+                return_value={"current_role": "Engineer"}
             )
 
             with tempfile.NamedTemporaryFile(
@@ -134,8 +134,8 @@ class TestResumeTextExtraction:
         with patch.object(
             self.parser, "_extract_text_from_pdf", return_value="Sample resume text"
         ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='{"current_role": "Engineer"}'
+            self.parser.llm.extract_resume_structured = AsyncMock(
+                return_value={"current_role": "Engineer"}
             )
 
             with tempfile.NamedTemporaryFile(
@@ -170,10 +170,10 @@ class TestResumeTextExtraction:
     async def test_file_type_fallback_to_extension(self):
         """Should fallback to file extension when type is unsupported."""
         with patch.object(
-            self.parser, "_extract_text_from_pdf", return_value="Sample resume text"
+            self.parser, "_extract_text_from_pdf", return_value="Sample resume text" * 10
         ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='{"current_role": "Engineer"}'
+            self.parser.llm.extract_resume_structured = AsyncMock(
+                return_value={"current_role": "Engineer"}
             )
 
             with tempfile.NamedTemporaryFile(
@@ -236,8 +236,8 @@ class TestResumeTextExtraction:
         with patch.object(
             self.parser, "_extract_text_from_pdf", return_value="A" * 100
         ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='{"current_role": "Software Engineer", "industry": "Tech"}'
+            self.parser.llm.extract_resume_structured = AsyncMock(
+                return_value={"current_role": "Software Engineer", "industry": "Tech"}
             )
 
             with tempfile.NamedTemporaryFile(
@@ -254,72 +254,6 @@ class TestResumeTextExtraction:
                 os.unlink(tmp_path)
 
     @pytest.mark.asyncio
-    async def test_llm_response_strips_markdown(self):
-        """Should strip markdown code blocks from LLM response."""
-        with patch.object(
-            self.parser, "_extract_text_from_pdf", return_value="A" * 100
-        ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='```json\n{"current_role": "Engineer"}\n```'
-            )
-
-            with tempfile.NamedTemporaryFile(
-                suffix=".pdf", delete=False
-            ) as tmp:
-                tmp.write(b"dummy content")
-                tmp_path = tmp.name
-
-            try:
-                result = await self.parser.parse_resume(tmp_path, "pdf")
-                assert result["current_role"] == "Engineer"
-            finally:
-                os.unlink(tmp_path)
-
-    @pytest.mark.asyncio
-    async def test_llm_response_strips_json_prefix(self):
-        """Should strip 'json' prefix from LLM response."""
-        with patch.object(
-            self.parser, "_extract_text_from_pdf", return_value="A" * 100
-        ):
-            self.parser.llm.generate = AsyncMock(
-                return_value='```\njson\n{"current_role": "Engineer"}\n```'
-            )
-
-            with tempfile.NamedTemporaryFile(
-                suffix=".pdf", delete=False
-            ) as tmp:
-                tmp.write(b"dummy content")
-                tmp_path = tmp.name
-
-            try:
-                result = await self.parser.parse_resume(tmp_path, "pdf")
-                assert "current_role" in result or "raw_text" in result
-            finally:
-                os.unlink(tmp_path)
-
-    @pytest.mark.asyncio
-    async def test_llm_json_parse_error_returns_raw_text(self):
-        """Should return raw text if JSON parsing fails."""
-        with patch.object(
-            self.parser, "_extract_text_from_pdf", return_value="A" * 100
-        ):
-            self.parser.llm.generate = AsyncMock(
-                return_value="This is not valid JSON at all"
-            )
-
-            with tempfile.NamedTemporaryFile(
-                suffix=".pdf", delete=False
-            ) as tmp:
-                tmp.write(b"dummy content")
-                tmp_path = tmp.name
-
-            try:
-                result = await self.parser.parse_resume(tmp_path, "pdf")
-                assert "raw_text" in result
-            finally:
-                os.unlink(tmp_path)
-
-    @pytest.mark.asyncio
     async def test_text_truncation_for_llm(self):
         """Should truncate text to 50k chars before sending to LLM."""
         long_text = "A" * 100000  # 100k chars
@@ -332,9 +266,9 @@ class TestResumeTextExtraction:
             async def capture_generate(prompt):
                 nonlocal captured_prompt
                 captured_prompt = prompt
-                return '{"current_role": "Engineer"}'
+                return {"current_role": "Engineer"}
 
-            self.parser.llm.generate = capture_generate
+            self.parser.llm.extract_resume_structured = capture_generate
 
             with tempfile.NamedTemporaryFile(
                 suffix=".pdf", delete=False

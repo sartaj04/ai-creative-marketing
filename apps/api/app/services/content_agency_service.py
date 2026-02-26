@@ -336,12 +336,27 @@ class ContentAgencyService:
         created_drafts = []
         for data in draft_data[:max_drafts]:
             try:
+                # Determine format — carousel if carousel_data present
+                import json as _json
+                draft_format = DraftFormat.POST
+                draft_body = data.get("body", "")
+                if data.get("carousel_data"):
+                    draft_format = DraftFormat.CAROUSEL
+                    # Store carousel data as JSON in body for structured access
+                    carousel_payload = {
+                        "caption": data.get("body", ""),
+                        "slides": data["carousel_data"].get("slides", []),
+                        "slide_count": data["carousel_data"].get("slide_count", 0),
+                        "narrative_arc": data["carousel_data"].get("narrative_arc"),
+                    }
+                    draft_body = _json.dumps(carousel_payload)
+
                 draft = Draft(
                     profile_id=profile_id,
                     status=DraftStatus.INBOX,
-                    format=DraftFormat.POST,
+                    format=draft_format,
                     hook=data.get("hook", ""),
-                    body=data.get("body", ""),
+                    body=draft_body,
                     topic=data.get("topic", "Generated Content"),
                     confidence=data.get("qa_score", 0.7),
                     sources_json=[],

@@ -8,6 +8,10 @@ from app.models.opportunity import Opportunity
 from app.models.draft import Draft, DraftEvent, Schedule
 from app.models.template import Template, TemplateUsage, ContributionStatus
 from app.models.agent import AgentRun
+from app.models.media_asset import MediaAsset, MediaAssetType
+from app.models.visual_template import VisualTemplate, VisualTemplateType
+from app.models.slide_template import SlideTemplate
+from app.models.draft_slide import DraftSlide
 
 __all__ = [
     "User",
@@ -27,4 +31,10 @@ __all__ = [
     "TemplateUsage",
     "ContributionStatus",
     "AgentRun",
+    "MediaAsset",
+    "MediaAssetType",
+    "VisualTemplate",
+    "VisualTemplateType",
+    "SlideTemplate",
+    "DraftSlide",
 ]

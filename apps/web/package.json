@@ -36,6 +36,7 @@
     "d3": "^7.9.0",
     "d3-delaunay": "^6.0.4",
     "date-fns": "^3.3.1",
+    "fabric": "^6.9.1",
     "framer-motion": "^11.0.3",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.323.0",

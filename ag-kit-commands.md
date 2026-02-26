@@ -1,0 +1,15 @@
+/brainstorm	Explore options before implementation
+/create	Create new features or apps
+/debug	Systematic debugging
+/deploy	Deploy application
+/enhance	Improve existing code
+/orchestrate	Multi-agent coordination
+/plan	Create task breakdown
+/preview	Preview changes locally
+/status	Check project status
+/test	Generate and run tests
+/ui-ux-pro-max	Design with 50 styles
+
+/brainstorm authentication system
+/create landing page with hero section
+/debug why login fails

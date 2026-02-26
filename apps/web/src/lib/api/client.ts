@@ -5,6 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1
 // Create axios instance
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
+  timeout: 600000, // 10 minutes to prevent carousel generation from dropping
   headers: {
     'Content-Type': 'application/json',
   },
@@ -47,7 +48,7 @@ export interface ApiError {
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const detail = error.response?.data?.detail;
-    
+
     // Handle FastAPI validation errors (array of error objects)
     if (Array.isArray(detail)) {
       return detail
@@ -58,12 +59,12 @@ export function getErrorMessage(error: unknown): string {
         })
         .join(', ') || 'Validation error';
     }
-    
+
     // Handle string detail
     if (typeof detail === 'string') {
       return detail;
     }
-    
+
     return error.message || 'An error occurred';
   }
   if (error instanceof Error) {

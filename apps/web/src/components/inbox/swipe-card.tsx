@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn, formatRelativeTime, truncate } from '@/lib/utils';
 import { Check, X, Edit3, Sparkles } from 'lucide-react';
+import { ImagePreview } from '@/components/media/image-preview';
+import { CarouselViewer } from '@/components/media/carousel-viewer';
 
 interface SwipeCardProps {
   draft: Draft;
@@ -66,8 +68,29 @@ export function SwipeCard({
     draft.confidence >= 0.8
       ? 'text-green-600'
       : draft.confidence >= 0.6
-      ? 'text-blue-600'
-      : 'text-muted-foreground';
+        ? 'text-blue-600'
+        : 'text-muted-foreground';
+
+  const hasMedia = draft.media_assets && draft.media_assets.length > 0;
+  const carouselSlides = hasMedia
+    ? draft.media_assets.filter((a) => a.type === 'carousel_slide')
+    : [];
+  const singleImages = hasMedia
+    ? draft.media_assets.filter((a) => a.type !== 'carousel_slide')
+    : [];
+
+  // Parse carousel body
+  let displayBody = draft.body;
+  let slideTexts: { title: string; body: string }[] | undefined;
+  if (draft.format === 'carousel') {
+    try {
+      const parsed = JSON.parse(draft.body);
+      if (parsed?.caption) displayBody = parsed.caption;
+      if (Array.isArray(parsed?.slides)) {
+        slideTexts = parsed.slides.map((s: any) => ({ title: s.title || '', body: s.body || '' }));
+      }
+    } catch { }
+  }
 
   if (isEditing) {
     return (
@@ -149,10 +172,17 @@ export function SwipeCard({
           </CardHeader>
 
           <CardContent className="space-y-4">
+            {/* Media preview */}
+            {carouselSlides.length > 0 ? (
+              <CarouselViewer slides={carouselSlides as any} slideTexts={slideTexts} compact />
+            ) : singleImages.length > 0 ? (
+              <ImagePreview assets={singleImages} compact />
+            ) : null}
+
             {/* Body preview */}
             <div className="max-h-[280px] overflow-y-auto">
               <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                {draft.body}
+                {displayBody}
               </p>
             </div>
 

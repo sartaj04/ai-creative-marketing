@@ -6,6 +6,22 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.models.draft import DraftAction, DraftFormat, DraftStatus, PlatformType
+from app.schemas.media import MediaAssetResponse
+
+
+class DraftSlideResponse(BaseModel):
+    """Schema for a rendered draft slide."""
+
+    id: UUID
+    draft_id: UUID
+    slide_template_id: Optional[UUID] = None
+    rendered_html: str
+    filled_variables: dict[str, Any] = Field(default_factory=dict)
+    order: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class DraftResponse(BaseModel):
@@ -15,6 +31,7 @@ class DraftResponse(BaseModel):
     profile_id: UUID
     opportunity_id: Optional[UUID] = None
     template_id: Optional[UUID] = None
+    visual_template_id: Optional[UUID] = None
     status: DraftStatus
     format: DraftFormat
     hook: str
@@ -25,11 +42,27 @@ class DraftResponse(BaseModel):
     scheduled_at: Optional[datetime] = None
     published_at: Optional[datetime] = None
     platform: Optional[PlatformType] = None
+    media_assets: list[MediaAssetResponse] = Field(default_factory=list)
+    slides: list[DraftSlideResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class DraftGenerateRequest(BaseModel):
+    """Request to generate a draft from a saved VisualTemplate."""
+
+    template_id: UUID = Field(..., description="UUID of saved VisualTemplate to use")
+    profile_id: UUID = Field(..., description="Profile to generate the draft for")
+    brand_context: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Optional brand overrides: {primary_color, secondary_color, "
+            "font_family, persona_summary}. Auto-loaded from profile if omitted."
+        ),
+    )
 
 
 class DraftListResponse(BaseModel):

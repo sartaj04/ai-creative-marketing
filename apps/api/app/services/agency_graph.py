@@ -89,6 +89,10 @@ class AgencyState(TypedDict):
     # Uniqueness tracking (for diversity enforcement)
     uniqueness_context: dict  # Tracks used hooks, formats, CTAs, modes, postures, tones, domains
 
+    # Carousel-specific
+    carousel_strategy: Optional[dict]  # Carousel Strategist output (structure, slide_count)
+    carousel_slides: Optional[list[dict]]  # Carousel Writer output (per-slide text content)
+
     # Control flow
     regeneration_count: int
     current_draft_index: int  # Which draft we're on (0, 1, 2)
@@ -263,14 +267,32 @@ class ContentAgencyGraph:
         workflow.add_node("editor", self._editor_agent)
         workflow.add_node("qa", self._qa_agent)
         workflow.add_node("save_draft", self._save_draft)
+        # Carousel-specific nodes
+        workflow.add_node("carousel_strategist", self._carousel_strategist_agent)
+        workflow.add_node("carousel_writer", self._carousel_writer_agent)
 
         # Add edges
         workflow.add_edge(START, "scout")
         workflow.add_edge("scout", "strategist")
-        workflow.add_edge("strategist", "length_strategist")
+
+        # After strategist: route to carousel path or standard path
+        workflow.add_conditional_edges(
+            "strategist",
+            self._route_after_strategist,
+            {
+                "carousel": "carousel_strategist",
+                "standard": "length_strategist",
+            }
+        )
+
+        # Standard path
         workflow.add_edge("length_strategist", "writer")
         workflow.add_edge("writer", "editor")
         workflow.add_edge("editor", "qa")
+
+        # Carousel path
+        workflow.add_edge("carousel_strategist", "carousel_writer")
+        workflow.add_edge("carousel_writer", "qa")
 
         # Conditional edge from QA
         workflow.add_conditional_edges(
@@ -295,6 +317,14 @@ class ContentAgencyGraph:
 
         # Compile the graph
         return workflow.compile(checkpointer=None, debug=False)
+
+    def _route_after_strategist(self, state: AgencyState) -> str:
+        """Route to carousel or standard pipeline based on brief format."""
+        brief = state.get("content_brief", {})
+        if brief and brief.get("format") == "carousel":
+            logger.info("Routing to carousel pipeline")
+            return "carousel"
+        return "standard"
 
     def _route_after_qa(self, state: AgencyState) -> str:
         """Determine next step after QA review."""
@@ -1098,7 +1128,167 @@ class ContentAgencyGraph:
             "content_brief": None,
             "length_decision": None,
             "sampled_facets": None,
+            "carousel_strategy": None,
+            "carousel_slides": None,
         }
+
+    # ========================================================================
+    # Carousel Agent Nodes
+    # ========================================================================
+
+    def _carousel_strategist_agent(self, state: AgencyState) -> dict:
+        """Carousel Strategist: Plan slide structure, count, and narrative arc."""
+        brief = state.get("content_brief")
+        if not brief:
+            logger.warning("No brief available for carousel strategist")
+            return {"carousel_strategy": None}
+
+        logger.info(f"Carousel Strategist planning structure for: {brief.get('selected_topic', 'Unknown')}")
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a Carousel Strategist specializing in LinkedIn and social media carousel posts.
+Your job is to plan the structure, slide count, and narrative arc for a carousel.
+
+Think about:
+- Hook slide (always first): must grab attention immediately
+- Content slides: each should deliver ONE clear idea
+- CTA slide (always last): clear call-to-action
+- Visual flow: how slides connect narratively
+
+Output JSON with:
+- slide_count: 5-10 (integer)
+- narrative_arc: "problem_solution" | "step_by_step" | "myth_busting" | "story" | "listicle" | "comparison" | "framework"
+- slide_plan: array of objects with {slide_number, purpose, key_message, visual_hint}"""),
+            ("human", """Topic: {topic}
+Angle: {angle}
+Target audience: Professional LinkedIn users
+Brand voice: {persona_summary}
+
+Plan the carousel structure."""),
+        ])
+
+        try:
+            chain = prompt | self.gemini_llm | JsonOutputParser()
+            strategy = chain.invoke({
+                "topic": brief.get("selected_topic", ""),
+                "angle": brief.get("content_angle", ""),
+                "persona_summary": state.get("persona_prompt", "Professional voice")[:500],
+            })
+
+            logger.info(
+                f"Carousel strategy: {strategy.get('slide_count', '?')} slides, "
+                f"arc: {strategy.get('narrative_arc', '?')}"
+            )
+            return {"carousel_strategy": strategy}
+
+        except Exception as e:
+            logger.error(f"Carousel Strategist error: {e}")
+            # Fallback: simple 5-slide plan
+            return {"carousel_strategy": {
+                "slide_count": 5,
+                "narrative_arc": "step_by_step",
+                "slide_plan": [
+                    {"slide_number": 1, "purpose": "hook", "key_message": brief.get("selected_topic", ""), "visual_hint": "Bold text on gradient"},
+                    {"slide_number": 2, "purpose": "context", "key_message": "Why this matters", "visual_hint": "Icon + text"},
+                    {"slide_number": 3, "purpose": "insight_1", "key_message": "Key insight", "visual_hint": "Stat or quote"},
+                    {"slide_number": 4, "purpose": "insight_2", "key_message": "Supporting point", "visual_hint": "List or example"},
+                    {"slide_number": 5, "purpose": "cta", "key_message": "Take action", "visual_hint": "CTA with profile"},
+                ],
+            }}
+
+    def _carousel_writer_agent(self, state: AgencyState) -> dict:
+        """Carousel Writer: Generate text content for each slide based on the strategy."""
+        strategy = state.get("carousel_strategy")
+        brief = state.get("content_brief")
+        if not strategy or not brief:
+            logger.warning("No strategy or brief available for carousel writer")
+            return {"draft": None, "carousel_slides": None}
+
+        slide_plan = strategy.get("slide_plan", [])
+        slide_count = strategy.get("slide_count", len(slide_plan))
+
+        logger.info(f"Carousel Writer generating {slide_count} slides")
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a Carousel Content Writer for professional social media.
+Write compelling slide content based on the given plan.
+
+Rules:
+- Each slide must be self-contained yet flow into the next
+- Slide 1 (hook): 5-10 words maximum, attention-grabbing
+- Content slides: 15-40 words each, one idea per slide
+- Last slide (CTA): clear action, 10-20 words
+- Use line breaks for readability within slides
+- NO hashtags in slide content
+
+Output JSON:
+{{
+  "slides": [
+    {{
+      "slide_number": 1,
+      "title": "Short bold title for the slide",
+      "body": "The slide body text",
+      "visual_prompt": "Brief visual description for image generation"
+    }}
+  ],
+  "hook": "The hook text for the overall post caption",
+  "body": "Short accompanying caption for the carousel post (50-100 words)",
+  "topic": "Topic string"
+}}"""),
+            ("human", """Topic: {topic}
+Angle: {angle}
+Narrative arc: {narrative_arc}
+Slide plan:
+{slide_plan}
+
+Brand voice:
+{persona_summary}
+
+Write the carousel slide content."""),
+        ])
+
+        llm = self._get_writer_llm()
+
+        try:
+            chain = prompt | llm | JsonOutputParser()
+            result = chain.invoke({
+                "topic": brief.get("selected_topic", ""),
+                "angle": brief.get("content_angle", ""),
+                "narrative_arc": strategy.get("narrative_arc", "step_by_step"),
+                "slide_plan": json.dumps(slide_plan, indent=2),
+                "persona_summary": state.get("persona_prompt", "Professional voice")[:500],
+            })
+
+            slides = result.get("slides", [])
+            logger.info(f"Carousel Writer created {len(slides)} slides")
+
+            # Package as a draft (hook + body contain the carousel overview,
+            # the full slide content is stored separately)
+            draft = {
+                "hook": result.get("hook", slides[0].get("title", "") if slides else ""),
+                "body": result.get("body", ""),
+                "topic": result.get("topic", brief.get("selected_topic", "")),
+                "format": "carousel",
+                "carousel_data": {
+                    "slides": slides,
+                    "slide_count": len(slides),
+                    "narrative_arc": strategy.get("narrative_arc"),
+                },
+            }
+
+            return {
+                "draft": draft,
+                "refined_draft": draft,  # Skip editor for carousels (already structured)
+                "carousel_slides": slides,
+            }
+
+        except Exception as e:
+            logger.error(f"Carousel Writer error: {e}")
+            return {
+                "draft": None,
+                "carousel_slides": None,
+                "errors": state.get("errors", []) + [f"Carousel Writer error: {str(e)}"],
+            }
 
     # ========================================================================
     # Public Interface

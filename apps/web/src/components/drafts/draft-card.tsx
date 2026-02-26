@@ -4,7 +4,9 @@ import { Draft } from '@/lib/api/drafts';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn, formatRelativeTime, truncate } from '@/lib/utils';
-import { Calendar, Edit3, GripVertical, Sparkles, Clock, ExternalLink } from 'lucide-react';
+import { Calendar, Edit3, GripVertical, Sparkles, Clock, ExternalLink, Image, LayoutGrid } from 'lucide-react';
+import { ImagePreview } from '@/components/media/image-preview';
+import { CarouselViewer } from '@/components/media/carousel-viewer';
 
 interface DraftCardProps {
   draft: Draft;
@@ -18,8 +20,39 @@ export function DraftCard({ draft, onEdit, onSchedule, isDragging }: DraftCardPr
     draft.confidence >= 0.8
       ? 'text-green-600'
       : draft.confidence >= 0.6
-      ? 'text-blue-600'
-      : 'text-muted-foreground';
+        ? 'text-blue-600'
+        : 'text-muted-foreground';
+
+  const hasMedia = draft.media_assets && draft.media_assets.length > 0;
+  const carouselSlides = hasMedia
+    ? draft.media_assets.filter((a) => a.type === 'carousel_slide')
+    : [];
+  const singleImages = hasMedia
+    ? draft.media_assets.filter((a) => a.type === 'image' || a.type === 'cover_image')
+    : [];
+
+  // Parse carousel body for slide texts
+  let slideTexts: { title: string; body: string }[] | undefined;
+  if (draft.format === 'carousel') {
+    try {
+      const parsed = JSON.parse(draft.body);
+      if (parsed && Array.isArray(parsed.slides)) {
+        slideTexts = parsed.slides.map((s: any) => ({
+          title: s.title || '',
+          body: s.body || '',
+        }));
+      }
+    } catch { }
+  }
+
+  // Display body — for carousel, show caption not JSON
+  let displayBody = draft.body;
+  if (draft.format === 'carousel') {
+    try {
+      const parsed = JSON.parse(draft.body);
+      if (parsed?.caption) displayBody = parsed.caption;
+    } catch { }
+  }
 
   return (
     <Card
@@ -41,6 +74,18 @@ export function DraftCard({ draft, onEdit, onSchedule, isDragging }: DraftCardPr
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">
                 {draft.format}
               </span>
+              {carouselSlides.length > 0 && (
+                <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-xs text-cyan-700 flex items-center gap-1">
+                  <LayoutGrid className="h-3 w-3" />
+                  {carouselSlides.length} slides
+                </span>
+              )}
+              {singleImages.length > 0 && (
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 flex items-center gap-1">
+                  <Image className="h-3 w-3" />
+                  image
+                </span>
+              )}
             </div>
           </div>
           <div className={cn('flex items-center gap-1 text-xs', confidenceColor)}>
@@ -51,8 +96,25 @@ export function DraftCard({ draft, onEdit, onSchedule, isDragging }: DraftCardPr
       </CardHeader>
 
       <CardContent className="space-y-3">
+        {/* Carousel viewer for carousel slides */}
+        {carouselSlides.length > 0 && (
+          <CarouselViewer
+            slides={carouselSlides as any}
+            slideTexts={slideTexts}
+            compact
+          />
+        )}
+
+        {/* Image preview for single images (only if no carousel) */}
+        {carouselSlides.length === 0 && singleImages.length > 0 && (
+          <ImagePreview
+            assets={singleImages}
+            compact
+          />
+        )}
+
         <h4 className="font-medium leading-tight line-clamp-2">{draft.hook}</h4>
-        <p className="text-sm text-muted-foreground line-clamp-3">{truncate(draft.body, 120)}</p>
+        <p className="text-sm text-muted-foreground line-clamp-3">{truncate(displayBody, 120)}</p>
 
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">

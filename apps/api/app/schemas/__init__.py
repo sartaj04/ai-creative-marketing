@@ -24,6 +24,8 @@ from app.schemas.draft import (
     DraftResponse,
     DraftScheduleRequest,
     DraftStatusUpdate,
+    DraftSlideResponse,
+    DraftGenerateRequest,
 )
 from app.schemas.template import (
     TemplateCreate,
@@ -43,6 +45,22 @@ from app.schemas.identity_universe import (
     RegenerationRequest,
     RegenerationAccept,
     RegenerationField,
+)
+from app.schemas.media import (
+    MediaAssetResponse,
+    ImageRenderRequest,
+    ImageGenerateRequest,
+    ImageUploadResponse,
+)
+from app.schemas.visual_template import (
+    VariableFieldSchema,
+    VisualTemplateResponse,
+    VisualTemplateListResponse,
+    VisualTemplateCreateRequest,
+    VisualTemplateUpdateRequest,
+    VisualTemplatePreviewRequest,
+    SlideTemplateCreate,
+    SlideTemplateResponse,
 )
 
 __all__ = [
@@ -75,6 +93,8 @@ __all__ = [
     "DraftResponse",
     "DraftScheduleRequest",
     "DraftStatusUpdate",
+    "DraftSlideResponse",
+    "DraftGenerateRequest",
     # Template
     "TemplateCreate",
     "TemplateResponse",
@@ -84,4 +104,19 @@ __all__ = [
     "AnalyticsSummary",
     "TopicAnalytics",
     "FormatAnalytics",
+    # Media
+    "MediaAssetResponse",
+    "ImageRenderRequest",
+    "ImageGenerateRequest",
+    "ImageUploadResponse",
+    # Visual Templates
+    "VariableFieldSchema",
+    "VisualTemplateResponse",
+    "VisualTemplateListResponse",
+    "VisualTemplateCreateRequest",
+    "VisualTemplateUpdateRequest",
+    "VisualTemplatePreviewRequest",
+    "SlideTemplateCreate",
+    "SlideTemplateResponse",
 ]
+

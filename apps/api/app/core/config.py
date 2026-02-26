@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     YOUTUBE_PROXY_URL: Optional[str] = None
     YOUTUBE_PROXY_API_KEY: Optional[str] = None
 
+    # Unsplash (stock photo placeholders)
+    UNSPLASH_ACCESS_KEY: Optional[str] = None
+    UNSPLASH_SECRET_KEY: Optional[str] = None
+
     class Config:
 
         env_file = ".env"
