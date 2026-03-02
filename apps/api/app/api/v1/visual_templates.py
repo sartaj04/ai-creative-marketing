@@ -1,13 +1,15 @@
 """Visual template endpoints — browse, create, update, preview."""
 import logging
+from typing import List
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser, DBSession, get_user_profile_ids
+from app.api.deps import AdminUser, CurrentUser, DBSession, get_user_profile_ids
+from app.models.user import User
 from app.models.slide_template import SlideTemplate
 from app.models.visual_template import VisualTemplate, VisualTemplateType
 from app.schemas.visual_template import (
@@ -146,7 +148,7 @@ async def create_visual_template(
         tags=request.tags,
         platform=request.platform,
         dimensions=request.dimensions,
-        is_system=False,
+        is_system=current_user.is_admin,  # Admin-created templates are system templates
         created_by=current_user.id,
     )
     db.add(template)
@@ -561,6 +563,40 @@ async def delete_visual_template(
 
     await db.delete(template)
     await db.commit()
+
+
+# ── Fix existing templates ─────────────────────────────────────────────
+
+@router.post("/fix-system-flag", status_code=status.HTTP_200_OK)
+async def fix_existing_system_templates(
+    current_user: AdminUser,
+    db: DBSession,
+):
+    """One-time fix: mark all templates created by admin users as system templates."""
+    # Find all admin user IDs
+    admin_result = await db.execute(
+        select(User.id).where(User.is_admin == True)
+    )
+    admin_ids = list(admin_result.scalars().all())
+
+    if not admin_ids:
+        return {"updated": 0, "message": "No admin users found"}
+
+    # Update all visual templates created by admins to be system templates
+    stmt = (
+        update(VisualTemplate)
+        .where(
+            VisualTemplate.created_by.in_(admin_ids),
+            VisualTemplate.is_system == False,
+        )
+        .values(is_system=True)
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+
+    count = result.rowcount
+    logger.info(f"Fixed {count} visual templates to is_system=True")
+    return {"updated": count, "message": f"Marked {count} templates as system templates"}
 
 
 # ── Generic Image Endpoints for Template Editor ───────────────────────
