@@ -490,6 +490,12 @@ async def onboarding_chat(
     has_serious_playful = "✅" if existing_data.get("tone_serious_playful") is not None and existing_data.get("tone_serious_playful") != 0.5 else "❌ MISSING"
     has_humble_confident = "✅" if existing_data.get("tone_humble_confident") is not None and existing_data.get("tone_humble_confident") != 0.5 else "❌ MISSING"
     
+    # Count stories and opinions
+    stories = existing_data.get("stories", [])
+    stories_count = len(stories) if isinstance(stories, list) else 0
+    opinions = existing_data.get("opinion_statements", [])
+    opinions_count = len(opinions) if isinstance(opinions, list) else 0
+    
     # Generate Pixo's response
     conversation_prompt = PIXO_CONVERSATION_PROMPT.format(
         conversation_history=conversation_str,
@@ -505,6 +511,8 @@ async def onboarding_chat(
         has_technical_simple=has_technical_simple,
         has_serious_playful=has_serious_playful,
         has_humble_confident=has_humble_confident,
+        stories_count=stories_count,
+        opinions_count=opinions_count,
     )
     
     # Use appropriate system prompt based on mode
@@ -525,10 +533,18 @@ async def onboarding_chat(
         # If extraction fails, use existing data
         extracted_json = existing_data
     
-    # Merge with existing data (don't overwrite with empty values)
+    # Handle corrections: if the LLM flagged fields as corrected, allow overwrites
+    corrections = []
+    if isinstance(extracted_json, dict):
+        corrections = extracted_json.pop("corrections", []) or []
+    
+    # Merge with existing data (don't overwrite with empty values, UNLESS it's a correction)
     merged_data = {**existing_data}
     for key, value in extracted_json.items():
-        if value and (isinstance(value, list) and len(value) > 0 or not isinstance(value, list)):
+        if key in corrections:
+            # Correction: always overwrite, even with empty/updated value
+            merged_data[key] = value
+        elif value and (isinstance(value, list) and len(value) > 0 or not isinstance(value, list)):
             merged_data[key] = value
     
     # Check if we have enough data to complete
