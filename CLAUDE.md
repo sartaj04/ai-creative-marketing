@@ -2,7 +2,6 @@
 
 ## Project Overview
 - **Product**: Pixo — Agentic personal branding platform for LinkedIn/Twitter
-- **Client**: Brandscale (built by Neurocell Technologies)
 - **Status**: Active development — core agent loop working, expanding to rich media (carousels, images, visual templates)
 - **Mission**: Turn 60-min/day manual branding into a 5-min "Review & Approve" swipe workflow
 

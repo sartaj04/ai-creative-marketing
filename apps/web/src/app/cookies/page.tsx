@@ -55,7 +55,7 @@ export default function CookiesPage() {
 
                         <h3>5. Contact Us</h3>
                         <p>
-                            If you have any questions about our use of cookies, please contact us at <a href="mailto:hello@neurocell.in">hello@neurocell.in</a>.
+                            If you have any questions about our use of cookies, please contact us at <a href="mailto:hello@trypixo.com">hello@trypixo.com</a>.
                         </p>
                     </div>
                 </div>

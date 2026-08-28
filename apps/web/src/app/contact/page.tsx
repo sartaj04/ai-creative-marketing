@@ -95,7 +95,7 @@ export default function ContactPage() {
                                         <div>
                                             <h3 className="font-semibold text-slate-900 mb-1">Email</h3>
                                             <p className="text-slate-500 mb-1">Our friendly team is here to help.</p>
-                                            <a href="mailto:hello@neurocell.in" className="text-cyan-600 font-medium hover:underline">hello@neurocell.in</a>
+                                            <a href="mailto:hello@trypixo.com" className="text-cyan-600 font-medium hover:underline">hello@trypixo.com</a>
                                         </div>
                                     </div>
 

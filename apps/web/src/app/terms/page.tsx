@@ -25,7 +25,7 @@ export default function TermsPage() {
                     <div className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-headings:text-slate-900 prose-p:text-slate-600 prose-a:text-cyan-600 hover:prose-a:text-cyan-500">
                         <h3>1. Agreement to Terms</h3>
                         <p>
-                            These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you") and Neurocell Technologies Pvt Ltd ("we," "us" or "our"), concerning your access to and use of the Pixo website and application as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise connected thereto (collectively, the "Site").
+                            These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you") and Pixo ("we," "us" or "our"), concerning your access to and use of the Pixo website and application as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise connected thereto (collectively, the "Site").
                         </p>
 
                         <h3>2. Intellectual Property Rights</h3>
@@ -64,9 +64,9 @@ export default function TermsPage() {
                             In order to resolve a complaint regarding the Site or to receive further information regarding use of the Site, please contact us at:
                         </p>
                         <p>
-                            <strong>Neurocell Technologies Pvt Ltd</strong><br />
+                            <strong>Pixo</strong><br />
                             Hyderabad, India<br />
-                            <a href="mailto:hello@neurocell.in">hello@neurocell.in</a>
+                            <a href="mailto:hello@trypixo.com">hello@trypixo.com</a>
                         </p>
                     </div>
                 </div>

@@ -685,4 +685,3 @@ If you are adding a generation path, wire it through an existing LangGraph graph
 
 MIT — see [LICENSE](./LICENSE).
 
-Pixo was built for Brandscale by Neurocell Technologies.

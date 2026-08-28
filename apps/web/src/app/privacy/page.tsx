@@ -66,9 +66,9 @@ export default function PrivacyPage() {
                             If you have questions or comments about this Privacy Policy, please contact us at:
                         </p>
                         <p>
-                            <strong>Neurocell Technologies Pvt Ltd</strong><br />
+                            <strong>Pixo</strong><br />
                             Hyderabad, India<br />
-                            <a href="mailto:hello@neurocell.in">hello@neurocell.in</a>
+                            <a href="mailto:hello@trypixo.com">hello@trypixo.com</a>
                         </p>
                     </div>
                 </div>
