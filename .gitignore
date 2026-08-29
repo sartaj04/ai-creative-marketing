@@ -86,8 +86,8 @@ celerybeat.pid
 *.tmp
 .cache/
 
-# GCP Credentials (auto-generated, never commit)
+# GCP Credentials (never commit)
 gcp-credentials.json
 *-credentials.json
-macro-boulevard-483219-m2-9a82e00643a0.json
+/*.json
 

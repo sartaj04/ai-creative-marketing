@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Navbar, Footer } from '@/components/layout/landing-layout';
 import { ScrollReveal } from '@/components/landing/scroll-reveal';
 import { Card } from '@/components/ui/card';
+import { CONTACT_FORM_URL } from '@/lib/form-endpoints';
 
 // Note: Metadata needs to be in a separate file or this file needs to be server component.
 // Since we need 'use client' for the form, I'll export metadata from a layout or separate page if needed.
@@ -38,14 +39,22 @@ import { Card } from '@/components/ui/card';
 export default function ContactPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        setError(null);
+
+        if (!CONTACT_FORM_URL) {
+            setError('Contact form is not configured.');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
             const formData = new FormData(e.currentTarget);
-            const response = await fetch("https://formspree.io/f/mjgrbbzy", {
+            const response = await fetch(CONTACT_FORM_URL, {
                 method: "POST",
                 body: formData,
                 headers: {
@@ -56,10 +65,12 @@ export default function ContactPage() {
             if (response.ok) {
                 setIsSuccess(true);
             } else {
+                setError('Something went wrong. Please try again.');
                 console.error("Form submission failed");
             }
-        } catch (error) {
-            console.error("Form submission error", error);
+        } catch (err) {
+            setError('Something went wrong. Please try again.');
+            console.error("Form submission error", err);
         } finally {
             setIsSubmitting(false);
         }
@@ -94,8 +105,7 @@ export default function ContactPage() {
                                         </div>
                                         <div>
                                             <h3 className="font-semibold text-slate-900 mb-1">Email</h3>
-                                            <p className="text-slate-500 mb-1">Our friendly team is here to help.</p>
-                                            <a href="mailto:hello@trypixo.com" className="text-cyan-600 font-medium hover:underline">hello@trypixo.com</a>
+                                            <p className="text-slate-500">Our friendly team is here to help. Send a message using the form.</p>
                                         </div>
                                     </div>
 
@@ -168,6 +178,10 @@ export default function ContactPage() {
                                                 required
                                             />
                                         </div>
+
+                                        {error && (
+                                            <p className="text-sm text-red-600">{error}</p>
+                                        )}
 
                                         <Button
                                             type="submit"

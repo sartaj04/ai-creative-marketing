@@ -31,7 +31,7 @@ const faqs = [
             },
             {
                 q: "Do you offer enterprise plans?",
-                a: "Yes, we offer custom enterprise solutions for teams and organizations. Please contact our sales team at hello@trypixo.com for more information."
+                a: "Yes, we offer custom enterprise solutions for teams and organizations. Please visit our contact page for more information."
             }
         ]
     },
@@ -99,7 +99,7 @@ export default function HelpPage() {
                             Can't find the answer you're looking for? Our team is here to help you get the most out of Pixo.
                         </p>
                         <a
-                            href="mailto:hello@trypixo.com"
+                            href="/contact"
                             className="inline-flex items-center justify-center h-12 px-8 font-semibold text-white transition-colors bg-cyan-600 rounded-lg hover:bg-cyan-500"
                         >
                             Contact Support

@@ -68,7 +68,7 @@ export default function PrivacyPage() {
                         <p>
                             <strong>Pixo</strong><br />
                             Hyderabad, India<br />
-                            <a href="mailto:hello@trypixo.com">hello@trypixo.com</a>
+                            <a href="/contact">Contact page</a>
                         </p>
                     </div>
                 </div>

@@ -119,7 +119,7 @@ const { toast } = useToast()
 2. **Alembic migrations**: two new unrun migrations as of Feb 2026. Run before testing new models.
 3. **AI_PROVIDER env var**: switches between `gemini` and `bedrock`. Default is `gemini`.
 4. **AWS region**: S3 is `ap-south-1`, Bedrock is `us-east-1` — don't mix them
-5. **GCP service account key**: `macro-boulevard-483219-m2-9a82e00643a0.json` is in root — never commit new keys
+5. **GCP service account key**: keep JSON keys out of git — they are gitignored (`*-credentials.json`)
 6. **`workers/` directory**: separate from Celery tasks — check both for background work
 
 ## Running Locally

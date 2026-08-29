@@ -494,6 +494,9 @@ Frontend local env (`apps/web/.env.local`):
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_APP_NAME=Pixo
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_CONTACT_FORM_URL=
+NEXT_PUBLIC_NEWSLETTER_FORM_URL=
 ```
 
 ### 2. Docker (API + Celery + web)

@@ -39,7 +39,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
                     }}
                 >
                     <img
-                        src="https://www.trypixo.com/android-chrome-192x192.png"
+                        src={`${siteConfig.url}/android-chrome-192x192.png`}
                         height="64"
                         width="64"
                         style={{ borderRadius: '12px', marginRight: '16px' }}

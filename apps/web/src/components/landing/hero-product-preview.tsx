@@ -316,7 +316,7 @@ export function HeroProductPreview() {
             <div className="w-3 h-3 rounded-full bg-[#28CA41] shadow-sm" />
           </div>
           <div className="ml-4 flex-1 h-7 bg-white rounded-lg border border-slate-200 flex items-center px-3 shadow-inner">
-            <span className="text-[11px] text-slate-400 font-medium tracking-tight">app.trypixo.com</span>
+            <span className="text-[11px] text-slate-400 font-medium tracking-tight">Pixo</span>
           </div>
         </div>
 

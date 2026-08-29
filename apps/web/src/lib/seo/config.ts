@@ -3,7 +3,7 @@ export const siteConfig = {
   tagline: 'Autonomous Brand Operating System',
   description:
     'The autonomous brand operating system for personal and enterprise use. Pixo agents learn your voice, find opportunities, and deliver ready content daily.',
-  url: 'https://www.trypixo.com',
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
   locale: 'en_US',
   twitter: {
     handle: '@pixoai',
@@ -38,7 +38,7 @@ export const siteConfig = {
     'social selling',
     'employee advocacy',
   ],
-  authors: [{ name: 'Pixo', url: 'https://www.trypixo.com' }],
+  authors: [{ name: 'Pixo' }],
   ogImage: '/og-default.png',
   twitterImage: '/og-default.png',
   themeColor: '#0891B2',
