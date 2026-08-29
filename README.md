@@ -189,7 +189,7 @@ Gemini is the default for cost. Claude is reserved for heavier work (style analy
 | YouTube | Cloudflare Worker proxy (`workers/youtube-transcript`) |
 | Stock photos | Unsplash API |
 | Local run | Docker Compose |
-| Deploy (reference) | Railway (API + Celery) + Vercel (web) — see `DEPLOYMENT.md` |
+| Deploy (reference) | Railway (API + Celery) + Vercel (web) |
 
 ---
 
@@ -448,8 +448,7 @@ Access control: always `get_profile_with_access(profile_id, current_user, db)` i
 │   └── youtube-transcript/           # Cloudflare Worker (Wrangler)
 ├── docker-compose.yml
 ├── Makefile
-├── .env.example
-└── DEPLOYMENT.md
+└── .env.example
 ```
 
 ### Dashboard routes
